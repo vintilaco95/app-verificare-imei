@@ -1,0 +1,92 @@
+services:
+  # Main Web Service
+  - type: web
+    name: imei-verification-app
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: imei-verification-app
+          property: port
+      - key: MONGODB_URI
+        sync: false  # Setează manual în dashboard-ul Render
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: imei-redis
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true  # Render va genera automat
+      - key: IMEI_API_KEY
+        sync: false  # Setează manual
+      - key: EMAIL_HOST
+        sync: false  # Setează manual
+      - key: EMAIL_PORT
+        value: 465
+      - key: EMAIL_USER
+        sync: false  # Setează manual
+      - key: EMAIL_PASS
+        sync: false  # Setează manual
+      - key: EMAIL_FROM
+        sync: false  # Setează manual
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: imei-verification-app
+          property: host
+      - key: STRIPE_SECRET_KEY
+        sync: false  # Setează manual
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false  # Setează manual
+      - key: IMEI_WORKER_CONCURRENCY
+        value: 5
+
+  # Redis Service (pentru job queue)
+  - type: redis
+    name: imei-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+
+  # Worker Service (procesează job-urile din coadă)
+  - type: worker
+    name: imei-worker
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm run worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: imei-redis
+          property: connectionString
+      - key: IMEI_API_KEY
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAIL_HOST
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAIL_PORT
+        value: 465
+      - key: EMAIL_USER
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAIL_PASS
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAIL_FROM
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: imei-verification-app
+          property: host
+      - key: IMEI_WORKER_CONCURRENCY
+        value: 5
+
