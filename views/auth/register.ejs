@@ -1,0 +1,46 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <h1 class="auth-title">Înregistrare</h1>
+    <p class="auth-subtitle">Creează un cont pentru a verifica IMEI-uri</p>
+    
+    <%- include('../partials/flash', { errors: errors }) %>
+    
+  <form action="/auth/register" method="POST" class="auth-form">
+    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          required 
+          autocomplete="email"
+          placeholder="exemplu@email.com"
+        >
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Parolă</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          required 
+          autocomplete="new-password"
+          placeholder="Minim 6 caractere"
+          minlength="6"
+        >
+      </div>
+      
+      <button type="submit" class="btn btn-primary btn-block">Înregistrare</button>
+    </form>
+    
+    <p class="auth-footer">
+      Ai deja cont? <a href="/auth/login">Autentifică-te</a>
+    </p>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

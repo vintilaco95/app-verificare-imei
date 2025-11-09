@@ -1,0 +1,116 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>Dashboard</h1>
+    <p>Bun venit, <%= user.email %>!</p>
+    <a href="/dashboard/credits/topup" class="btn btn-primary">Adaugă credite</a>
+  </div>
+
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <div class="stat-icon">📱</div>
+      <div class="stat-content">
+        <h3>Verificări totale</h3>
+        <p class="stat-value"><%= typeof totalOrders !== 'undefined' ? totalOrders : orders.length %></p>
+        <a href="/dashboard/orders" class="stat-link">Vezi toate →</a>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-content">
+        <h3>Credite disponibile</h3>
+        <p class="stat-value"><%= user.credits.toFixed(2) %></p>
+        <a href="/dashboard/credits" class="stat-link">Vezi istoric →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-sections">
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h2>Verificări recente</h2>
+        <span class="section-subtitle">Ultimele 4 verificări</span>
+      </div>
+      <% if (orders.length > 0) { %>
+        <div class="orders-list">
+          <% orders.forEach(order => { %>
+            <div class="order-item">
+              <div class="order-info">
+                <p class="order-imei"><strong>IMEI:</strong> <%= order.imei %></p>
+                <p class="order-model"><%= order.model || 'Unknown' %></p>
+                <p class="order-date"><%= new Date(order.createdAt).toLocaleDateString('ro-RO') %></p>
+              </div>
+              <div class="order-status">
+                <span class="status-badge status-<%= order.status %>">
+                  <% if (order.status === 'pending') { %>
+                    În proces
+                  <% } else if (order.status === 'success') { %>
+                    Finalizat
+                  <% } else if (order.status === 'failed') { %>
+                    Eșuat
+                  <% } else if (order.status === 'error') { %>
+                    Eroare
+                  <% } else { %>
+                    <%= order.status %>
+                  <% } %>
+                </span>
+                <% if (order.status === 'success' || order.status === 'failed') { %>
+                  <a href="/verify/result/<%= order._id %>" class="btn btn-sm">Vezi rezultat</a>
+                <% } else if (order.status === 'pending') { %>
+                  <a href="/verify/processing/<%= order._id %>" class="btn btn-sm">Vezi status</a>
+                <% } else { %>
+                  <span class="btn btn-sm" style="opacity: 0.5; cursor: not-allowed;">N/A</span>
+                <% } %>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+        <a href="/dashboard/orders" class="btn btn-secondary">Vezi toate verificările</a>
+      <% } else { %>
+        <p class="empty-state">Nu ai făcut încă nicio verificare.</p>
+        <a href="/verify/imei" class="btn btn-primary">Verifică primul IMEI</a>
+      <% } %>
+    </div>
+
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h2>Tranzacții recente</h2>
+        <span class="section-subtitle">Ultimele 4 tranzacții</span>
+      </div>
+      <% if (transactions.length > 0) { %>
+        <div class="transactions-list">
+          <% transactions.forEach(transaction => { %>
+            <% const hasOrderLink = transaction.orderId && transaction.orderId._id; %>
+            <% const transactionLink = hasOrderLink ? `/verify/result/${transaction.orderId._id}` : null; %>
+            <div class="transaction-item-wrapper">
+              <% if (transactionLink) { %>
+                <a href="<%= transactionLink %>" class="transaction-item transaction-link">
+              <% } else { %>
+                <div class="transaction-item">
+              <% } %>
+                  <div class="transaction-info">
+                    <p class="transaction-desc"><%= transaction.description %></p>
+                    <p class="transaction-date"><%= new Date(transaction.createdAt).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %></p>
+                  </div>
+                  <div class="transaction-amount <%= transaction.type === 'purchase' || transaction.type === 'refund' ? 'positive' : 'negative' %>">
+                    <%= (transaction.type === 'purchase' || transaction.type === 'refund') ? '+' : '' %><%= transaction.amount.toFixed(2) %> credite
+                  </div>
+              <% if (transactionLink) { %>
+                </a>
+              <% } else { %>
+              </div>
+              <% } %>
+            </div>
+          <% }); %>
+        </div>
+        <a href="/dashboard/credits" class="btn btn-secondary">Vezi toate tranzacțiile</a>
+      <% } else { %>
+        <p class="empty-state">Nu ai tranzacții încă.</p>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,21 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>Plată reușită</h1>
+    <a href="/dashboard/credits" class="btn btn-primary">Vezi creditele</a>
+  </div>
+
+  <div class="success-card">
+    <div class="success-icon">✅</div>
+    <h2>Plata a fost procesată cu succes!</h2>
+    <p>Ai plătit <strong><%= chargedAmount.toFixed(2) %> RON</strong>. <%= transactionRecorded ? 'Creditele au fost deja adăugate în contul tău.' : 'Creditele vor apărea în câteva secunde după confirmarea plății.' %></p>
+    <div class="success-actions">
+      <a href="/dashboard/credits" class="btn btn-primary">Vezi creditele</a>
+      <a href="/verify/imei" class="btn btn-secondary">Începe o verificare IMEI</a>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+

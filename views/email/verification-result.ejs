@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+</head>
+<body style="margin:0; padding:0; background-color:#f3f4f6; font-family:'Segoe UI', Arial, sans-serif; color:#0f172a;" bgcolor="#f3f4f6">
+  <%
+    function resolveColor(entry) {
+      if (!entry) return '#0f172a';
+      if (entry.color) return entry.color;
+      switch (entry.status) {
+        case 'safe': return '#16a34a';
+        case 'warning':
+        case 'locked_orange':
+          return '#d97706';
+        case 'danger':
+        case 'locked':
+        case 'blacklisted':
+          return '#b91c1c';
+        default:
+          return '#0f172a';
+      }
+    }
+
+    function badgeBackground(entry) {
+      const base = resolveColor(entry);
+      if (base === '#16a34a') return '#dcfce7';
+      if (base === '#d97706') return '#fef3c7';
+      if (base === '#b91c1c') return '#fee2e2';
+      return '#e2e8f0';
+    }
+  %>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f3f4f6" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:720px; background:#ffffff; border-radius:20px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 25px 60px -30px rgba(15, 23, 42, 0.12);">
+          <tr>
+            <td style="padding:32px 36px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="font-size:26px; font-weight:700; color:#0f172a;">
+                    <span style="display:inline-flex; width:48px; height:48px; border-radius:14px; background:#2563eb; color:#ffffff; align-items:center; justify-content:center; margin-right:14px; box-shadow:0 18px 35px -24px rgba(37,99,235,0.6);">🔍</span>
+                    IMEI Check · Raport verificare
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-top:10px; font-size:15px; color:#4b5563;">
+                    Rezultat verificare pentru IMEI <strong style="color:#0f172a;"><%= order.imei %></strong> · Generat la <%= order.createdAt %>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 36px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border:1px solid #dbeafe; border-radius:18px; overflow:hidden;">
+                <tr>
+                  <td style="padding:26px 26px 18px;">
+                    <div style="font-size:14px; text-transform:uppercase; letter-spacing:0.1em; color:#2563eb; font-weight:600;">Scor siguranță</div>
+                    <div style="font-size:38px; font-weight:800; margin-top:6px; color:<%= scoreColor %>;"><%= riskScore %> / 10</div>
+                    <div style="font-size:16px; font-weight:600; color:<%= scoreColor %>;"><%= riskText %></div>
+                    <% if (summaryText) { %>
+                      <p style="margin:16px 0 0; color:#1f2937; font-size:16px; line-height:1.6;">
+                        <%= summaryText %>
+                      </p>
+                    <% } %>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 36px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;">
+                <tr>
+                  <td style="padding:22px 26px;">
+                    <div style="font-size:16px; font-weight:700; letter-spacing:0.04em; color:#0f172a; text-transform:uppercase; margin-bottom:14px;">Date dispozitiv</div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                      <tbody>
+                        <tr>
+                          <td style="padding:6px 0; color:#6b7280; font-size:14px;">Brand</td>
+                          <td style="padding:6px 0; color:#0f172a; font-size:15px;" align="right"><%= device.brand || '—' %></td>
+                        </tr>
+                        <tr>
+                          <td style="padding:6px 0; color:#6b7280; font-size:14px;">Model</td>
+                          <td style="padding:6px 0; color:#0f172a; font-size:15px;" align="right"><%= device.model %></td>
+                        </tr>
+                        <% if (device.modelDesc) { %>
+                        <tr>
+                          <td style="padding:6px 0; color:#6b7280; font-size:14px;">Descriere</td>
+                          <td style="padding:6px 0; color:#0f172a; font-size:15px;" align="right"><%= device.modelDesc %></td>
+                        </tr>
+                        <% } %>
+                        <% if (device.imei2) { %>
+                        <tr>
+                          <td style="padding:6px 0; color:#6b7280; font-size:14px;">IMEI secundar</td>
+                          <td style="padding:6px 0; color:#0f172a; font-size:15px;" align="right"><%= device.imei2 %></td>
+                        </tr>
+                        <% } %>
+                        <% if (device.serial) { %>
+                        <tr>
+                          <td style="padding:6px 0; color:#6b7280; font-size:14px;">Serial</td>
+                          <td style="padding:6px 0; color:#0f172a; font-size:15px;" align="right"><%= device.serial %></td>
+                        </tr>
+                        <% } %>
+                        <% if (device.eid) { %>
+                        <tr>
+                          <td style="padding:6px 0; color:#6b7280; font-size:14px;">EID (eSIM)</td>
+                          <td style="padding:6px 0; color:#0f172a; font-size:15px;" align="right"><%= device.eid %></td>
+                        </tr>
+                        <% } %>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <% if (criticalInfo && criticalInfo.length) { %>
+          <tr>
+            <td style="padding:0 36px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:18px; overflow:hidden;">
+                <tr>
+                  <td style="padding:22px 26px;">
+                    <div style="font-size:16px; font-weight:700; letter-spacing:0.04em; color:#0f172a; text-transform:uppercase; margin-bottom:16px;">Informații critice</div>
+                    <% criticalInfo.forEach(function(item) { %>
+                      <div style="margin-bottom:14px; padding:16px 18px; background:<%= badgeBackground(item) %>; border-radius:14px; border:1px solid rgba(15,23,42,0.08);">
+                        <div style="font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:#6b7280; margin-bottom:4px;"><%= item.label %></div>
+                        <div style="font-size:15px; font-weight:600; color:<%= resolveColor(item) %>; line-height:1.55;"><%= item.value %></div>
+                      </div>
+                    <% }); %>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <% } %>
+
+          <% if (alerts && alerts.length) { %>
+          <tr>
+            <td style="padding:0 36px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2; border-radius:18px; border:1px solid #fecaca;">
+                <tr>
+                  <td style="padding:22px 26px;">
+                    <div style="font-size:16px; font-weight:700; color:#b91c1c; display:flex; align-items:center; gap:10px;">
+                      <span style="font-size:20px;">⚠️</span> Atenție – Probleme identificate
+                    </div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
+                      <% alerts.forEach(function(alert) { %>
+                        <tr>
+                          <td style="padding:10px 0;">
+                            <div style="font-size:15px; font-weight:600; color:#b91c1c;"><%= alert.title %></div>
+                            <div style="font-size:14px; color:#b91c1c; line-height:1.6; margin-top:4px;"><%= alert.text %></div>
+                          </td>
+                        </tr>
+                      <% }); %>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <% } %>
+
+          <% if (additionalResults && additionalResults.length) { %>
+          <tr>
+            <td style="padding:0 36px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff; border:1px solid #e5e7eb; border-radius:18px; overflow:hidden;">
+                <tr>
+                  <td style="padding:22px 26px;">
+                    <div style="font-size:16px; font-weight:700; letter-spacing:0.04em; color:#0f172a; text-transform:uppercase; margin-bottom:16px;">Verificări suplimentare</div>
+                    <% additionalResults.forEach(function(result) { %>
+                      <div style="margin-bottom:18px; padding:18px 20px; background:#f8fafc; border-radius:14px; border:1px solid #e2e8f0;">
+                        <div style="font-size:16px; font-weight:700; color:#0f172a;"><%= result.title %></div>
+                        <% if (result.description) { %>
+                          <div style="font-size:14px; color:#4b5563; margin-top:6px;"><%= result.description %></div>
+                        <% } %>
+                        <% if (result.content) { %>
+                          <div style="margin-top:14px; font-size:14px; color:#1f2937; line-height:1.6;">
+                            <%- result.content %>
+                          </div>
+                        <% } %>
+                      </div>
+                    <% }); %>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <% } %>
+
+          <tr>
+            <td style="padding:0 36px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border-radius:16px; border:1px solid #e2e8f0;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <div style="font-size:14px; color:#4b5563; line-height:1.6;">
+                      Poți accesa oricând rezultatul complet și istoricul verificărilor din contul tău IMEI Check.
+                      Dacă nu ai inițiat această verificare sau observi date incorecte, contactează-ne la 
+                      <a href="mailto:telefoane@zengsm.ro" style="color:#2563eb; text-decoration:none;">telefoane@zengsm.ro</a>.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+

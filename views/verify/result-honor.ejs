@@ -1,0 +1,278 @@
+<% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
+<% if (!isEmailView) { %>
+  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<% } %>
+
+<div class="result-container">
+  <% 
+    // Parse Honor data from HTML result (data should be pre-parsed in route)
+    const honorData = typeof honorParsedData !== 'undefined' ? honorParsedData : {};
+    
+    // Critical information is already formatted in route handler
+    // Use passed variables: iCloud, blacklist, knox, mdm, lostMode, networkLock, warranty, origin
+    
+    const model = honorData.marketingName || honorData.skuName || 'Dispozitiv necunoscut';
+    const skuName = honorData.skuName || '';
+    const modelNumber = honorData.modelNumber || '';
+    const externalModel = honorData.externalModel || '';
+    const imei = honorData.imei || order.imei;
+    const imei1 = honorData.imei1 || '';
+    const serial = honorData.serial || '';
+    const deviceColor = honorData.deviceColor || '';
+    const deviceROM = honorData.deviceROM || '';
+    const deviceRAM = honorData.deviceRAM || '';
+    const simType = honorData.simType || '';
+    const softwareVersion = honorData.softwareVersion || '';
+    const warrantyStatus = honorData.warrantyStatus || '';
+    const warrantyStartDate = honorData.warrantyStartDate || '';
+    const warrantyEndDate = honorData.warrantyEndDate || '';
+    const warrantyType = honorData.warrantyType || '';
+    const validInCountry = honorData.validInCountry || '';
+    const countryName = honorData.countryName || '';
+    const factoryName = honorData.factoryName || '';
+    const companyName = honorData.companyName || '';
+    const contract = honorData.contract || '';
+    const bindDate = honorData.bindDate || '';
+  %>
+
+  <div class="imei-report">
+    <!-- HEADER -->
+    <div class="report-header">
+      <div class="header-content">
+        <p class="report-label">Rezultat verificare IMEI</p>
+        <h2 class="report-model"><%= model %></h2>
+        <% if (skuName) { %>
+          <p class="report-desc">SKU: <strong><%= skuName %></strong></p>
+        <% } %>
+        <% if (modelNumber) { %>
+          <p class="report-desc">Model Number: <strong><%= modelNumber %></strong></p>
+        <% } %>
+      </div>
+      <!-- SCOR RISC -->
+      <div class="score-box">
+        <p class="score-label">Scor siguranță</p>
+        <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / 10</p>
+        <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
+      </div>
+    </div>
+
+    <!-- INFORMATII CRITICE DE SECURITATE -->
+    <% 
+      // Ensure all critical variables are defined with defaults
+      const blacklistSafe = typeof blacklist !== 'undefined' && blacklist ? blacklist : { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' };
+      const mdmSafe = typeof mdm !== 'undefined' ? mdm : null;
+      const networkLockSafe = typeof networkLock !== 'undefined' && networkLock ? networkLock : { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' };
+      const warrantySafe = typeof warranty !== 'undefined' && warranty ? warranty : { hasInfo: false, text: 'Nu avem informații despre garanție' };
+      const originSafe = typeof origin !== 'undefined' && origin ? origin : { hasInfo: false, text: 'Nu avem informații despre proveniență' };
+    %>
+    <div class="critical-info-section">
+      <div class="critical-info-card">
+        <h3 class="critical-info-title">🔒 Informații Critice de Securitate</h3>
+        
+        <div class="critical-info-grid">
+          <!-- 1. Blacklist Status -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Status Blacklist:</div>
+            <div class="critical-info-value status-<%= blacklistSafe.status === 'blacklisted' ? 'danger' : blacklistSafe.status === 'clean' ? 'safe' : 'unknown' %>">
+              <%= blacklistSafe.text %>
+            </div>
+          </div>
+          
+          <!-- 2. MDM Lock -->
+          <% if (mdmSafe) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">MDM Lock:</div>
+            <div class="critical-info-value status-<%= mdmSafe.status === 'locked' ? 'warning' : mdmSafe.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= mdmSafe.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 3. Network Lock -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Blocare Rețea:</div>
+            <div class="critical-info-value status-<%= networkLockSafe.status === 'locked' ? 'danger' : networkLockSafe.status === 'locked_orange' ? 'warning' : networkLockSafe.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= networkLockSafe.text %>
+            </div>
+          </div>
+          
+          <!-- 4. Warranty Info -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Garanție:</div>
+            <div class="critical-info-value status-<%= warrantySafe.hasInfo ? (warrantySafe.status === 'active' ? 'safe' : warrantySafe.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
+              <%= warrantySafe.text %>
+            </div>
+          </div>
+          
+          <!-- 5. Origin Info -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Proveniență:</div>
+            <div class="critical-info-value <%= originSafe.hasInfo ? '' : 'status-unknown' %>">
+              <%= originSafe.text %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTE (dacă sunt probleme critice) -->
+    <% if (blacklistSafe && blacklistSafe.status === 'blacklisted') { %>
+      <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+        <div class="alert-icon">🚫</div>
+        <div class="alert-content">
+          <p><strong>Dispozitiv Blocat/Furat</strong></p>
+          <p>Dispozitivul este înregistrat în baza de date ca blocat sau furat. <strong>NU CUMPĂRA</strong> acest dispozitiv.</p>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- INFORMATII SUPLIMENTARE -->
+    <div class="report-grid">
+      <!-- IDENTIFICARE -->
+      <div class="report-card">
+        <h3>Identificare dispozitiv</h3>
+        <p>Marketing Name: <strong><%= model %></strong></p>
+        <% if (skuName) { %>
+          <p>SKU Name: <strong><%= skuName %></strong></p>
+        <% } %>
+        <% if (modelNumber) { %>
+          <p>Model Number: <strong><%= modelNumber %></strong></p>
+        <% } %>
+        <% if (externalModel) { %>
+          <p>External Model: <strong><%= externalModel %></strong></p>
+        <% } %>
+        <p>IMEI: <strong><%= imei %></strong></p>
+        <% if (imei1) { %>
+          <p>IMEI secundar: <strong><%= imei1 %></strong></p>
+        <% } %>
+        <% if (serial) { %>
+          <p>Serial Number: <strong><%= serial %></strong></p>
+        <% } %>
+        <% if (contract) { %>
+          <p>Contract: <strong><%= contract %></strong></p>
+        <% } %>
+      </div>
+      
+      <!-- SPECIFICAȚII -->
+      <div class="report-card">
+        <h3>Specificații dispozitiv</h3>
+        <% if (deviceColor) { %>
+          <p>Culoare: <strong><%= deviceColor %></strong></p>
+        <% } %>
+        <% if (deviceROM) { %>
+          <p>Memorie: <strong><%= deviceROM %></strong></p>
+        <% } %>
+        <% if (deviceRAM) { %>
+          <p>RAM: <strong><%= deviceRAM %></strong></p>
+        <% } %>
+        <% if (simType) { %>
+          <p>Tip SIM: <strong><%= simType %></strong></p>
+        <% } %>
+        <% if (softwareVersion) { %>
+          <p>Versiune software: <strong><%= softwareVersion %></strong></p>
+        <% } %>
+      </div>
+      
+      <!-- GARANȚIE & ACOPERIRE -->
+      <div class="report-card">
+        <h3>Garanție & acoperire</h3>
+        <% if (warrantyStatus) { %>
+          <p>Status garanție: <strong><%= warrantyStatus %></strong></p>
+        <% } %>
+        <% if (warrantyStartDate) { %>
+          <p>Data început: <strong><%= warrantyStartDate %></strong></p>
+        <% } %>
+        <% if (warrantyEndDate) { %>
+          <p>Data expirare: <strong><%= warrantyEndDate %></strong></p>
+        <% } %>
+        <% if (warrantyType) { %>
+          <p>Tip garanție: <strong><%= warrantyType %></strong></p>
+        <% } %>
+        <% if (validInCountry) { %>
+          <p>Valabil în: <strong><%= validInCountry %></strong></p>
+        <% } %>
+        <% if (bindDate) { %>
+          <p>Data legare: <strong><%= bindDate %></strong></p>
+        <% } %>
+        <p class="form-hint">⚠️ Verifică mereu factura originală – datele pot fi doar estimative.</p>
+      </div>
+      
+      <!-- PRODUCȚIE & DISTRIBUȚIE -->
+      <div class="report-card">
+        <h3>Producție & distribuție</h3>
+        <% if (factoryName) { %>
+          <p>Fabrica: <strong><%= factoryName %></strong></p>
+        <% } %>
+        <% if (countryName) { %>
+          <p>Țară: <strong><%= countryName %></strong></p>
+        <% } %>
+        <% if (companyName) { %>
+          <p>Companie: <strong><%= companyName %></strong></p>
+        <% } %>
+        <p class="form-hint">👉 Verifică proveniența și distribuitorul autorizat.</p>
+      </div>
+    </div>
+
+    <!-- VERIFICĂRI SUPLIMENTARE -->
+    <% if (typeof additionalResults !== 'undefined' && additionalResults && additionalResults.length > 0) { %>
+      <div class="additional-results-section">
+        <h2 class="section-title">Verificări suplimentare</h2>
+        <p class="section-subtitle">Rezultatele verificărilor suplimentare pe care le-ai solicitat</p>
+        
+        <% additionalResults.forEach((item, index) => { %>
+          <div class="additional-result-card">
+            <div class="additional-result-header">
+              <h3>
+                <span class="result-icon">
+                  <% if (item.service.category === 'Proveniență') { %>🔍<% } else if (item.service.category === 'Securitate') { %>🛡️<% } else { %>📱<% } %>
+                </span>
+                <%= item.service.displayName || item.service.name %>
+              </h3>
+              <span class="result-category"><%= item.service.category || 'Verificare' %></span>
+            </div>
+            
+            <div class="additional-result-description">
+              <p><%= item.service.description %></p>
+            </div>
+            
+            <div class="additional-result-content">
+              <pre class="result-raw"><%= item.formattedResult %></pre>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <!-- SFATURI -->
+    <div class="report-tips">
+      <h3>Sfaturi pentru cumpărător</h3>
+      <ol>
+        <li>Verifică dacă dispozitivul este în garanție și dacă garanția este valabilă în țara ta.</li>
+        <li>Verifică dacă dispozitivul nu este blocat (blacklist).</li>
+        <li>Resetează complet dispozitivul și verifică dacă nu mai cere cont vechi.</li>
+        <li>Verifică factura și proveniența.</li>
+        <li>Testează toate funcțiile hardware (camera, microfon, difuzor).</li>
+        <li>Verifică starea bateriei în setări.</li>
+        <li>Asigură-te că toate actualizările software sunt instalate.</li>
+      </ol>
+    </div>
+
+    <!-- CONCLUZIE -->
+    <div class="report-conclusion">
+      <div class="conclusion-box">
+        <p><strong>Concluzie:</strong> <%= typeof summaryText !== 'undefined' ? summaryText : 'Dispozitivul este în regulă pentru achiziție.' %></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+    <% if (user) { %>
+      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
+    <% } %>
+  </div>
+</div>
+
+<% if (!isEmailView) { %>
+  <%- include('../partials/footer') %>
+<% } %>

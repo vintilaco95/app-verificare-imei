@@ -1,0 +1,140 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>Istoric verificări</h1>
+    <div class="dashboard-actions">
+      <a href="/dashboard/credits/topup" class="btn btn-secondary">Adaugă credite</a>
+      <a href="/verify/imei" class="btn btn-primary">Verifică nou IMEI</a>
+    </div>
+  </div>
+
+  <% if (typeof groupedOrders !== 'undefined' && groupedOrders.length > 0) { %>
+    <div class="grouped-orders">
+      <% groupedOrders.forEach(group => { %>
+        <div class="imei-group">
+          <div class="imei-group-header" onclick="toggleGroup('<%= group.imei %>')">
+            <div class="imei-group-info">
+              <h3>
+                <span class="imei-code"><%= group.imei %></span>
+                <span class="imei-count">(<%= group.count %> verificări)</span>
+              </h3>
+              <p class="imei-model"><%= group.model %> - <%= group.brand %></p>
+              <p class="imei-last-checked">Ultima verificare: <%= new Date(group.lastChecked).toLocaleString('ro-RO') %></p>
+            </div>
+            <div class="imei-group-toggle">
+              <svg class="toggle-icon" id="icon-<%= group.imei %>" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"></path>
+              </svg>
+            </div>
+          </div>
+          
+          <div class="imei-group-orders" id="group-<%= group.imei %>" style="display: none;">
+            <% group.orders.forEach(order => { %>
+              <div class="order-item">
+                <div class="order-info">
+                  <p class="order-date"><strong>Data:</strong> <%= new Date(order.createdAt).toLocaleString('ro-RO') %></p>
+                  <p class="order-model"><%= order.model || 'Unknown' %></p>
+                  <p class="order-cost">Cost: <%= order.price.toFixed(2) %> credite</p>
+                  <% if (order.additionalServices && order.additionalServices.length > 0) { %>
+                    <p class="order-additional">
+                      <strong>Verificări suplimentare:</strong> 
+                      <span class="additional-badge"><%= order.additionalServices.length %> verificări</span>
+                    </p>
+                  <% } %>
+                </div>
+                <div class="order-actions">
+                  <span class="status-badge status-<%= order.status %>">
+                    <% if (order.status === 'pending') { %>
+                      În proces
+                    <% } else if (order.status === 'success') { %>
+                      Finalizat
+                    <% } else if (order.status === 'failed') { %>
+                      Eșuat
+                    <% } else if (order.status === 'error') { %>
+                      Eroare
+                    <% } else { %>
+                      <%= order.status %>
+                    <% } %>
+                  </span>
+                  <% if (order.status === 'success' || order.status === 'failed') { %>
+                    <a href="/verify/result/<%= order._id %>" class="btn btn-sm">Vezi rezultat</a>
+                  <% } else if (order.status === 'pending') { %>
+                    <a href="/verify/processing/<%= order._id %>" class="btn btn-sm">Vezi status</a>
+                  <% } else { %>
+                    <span class="btn btn-sm" style="opacity: 0.5; cursor: not-allowed;">N/A</span>
+                  <% } %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } else if (orders.length > 0) { %>
+    <div class="orders-table">
+      <% orders.forEach(order => { %>
+        <div class="order-item">
+          <div class="order-info">
+            <p class="order-imei"><strong>IMEI:</strong> <%= order.imei %></p>
+            <p class="order-model"><%= order.model || 'Unknown' %></p>
+            <p class="order-brand"><%= order.brand || 'N/A' %></p>
+            <p class="order-date"><%= new Date(order.createdAt).toLocaleString('ro-RO') %></p>
+            <p class="order-cost">Cost: <%= order.price.toFixed(2) %> credite</p>
+            <% if (order.additionalServices && order.additionalServices.length > 0) { %>
+              <p class="order-additional">
+                <strong>Verificări suplimentare:</strong> 
+                <span class="additional-badge"><%= order.additionalServices.length %> verificări</span>
+              </p>
+            <% } %>
+          </div>
+          <div class="order-actions">
+            <span class="status-badge status-<%= order.status %>">
+              <% if (order.status === 'pending') { %>
+                În proces
+              <% } else if (order.status === 'success') { %>
+                Finalizat
+              <% } else if (order.status === 'failed') { %>
+                Eșuat
+              <% } else if (order.status === 'error') { %>
+                Eroare
+              <% } else { %>
+                <%= order.status %>
+              <% } %>
+            </span>
+            <% if (order.status === 'success' || order.status === 'failed') { %>
+              <a href="/verify/result/<%= order._id %>" class="btn btn-sm">Vezi rezultat</a>
+            <% } else if (order.status === 'pending') { %>
+              <a href="/verify/processing/<%= order._id %>" class="btn btn-sm">Vezi status</a>
+            <% } else { %>
+              <span class="btn btn-sm" style="opacity: 0.5; cursor: not-allowed;">N/A</span>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } else { %>
+    <div class="empty-state">
+      <p>Nu ai făcut încă nicio verificare.</p>
+      <a href="/verify/imei" class="btn btn-primary">Verifică primul IMEI</a>
+    </div>
+  <% } %>
+</div>
+
+<script>
+  function toggleGroup(imei) {
+    const group = document.getElementById('group-' + imei);
+    const header = event.currentTarget;
+    const icon = document.getElementById('icon-' + imei);
+    
+    if (group.style.display === 'none') {
+      group.style.display = 'block';
+      header.classList.add('active');
+    } else {
+      group.style.display = 'none';
+      header.classList.remove('active');
+    }
+  }
+</script>
+
+<%- include('../partials/footer') %>

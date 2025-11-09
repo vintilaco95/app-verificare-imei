@@ -1,0 +1,62 @@
+<%- include('../partials/header', { title: 'Politica de Confidențialitate', user: user }) %>
+
+<section class="legal-page">
+  <header class="legal-hero">
+    <h1>Politica de Confidențialitate</h1>
+    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+  </header>
+
+  <article class="legal-content">
+    <section class="legal-section">
+      <h2>1. Date colectate</h2>
+      <p>
+        Colectăm datele necesare pentru crearea și administrarea contului (nume, email, parolă hash-uită), pentru procesarea
+        plăților (prin Stripe) și pentru generarea rapoartelor de verificare (cod IMEI, brand, rezultate furnizate de parteneri).
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>2. Scopul prelucrării</h2>
+      <ul>
+        <li>Furnizarea serviciilor de verificare IMEI și a rapoartelor asociate.</li>
+        <li>Trimiterea notificărilor cu privire la statusul verificărilor.</li>
+        <li>Îmbunătățirea securității și performanței platformei.</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>3. Partajarea datelor</h2>
+      <p>
+        Nu vindem și nu închiriem datele tale. Datele pot fi partajate cu furnizori terți doar pentru:
+      </p>
+      <ul>
+        <li>Procesarea plăților (Stripe).</li>
+        <li>Stocare și procesare securizată (furnizorii de infrastructură).</li>
+        <li>Servicii de email transacțional (pentru notificări).</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>4. Drepturile tale</h2>
+      <p>În conformitate cu GDPR, ai dreptul de:</p>
+      <ul>
+        <li>Acces la datele personale stocate.</li>
+        <li>Rectificarea sau ștergerea datelor.</li>
+        <li>Restricționarea prelucrării și portabilitatea datelor.</li>
+        <li>Depunerea unei plângeri la ANSPDCP.</li>
+      </ul>
+      <p>Ne poți contacta la <a href="mailto:telefoane@zengsm.ro">telefoane@zengsm.ro</a> pentru exercitarea acestor drepturi.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>5. Securitate</h2>
+      <p>
+        Implementăm măsuri tehnice și organizatorice adecvate: criptarea datelor în tranzit, tokenizare pentru plăți, audituri
+        periodice și monitorizarea accesului.
+      </p>
+    </section>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>
+

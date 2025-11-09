@@ -1,0 +1,602 @@
+<% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
+<% if (!isEmailView) { %>
+  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<% } %>
+
+<% 
+  // This template is for Apple/other devices
+  // Samsung devices are handled in the route
+%>
+
+<div class="result-container">
+  <% 
+    const reportData = order.object || {};
+    const isApple = brand === 'apple' || order.brand === 'apple';
+    const isSamsung = brand === 'samsung';
+    
+    const model = reportData.model || order.model || 'Dispozitiv necunoscut';
+    const modelDesc = reportData.modelDesc || '';
+    const imei = reportData.imei || order.imei;
+    const imei2 = reportData.imei2 || '';
+    const serial = reportData.serial || '';
+    const eid = reportData.eid || '';
+    
+    // Critical information is already formatted in route handler
+    // Use passed variables: iCloud, blacklist, knox, mdm, lostMode, networkLock, warranty, origin
+  %>
+
+  <div class="imei-report">
+    <!-- HEADER -->
+    <div class="report-header">
+      <div class="header-content">
+        <p class="report-label">Rezultat verificare IMEI</p>
+        <h2 class="report-model"><%= model %></h2>
+        <% if (modelDesc) { %>
+          <p class="report-desc">Descriere furnizor: <strong><%= modelDesc %></strong></p>
+        <% } %>
+      </div>
+      <!-- SCOR RISC -->
+      <div class="score-box">
+        <p class="score-label">Scor siguranță</p>
+        <p class="score-value" style="color: <%= scoreColor %>;"><%= riskScore %> / 10</p>
+        <p class="score-text" style="color: <%= scoreColor %>;"><%= riskText %></p>
+      </div>
+    </div>
+
+    <!-- INFORMATII CRITICE DE SECURITATE -->
+    <div class="critical-info-section">
+      <div class="critical-info-card">
+        <h3 class="critical-info-title">🔒 Informații Critice de Securitate</h3>
+        
+        <div class="critical-info-grid">
+          <!-- 1. iCloud Status (iPhone only) -->
+          <% if (isApple && iCloud) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">iCloud (Find My iPhone):</div>
+            <div class="critical-info-value status-<%= iCloud.status === 'on' ? 'danger' : iCloud.status === 'off' ? 'safe' : 'unknown' %>">
+              <%= iCloud.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 2. Blacklist Status -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Status Blacklist:</div>
+            <div class="critical-info-value status-<%= blacklist.status === 'blacklisted' ? 'danger' : blacklist.status === 'clean' ? 'safe' : 'unknown' %>">
+              <%= blacklist.text %>
+            </div>
+          </div>
+          
+          <!-- 3. Knox Guard (Samsung only) -->
+          <% if (isSamsung && knox) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">Knox Guard:</div>
+            <div class="critical-info-value status-<%= knox.status === 'active' ? 'warning' : knox.status === 'inactive' ? 'safe' : 'unknown' %>">
+              <%= knox.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 4. MDM Lock -->
+          <% if (mdm) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">MDM Lock:</div>
+            <div class="critical-info-value status-<%= mdm.status === 'locked' ? 'warning' : mdm.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= mdm.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 5. Lost Mode (iPhone only) -->
+          <% if (isApple && lostMode) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">Mod Pierdut:</div>
+            <div class="critical-info-value status-<%= lostMode.status === 'active' ? 'danger' : lostMode.status === 'inactive' ? 'safe' : 'unknown' %>">
+              <%= lostMode.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 6. Network Lock -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Blocare Rețea:</div>
+            <div class="critical-info-value status-<%= networkLock.status === 'locked' ? 'danger' : networkLock.status === 'locked_orange' ? 'warning' : networkLock.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= networkLock.text %>
+            </div>
+          </div>
+          
+          <!-- 7. Warranty Info -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Garanție:</div>
+            <div class="critical-info-value status-<%= warranty.hasInfo ? (warranty.status === 'active' ? 'safe' : warranty.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
+              <%= warranty.text %>
+            </div>
+          </div>
+          
+          <!-- 8. Origin Info -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Proveniență:</div>
+            <div class="critical-info-value <%= origin.hasInfo ? '' : 'status-unknown' %>">
+              <%= origin.text %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTE (dacă sunt probleme critice) -->
+    <% if (iCloud && iCloud.status === 'on') { %>
+      <div class="alert-box">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <p><strong>iCloud (Find My iPhone) este ACTIV.</strong></p>
+          <p>Telefonul este legat de un cont iCloud. <strong>Nu cumpăra</strong> până nu este dezactivat în fața ta.</p>
+        </div>
+      </div>
+    <% } %>
+    
+    <% if (lostMode && lostMode.status === 'active') { %>
+      <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+        <div class="alert-icon">🚨</div>
+        <div class="alert-content">
+          <p><strong>Dispozitiv în Mod Pierdut</strong></p>
+          <p>Dispozitivul este marcat ca pierdut. <strong>NU CUMPĂRA</strong> acest dispozitiv.</p>
+        </div>
+      </div>
+    <% } %>
+    
+    <% if (blacklist && blacklist.status === 'blacklisted') { %>
+      <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+        <div class="alert-icon">🚫</div>
+        <div class="alert-content">
+          <p><strong>Dispozitiv Blocat/Furat</strong></p>
+          <p>Dispozitivul este înregistrat în baza de date ca blocat sau furat. <strong>NU CUMPĂRA</strong> acest dispozitiv.</p>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- INFORMATII SUPLIMENTARE -->
+    <div class="report-grid">
+      <!-- IDENTIFICARE -->
+      <div class="report-card">
+        <h3>Identificare dispozitiv</h3>
+        <p>Model: <strong><%= model %></strong></p>
+        <% if (modelDesc) { %>
+          <p>Descriere: <strong><%= modelDesc %></strong></p>
+        <% } %>
+        <p>IMEI: <strong><%= imei %></strong></p>
+        <% if (imei2) { %>
+          <p>IMEI secundar: <strong><%= imei2 %></strong></p>
+        <% } %>
+        <% if (serial) { %>
+          <p>Serial Number: <strong><%= serial %></strong></p>
+        <% } %>
+        <% if (eid) { %>
+          <p>EID (eSIM): <code><%= eid %></code></p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- SFATURI -->
+    <div class="report-tips">
+      <h3>Sfaturi pentru cumpărător</h3>
+      <ol>
+        <% if (isApple) { %>
+          <li>Cere vânzătorului să dezactiveze iCloud (Find My iPhone).</li>
+          <li>Resetează complet dispozitivul și verifică dacă nu mai cere cont vechi.</li>
+        <% } else { %>
+          <li>Verifică dacă dispozitivul nu este blocat (blacklist).</li>
+          <li>Resetează complet dispozitivul și verifică funcționalitatea.</li>
+        <% } %>
+        <li>Verifică factura și proveniența.</li>
+        <li>Testează toate funcțiile hardware (camera, microfon, difuzor).</li>
+        <li>Verifică starea bateriei în setări.</li>
+        <% if (!isApple) { %>
+          <li>Asigură-te că toate actualizările software sunt instalate.</li>
+        <% } %>
+      </ol>
+    </div>
+
+    <!-- CONCLUZIE -->
+    <div class="report-conclusion">
+      <div class="conclusion-box">
+        <p><strong>Concluzie:</strong> <%= summaryText %></p>
+      </div>
+    </div>
+
+    <!-- DATE SERVICIU 9 (PROVENIENȚĂ ȘI RISC) -->
+    <% 
+      // Check if service9Data exists - handle both object and string formats
+      let service9Data = null;
+      if (order.object) {
+        // If order.object is a string, try to parse it
+        if (typeof order.object === 'string') {
+          try {
+            const parsed = JSON.parse(order.object);
+            service9Data = parsed.service9Data;
+          } catch (e) {
+            // Not JSON, ignore
+          }
+        } else if (typeof order.object === 'object') {
+          service9Data = order.object.service9Data;
+        }
+      }
+    %>
+    <% if (service9Data) { %>
+      <% const service9 = service9Data; %>
+      <div class="service9-section" style="margin-top: 30px; padding: 20px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; border-left: 4px solid #3b82f6;">
+        <h2 class="section-title" style="color: #3b82f6; margin-bottom: 20px;">
+          📋 Informații Detaliate Proveniență și Riscul de Blocare (GSX)
+        </h2>
+        
+        <div class="report-grid">
+          <!-- IDENTIFICARE DISPOZITIV -->
+          <div class="report-card">
+            <h3>📱 Identificare Dispozitiv</h3>
+            <% if (service9.modelDescription) { %>
+              <p><strong>Model:</strong> <%= service9.modelDescription %></p>
+            <% } %>
+            <% if (service9.model) { %>
+              <p><strong>Model complet:</strong> <%= service9.model %></p>
+            <% } %>
+            <% if (service9.mpn) { %>
+              <p><strong>MPN (Model Part Number):</strong> <%= service9.mpn %></p>
+            <% } %>
+            <% if (service9.imei) { %>
+              <p><strong>IMEI:</strong> <%= service9.imei %></p>
+            <% } %>
+            <% if (service9.imei2) { %>
+              <p><strong>IMEI 2:</strong> <%= service9.imei2 %></p>
+            <% } %>
+            <% if (service9.serial) { %>
+              <p><strong>Serial Number:</strong> <%= service9.serial %></p>
+            <% } %>
+            <% if (service9.productVersion) { %>
+              <p><strong>Versiune iOS:</strong> <%= service9.productVersion %></p>
+            <% } %>
+          </div>
+          
+          <!-- PROVENIENȚĂ ȘI ACHIZIȚIE -->
+          <div class="report-card">
+            <h3>📍 Proveniență și Achiziție</h3>
+            <% if (service9.soldToName) { %>
+              <p><strong>Vândut de:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.soldToName %></span></p>
+            <% } %>
+            <% if (service9.purchaseCountry) { %>
+              <p><strong>Țara de achiziție:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.purchaseCountry %></span></p>
+            <% } %>
+            <% if (service9.purchaseDate) { %>
+              <% 
+                const purchaseDate = new Date(service9.purchaseDate);
+                const isValidDate = purchaseDate.getFullYear() > 2000; // Filter out invalid dates like 1978
+              %>
+              <% if (isValidDate) { %>
+                <p><strong>Data achiziției:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.purchaseDate) : purchaseDate.toLocaleDateString('ro-RO') %></p>
+              <% } else { %>
+                <p><strong>Data achiziției:</strong> <span style="color: #64748b;">Nu este disponibilă</span></p>
+              <% } %>
+            <% } %>
+            <% if (service9.firstActivationDate) { %>
+              <p><strong>Prima activare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.firstActivationDate) : new Date(service9.firstActivationDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.carrier) { %>
+              <p><strong>Operator SIM:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.carrier %></span></p>
+            <% } %>
+            <% if (service9.registrationDate) { %>
+              <p><strong>Data înregistrării:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.registrationDate) : new Date(service9.registrationDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+          </div>
+          
+          <!-- STATUS GSX ȘI BLO CARE -->
+          <div class="report-card">
+            <h3>🔓 Status GSX și Blocare</h3>
+            <% if (service9.gsxUnlocked !== undefined) { %>
+              <p><strong>GSX Unlocked:</strong> 
+                <span style="color: <%= service9.gsxUnlocked ? '#22c55e' : '#ef4444' %>; font-weight: bold;">
+                  <%= service9.gsxUnlocked ? 'DA - Deblocat' : 'NU - Blocat' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.unlockDate) { %>
+              <p><strong>Data deblocare GSX:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.unlockDate) : new Date(service9.unlockDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.mdmStatus !== undefined) { %>
+              <p><strong>MDM Lock:</strong> 
+                <span style="color: <%= service9.mdmStatus ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.mdmStatus ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.isFMiPActive !== undefined) { %>
+              <p><strong>Find My iPhone:</strong> 
+                <span style="color: <%= service9.isFMiPActive ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.isFMiPActive ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.isLostModeOn !== undefined) { %>
+              <p><strong>Lost Mode:</strong> 
+                <span style="color: <%= service9.isLostModeOn ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.isLostModeOn ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                </span>
+              </p>
+            <% } %>
+          </div>
+          
+          <!-- ISTORIC ȘI STATUS GARANȚIE -->
+          <div class="report-card">
+            <h3>📜 Istoric și Garanție</h3>
+            <% if (service9.gsxCaseHistory !== undefined) { %>
+              <p><strong>Istoric cazuri GSX:</strong> 
+                <span style="color: <%= service9.gsxCaseHistory > 0 ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.gsxCaseHistory %> <%= service9.gsxCaseHistory > 0 ? '⚠️' : '✓' %>
+                </span>
+              </p>
+              <% if (service9.gsxCaseHistory > 0) { %>
+                <p style="color: #f97316; font-size: 0.9em; margin-top: 5px;">⚠️ Dispozitivul are <%= service9.gsxCaseHistory %> caz(uri) în istoricul GSX</p>
+              <% } %>
+            <% } %>
+            <% if (service9.gsxReplacementHistory !== undefined) { %>
+              <p><strong>Istoric înlocuiri:</strong> 
+                <span style="color: <%= service9.gsxReplacementHistory > 0 ? '#f97316' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.gsxReplacementHistory %> <%= service9.gsxReplacementHistory > 0 ? '⚠️' : '✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.replaced !== undefined) { %>
+              <p><strong>Înlocuit de Apple:</strong> 
+                <span style="color: <%= service9.replaced ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.replaced ? 'DA ⚠️' : 'NU ✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.loaner !== undefined) { %>
+              <p><strong>Dispozitiv de înlocuire (Loaner):</strong> 
+                <span style="color: <%= service9.loaner ? '#f97316' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.loaner ? 'DA ⚠️' : 'NU ✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.warrantyStatusDescription) { %>
+              <p><strong>Status garanție:</strong> 
+                <span style="color: <%= service9.warrantyStatusDescription.toLowerCase().includes('out') || service9.warrantyStatusDescription.toLowerCase().includes('no coverage') ? '#f97316' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.warrantyStatusDescription %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.warrantyStatusCode) { %>
+              <p><strong>Cod status garanție:</strong> <%= service9.warrantyStatusCode %></p>
+            <% } %>
+            <% if (service9.coverageStartDate) { %>
+              <p><strong>Garanție început:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageStartDate) : new Date(service9.coverageStartDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.coverageEndDate) { %>
+              <p><strong>Garanție expirare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageEndDate) : new Date(service9.coverageEndDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.contractCoverageStartDate) { %>
+              <p><strong>Contract început:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageStartDate) : new Date(service9.contractCoverageStartDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.contractCoverageEndDate) { %>
+              <p><strong>Contract expirare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageEndDate) : new Date(service9.contractCoverageEndDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+          </div>
+          
+          <!-- POLITICI DE ACTIVARE -->
+          <div class="report-card">
+            <h3>⚙️ Politici de Activare</h3>
+            <% if (service9.initialActivationPolicyDetails) { %>
+              <p><strong>Politică inițială:</strong> 
+                <span style="color: <%= service9.initialActivationPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
+                  <%= service9.initialActivationPolicyDetails %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.appliedActivationDetails) { %>
+              <p><strong>Politică aplicată:</strong> 
+                <span style="color: <%= service9.appliedActivationDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
+                  <%= service9.appliedActivationDetails %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.nextTetherPolicyDetails) { %>
+              <p><strong>Următoarea politică:</strong> 
+                <span style="color: <%= service9.nextTetherPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
+                  <%= service9.nextTetherPolicyDetails %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.ctoConfiguration) { %>
+              <p><strong>Configurare CTO:</strong> <%= service9.ctoConfiguration %></p>
+            <% } %>
+          </div>
+        </div>
+        
+        <!-- ALERTE IMPORTANTE -->
+        <% 
+          const hasWarnings = 
+            (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) ||
+            (service9.replaced === true) ||
+            (service9.loaner === true) ||
+            (service9.isFMiPActive === true) ||
+            (service9.isLostModeOn === true) ||
+            (service9.mdmStatus === true);
+        %>
+        <% if (hasWarnings) { %>
+          <div style="margin-top: 20px; padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid #ef4444;">
+            <h4 style="color: #ef4444; margin-bottom: 10px;">⚠️ Atenție - Probleme Identificate</h4>
+            <ul style="margin-left: 20px; color: #dc2626;">
+              <% if (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) { %>
+                <li>Dispozitivul are <%= service9.gsxCaseHistory %> caz(uri) în istoricul GSX - poate indica probleme anterioare</li>
+              <% } %>
+              <% if (service9.replaced === true) { %>
+                <li>Dispozitivul a fost înlocuit de Apple - verifică legitimitatea</li>
+              <% } %>
+              <% if (service9.loaner === true) { %>
+                <li>Dispozitivul este un dispozitiv de înlocuire (loaner) - nu este dispozitivul original</li>
+              <% } %>
+              <% if (service9.isFMiPActive === true) { %>
+                <li>Find My iPhone este ACTIV - dispozitivul poate fi blocat de proprietar</li>
+              <% } %>
+              <% if (service9.isLostModeOn === true) { %>
+                <li>Lost Mode este ACTIV - dispozitivul este marcat ca pierdut/furat</li>
+              <% } %>
+              <% if (service9.mdmStatus === true) { %>
+                <li>MDM Lock este ACTIV - dispozitivul este gestionat de o companie</li>
+              <% } %>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <!-- VERIFICĂRI SUPLIMENTARE -->
+    <% if (typeof additionalResults !== 'undefined' && additionalResults && additionalResults.length > 0) { %>
+      <div class="additional-results-section">
+        <h2 class="section-title">Verificări suplimentare</h2>
+        <p class="section-subtitle">Rezultatele verificărilor suplimentare pe care le-ai solicitat</p>
+        
+        <% additionalResults.forEach((item, index) => { %>
+          <div class="additional-result-card">
+            <div class="additional-result-header">
+              <h3>
+                <span class="result-icon">
+                  <% if (item.service.category === 'Proveniență') { %>🔍<% } else if (item.service.category === 'Securitate') { %>🛡️<% } else { %>📱<% } %>
+                </span>
+                <%= item.service.displayName || item.service.name %>
+              </h3>
+              <span class="result-category"><%= item.service.category || 'Verificare' %></span>
+            </div>
+            
+            <div class="additional-result-description">
+              <p><%= item.service.description %></p>
+            </div>
+            
+            <div class="additional-result-content">
+              <% if (item.isHTML) { %>
+                <!-- HTML Result -->
+                <div class="result-html-content">
+                  <%- item.sanitizedHtml || '' %>
+                </div>
+              <% } else if (item.parsedData) { %>
+                <!-- JSON Result -->
+                <div class="result-json-content">
+                  <% const data = item.parsedData; %>
+                  <% if (data.soldBy || data.soldByCountry) { %>
+                    <div class="result-field">
+                      <strong>Sursă de achiziție:</strong>
+                      <span><%= data.soldBy || data.soldByCountry || 'N/A' %></span>
+                    </div>
+                  <% } %>
+                  <% if (data.mdmStatus !== undefined) { %>
+                    <div class="result-field">
+                      <strong>Status MDM:</strong>
+                      <span class="<%= data.mdmStatus ? 'status-active' : 'status-inactive' %>">
+                        <%= data.mdmStatus ? 'ACTIV' : 'INACTIV' %>
+                      </span>
+                    </div>
+                  <% } %>
+                  <% if (data.gsmaStatus) { %>
+                    <div class="result-field">
+                      <strong>Status GSMA Blacklist:</strong>
+                      <span><%= data.gsmaStatus %></span>
+                    </div>
+                  <% } %>
+                  <% if (data.fmiStatus) { %>
+                    <div class="result-field">
+                      <strong>Status Find My iPhone:</strong>
+                      <span class="<%= data.fmiStatus === 'ON' ? 'status-active' : 'status-inactive' %>">
+                        <%= data.fmiStatus %>
+                      </span>
+                    </div>
+                  <% } %>
+                  <!-- Display other fields if available -->
+                  <% Object.keys(data).forEach(key => { %>
+                    <% if (!['soldBy', 'soldByCountry', 'mdmStatus', 'gsmaStatus', 'fmiStatus'].includes(key) && data[key] !== null && data[key] !== undefined) { %>
+                      <div class="result-field">
+                        <strong><%= key %>:</strong>
+                        <span><%= typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key] %></span>
+                      </div>
+                    <% } %>
+                  <% }); %>
+                </div>
+              <% } else { %>
+                <!-- Plain text result -->
+                <div class="result-text-content">
+                  <pre><%= item.rawResult %></pre>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="result-actions">
+    <% if (user && isApple && (!order.additionalServices || !order.additionalServices.includes(900))) { %>
+      <button id="enhance-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
+        📋 Completează datele cu proveniența și riscul de blocare (5 credite)
+      </button>
+    <% } %>
+    <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+    <% if (user) { %>
+      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
+    <% } %>
+  </div>
+  
+  <% if (user && isApple) { %>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const enhanceBtn = document.getElementById('enhance-btn');
+      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+      const csrfToken = (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
+      window.csrfToken = csrfToken; // ensure global fallback
+
+      if (enhanceBtn) {
+        enhanceBtn.addEventListener('click', async function() {
+          if (!confirm('Ești sigur că vrei să completezi datele cu proveniența și riscul de blocare? Această operațiune costă 5 credite.')) {
+            return;
+          }
+          
+          const orderId = enhanceBtn.getAttribute('data-order-id');
+          enhanceBtn.disabled = true;
+          enhanceBtn.textContent = 'Se procesează...';
+          
+          try {
+            const response = await fetch(`/verify/enhance/${orderId}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+                'csrf-token': csrfToken
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ _csrf: csrfToken })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+              // Reload page to show updated data
+              window.location.reload();
+            } else {
+              alert(data.error || 'Eroare la completarea datelor');
+              enhanceBtn.disabled = false;
+              enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert('Eroare la completarea datelor');
+            enhanceBtn.disabled = false;
+            enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
+          }
+        });
+      }
+    });
+  </script>
+  <% } %>
+</div>
+
+<% if (!isEmailView) { %>
+  <%- include('../partials/footer') %>
+<% } %>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' - ' : '' %>Verificare IMEI</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    window.csrfToken = <%= JSON.stringify(typeof csrfToken !== 'undefined' ? csrfToken : '') %>;
+  </script>
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="animated-bg">
+    <div class="bg-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+      <div class="shape shape-4"></div>
+      <div class="shape shape-5"></div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-brand">
+        <span class="nav-logo-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+        </span>
+        <span class="nav-logo-text">IMEI Check</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-label="Deschide meniul" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="nav-links">
+        <% if (typeof user !== 'undefined' && user) { %>
+          <a href="/" class="nav-link">Acasă</a>
+          <a href="/dashboard" class="nav-link">Dashboard</a>
+          <a href="/verify/imei" class="nav-link">Verificare IMEI</a>
+          <a href="/dashboard/orders" class="nav-link">Istoric</a>
+          <div class="nav-credit-pill">
+            <span class="credit-icon">🪙</span>
+            <span class="credit-value"><%= user.credits.toFixed(2) %></span>
+            <a href="/dashboard/credits/topup" class="credit-add" aria-label="Adaugă credite">+</a>
+          </div>
+          <form action="/auth/logout" method="POST" class="nav-form">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <button type="submit" class="nav-link nav-link-ghost">Deconectare</button>
+          </form>
+        <% } else { %>
+          <a href="/" class="nav-link">Acasă</a>
+          <a href="/verify/imei" class="nav-link">Verificare IMEI</a>
+          <a href="/auth/login" class="nav-link nav-link-ghost">Autentificare</a>
+          <a href="/auth/register" class="nav-link nav-link-primary">Înregistrare</a>
+        <% } %>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <%- body %>
+  </main>
+
+  <!-- Footer -->
+  <%- include('partials/footer') %>
+
+  <!-- Cookie Banner -->
+  <div class="cookie-banner" id="cookie-banner" role="dialog" aria-live="polite" aria-label="Politica de cookies">
+    <div class="cookie-banner-content">
+      <div class="cookie-text">
+        <h3>Folosim cookie-uri</h3>
+        <p>
+          Utilizăm cookie-uri pentru a personaliza experiența, a analiza traficul și a proteja utilizatorii.
+          Continuând navigarea ești de acord cu <a href="/legal/cookies">Politica de Cookies</a>.
+        </p>
+      </div>
+      <div class="cookie-actions">
+        <button type="button" class="btn btn-secondary" id="cookie-settings">Setări</button>
+        <button type="button" class="btn btn-primary" id="cookie-accept">Accept toate</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

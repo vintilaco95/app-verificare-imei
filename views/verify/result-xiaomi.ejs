@@ -1,0 +1,331 @@
+<% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
+<% if (!isEmailView) { %>
+  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<% } %>
+
+<% 
+  // This template is specifically for Xiaomi devices
+  const data = xiaomiParsedData || {};
+  const model = data.model || order.model || 'Unknown Xiaomi Device';
+  const modelCode = data.modelCode || '';
+  const imei = data.imei || order.imei;
+  const imei2 = data.imei2 || '';
+  const serial = data.serial || '';
+  const unlockNumber = data.unlockNumber || '';
+  const skuNumber = data.skuNumber || '';
+  const purchaseCountry = data.purchaseCountry || 'N/A';
+  const activationCountry = data.activationCountry || 'N/A';
+  const warrantyStatus = data.warrantyStatus || 'N/A';
+  const warrantyDescription = data.warrantyDescription || '';
+  const warrantyStartDate = data.warrantyStartDate || '';
+  const warrantyEndDate = data.warrantyEndDate || '';
+  const deliveryDate = data.deliveryDate || '';
+  const activationDate = data.activationDate || '';
+  const productionDate = data.productionDate || 'N/A';
+  const deviceColor = data.deviceColor || '';
+  const deviceROM = data.deviceROM || '';
+  const deviceRAM = data.deviceRAM || '';
+  const miLockStatus = data.miLockStatus || '';
+  const miAccountInfo = typeof miAccount !== 'undefined' ? miAccount : null;
+  const originInfo = typeof origin !== 'undefined' ? origin : null;
+  const riskScoreValue = typeof riskScore !== 'undefined' ? riskScore : 9;
+  const riskTextValue = typeof riskText !== 'undefined' ? riskText : 'Status necunoscut';
+  const scoreColorValue = typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e';
+  const summaryTextValue = typeof summaryText !== 'undefined' ? summaryText : '';
+  
+  // Format dates
+  function normalizeDateInput(value) {
+    if (!value || value === 'N/A') return null;
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim();
+      if (!normalized || normalized === '0000-00-00' || normalized === '0000/00/00') return null;
+      if (normalized.startsWith('0000')) return null;
+      const date = new Date(normalized);
+      return isNaN(date.getTime()) ? null : date;
+    }
+    return null;
+  }
+
+  function formatDate(value) {
+    const date = normalizeDateInput(value);
+    if (!date) return null;
+    if (date.getFullYear() === 0 || date.getFullYear() < 2000) return null;
+    return date.toLocaleDateString('ro-RO', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  
+  function formatDateTime(value) {
+    const date = normalizeDateInput(value);
+    if (!date) return null;
+    if (date.getFullYear() === 0 || date.getFullYear() < 2000) return null;
+    return date.toLocaleString('ro-RO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  
+%>
+
+<div class="result-container">
+  <div class="imei-report">
+    <!-- HEADER -->
+    <div class="report-header">
+      <div class="header-content">
+        <p class="report-label">Rezultat verificare IMEI</p>
+        <h2 class="report-model"><%= model %></h2>
+        <% if (modelCode) { %>
+          <p class="report-desc">Model Code: <strong><%= modelCode %></strong></p>
+        <% } %>
+      </div>
+      <!-- SCOR RISC -->
+      <div class="score-box">
+        <p class="score-label">Scor siguranță</p>
+        <p class="score-value" style="color: <%= scoreColorValue %>;"><%= riskScoreValue %> / 10</p>
+        <p class="score-text" style="color: <%= scoreColorValue %>;"><%= riskTextValue %></p>
+      </div>
+    </div>
+
+    <!-- ALERTA MI LOCK -->
+    <% if (miAccountInfo && miAccountInfo.status === 'on') { %>
+      <div class="alert-box">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <p><strong>Mi Activation Lock este activ.</strong></p>
+          <p><%= miAccountInfo.text %> <strong>Nu cumpăra</strong> până nu este dezactivat în fața ta.</p>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- GRID DETALII -->
+    <div class="report-grid">
+      <!-- IDENTIFICARE -->
+      <div class="report-card">
+        <h3>Identificare dispozitiv</h3>
+        <p>IMEI principal: <strong><%= imei %></strong></p>
+        <% if (imei2) { %>
+          <p>IMEI secundar: <strong><%= imei2 %></strong></p>
+        <% } %>
+        <% if (serial) { %>
+          <p>Serial Number: <strong><%= serial %></strong></p>
+        <% } %>
+        <% if (skuNumber) { %>
+          <p>SKU Number: <strong><%= skuNumber %></strong></p>
+        <% } %>
+        <% if (unlockNumber) { %>
+          <p>Unlock Number: <strong><%= unlockNumber %></strong></p>
+        <% } %>
+      </div>
+
+      <!-- MI ACCOUNT -->
+      <div class="report-card">
+        <h3>Mi Account</h3>
+        <p>Status Mi Activation Lock: 
+          <strong class="<%= miAccountInfo ? 'status-' + miAccountInfo.status : 'status-unknown' %>">
+            <%= miAccountInfo ? miAccountInfo.text : (miLockStatus || 'Nu avem informații despre Mi Activation Lock') %>
+          </strong>
+        </p>
+        <p class="form-hint">
+          ⚠️ Asigură-te că dispozitivul poate fi deconectat din contul Mi existent înainte de tranzacție.
+        </p>
+      </div>
+
+      <!-- GARANȚIE -->
+      <div class="report-card">
+        <h3>Garanție & acoperire</h3>
+        <% 
+          const warrantyInfo = (typeof warranty !== 'undefined' && warranty) ? warranty : null;
+          const warrantyLabel = (warrantyInfo && warrantyInfo.text) ? warrantyInfo.text : warrantyStatus;
+          let warrantyColor = '#94a3b8';
+          if (warrantyInfo && warrantyInfo.status) {
+            if (warrantyInfo.status === 'active') warrantyColor = '#22c55e';
+            else if (warrantyInfo.status === 'expired') warrantyColor = '#f97316';
+          } else if (warrantyStatus && warrantyStatus.toLowerCase().includes('in warranty')) {
+            warrantyColor = '#22c55e';
+          } else if (warrantyStatus && warrantyStatus.toLowerCase().includes('out of warranty')) {
+            warrantyColor = '#f97316';
+          }
+        %>
+        <p>Status garanție: <strong style="color: <%= warrantyColor %>;"><%= warrantyLabel %></strong></p>
+        <% if (warrantyDescription) { %>
+          <p>Descriere: <strong><%= warrantyDescription %></strong></p>
+        <% } %>
+        <% if ((warrantyInfo && warrantyInfo.hasInfo && (warrantyInfo.startDate || warrantyInfo.startDateRaw)) || warrantyStartDate) { %>
+          <% const startDate = warrantyInfo && warrantyInfo.startDate ? formatDateTime(warrantyInfo.startDate) : formatDateTime(warrantyStartDate); %>
+          <% if (startDate) { %>
+            <p>Data început: <strong><%= startDate %></strong></p>
+          <% } %>
+        <% } %>
+        <% if ((warrantyInfo && warrantyInfo.endDate) || warrantyEndDate) { %>
+          <% const endDate = warrantyInfo && warrantyInfo.endDate ? formatDate(warrantyInfo.endDate) : formatDate(warrantyEndDate); %>
+          <% if (endDate) { %>
+            <p>Data expirare: <strong><%= endDate %></strong></p>
+          <% } %>
+        <% } %>
+        <p class="form-hint">⚠️ Verifică mereu factura originală – datele pot fi doar estimative.</p>
+      </div>
+
+      <!-- SPECIFICAȚII -->
+      <div class="report-card">
+        <h3>Specificații dispozitiv</h3>
+        <% if (deviceColor) { %>
+          <p>Culoare: <strong><%= deviceColor %></strong></p>
+        <% } %>
+        <% if (deviceRAM) { %>
+          <p>Memorie RAM: <strong><%= deviceRAM %></strong></p>
+        <% } %>
+        <% if (deviceROM) { %>
+          <p>Memorie stocare: <strong><%= deviceROM %></strong></p>
+        <% } %>
+        <% if (modelCode) { %>
+          <p>Model Code: <strong><%= modelCode %></strong></p>
+        <% } %>
+      </div>
+
+      <!-- ISTORIC & PROVENIENȚĂ -->
+      <div class="report-card">
+        <h3>Istoric & proveniență</h3>
+        <% if (productionDate && productionDate !== 'N/A') { %>
+          <% const prodDate = formatDate(productionDate); %>
+          <% if (prodDate) { %>
+            <p>Data producție: <strong><%= prodDate %></strong></p>
+          <% } else { %>
+            <p>Data producție: <strong>N/A</strong></p>
+          <% } %>
+        <% } %>
+        <% if (deliveryDate) { %>
+          <% const delDate = formatDate(deliveryDate); %>
+          <% if (delDate) { %>
+            <p>Data livrare: <strong><%= delDate %></strong></p>
+          <% } else { %>
+            <p>Data livrare: <strong>N/A</strong></p>
+          <% } %>
+        <% } %>
+        <% if (activationDate) { %>
+          <% const actDate = formatDateTime(activationDate); %>
+          <% if (actDate) { %>
+            <p>Data activare: <strong><%= actDate %></strong></p>
+          <% } else { %>
+            <p>Data activare: <strong style="color: #f59e0b;">Nu este activat</strong></p>
+          <% } %>
+        <% } else { %>
+          <p>Data activare: <strong style="color: #f59e0b;">Nu este activat</strong></p>
+        <% } %>
+        <% if (originInfo && originInfo.text) { %>
+          <p>Proveniență: <strong><%= originInfo.text %></strong></p>
+        <% } else { %>
+          <% if (purchaseCountry && purchaseCountry !== 'N/A') { %>
+            <p>Țară de cumpărare: <strong><%= purchaseCountry %></strong></p>
+          <% } %>
+          <% if (activationCountry && activationCountry !== 'N/A') { %>
+            <p>Țară de activare: <strong><%= activationCountry %></strong></p>
+          <% } %>
+        <% } %>
+      </div>
+
+      <!-- SECURITATE -->
+      <div class="report-card">
+        <h3>Securitate & status</h3>
+        <% if (miAccountInfo) { %>
+          <p>Mi Activation Lock: <strong style="color: <%= miAccountInfo.color || (miAccountInfo.status === 'on' ? '#ef4444' : '#22c55e') %>;"><%= miAccountInfo.text %></strong></p>
+        <% } %>
+        <% if (typeof blacklist !== 'undefined' && blacklist) { %>
+          <p>GSMA blacklist: <strong style="color: <%= blacklist.color || (blacklist.status === 'blacklisted' ? '#ef4444' : blacklist.status === 'clean' ? '#22c55e' : '#94a3b8') %>;"><%= blacklist.text %></strong></p>
+        <% } else { %>
+          <p>GSMA blacklist: <strong>Nu avem informații</strong></p>
+        <% } %>
+        <p class="form-hint">👉 Dacă MI Lock este INACTIV și blacklist este Clean, telefonul e sigur pentru utilizare.</p>
+      </div>
+    </div>
+
+    <!-- SFATURI -->
+    <div class="report-tips">
+      <h3>Sfaturi pentru cumpărător</h3>
+      <ol>
+        <li><strong>Verifică MI Activation Lock:</strong> Asigură-te că este INACTIV (OFF). Dacă este activ, dispozitivul este legat de un cont Mi Account și nu poate fi resetat.</li>
+        <li><strong>Verifică blacklist:</strong> Asigură-te că dispozitivul nu este blocat sau furat.</li>
+        <li><strong>Verifică garanția:</strong> Confirmă că garanția este valabilă și verifică data de expirare.</li>
+        <li><strong>Verifică proveniența:</strong> Compară țara de cumpărare cu țara de activare pentru a identifica posibile discrepanțe.</li>
+        <li><strong>Resetează complet dispozitivul:</strong> Verifică că nu mai cere cont vechi după resetare.</li>
+        <li><strong>Testează hardware:</strong> Verifică camera, microfon, difuzor, ecran, și toate funcțiile.</li>
+        <li><strong>Verifică starea bateriei:</strong> Verifică în setări starea bateriei și numărul de cicluri.</li>
+      </ol>
+    </div>
+
+    <!-- CONCLUZIE -->
+    <div class="report-conclusion">
+      <div class="conclusion-box">
+        <p><strong>Concluzie:</strong> <%= summaryTextValue %></p>
+        <% if (miAccountInfo && miAccountInfo.status === 'off') { %>
+          <p style="margin-top: 0.5rem; color: #22c55e;">✓ MI Lock este inactiv — dispozitivul poate fi resetat.</p>
+        <% } %>
+        <% if (warrantyInfo && warrantyInfo.status === 'active' && warrantyInfo.endDate) { %>
+          <% const endDate = formatDate(warrantyInfo.endDate); %>
+          <% if (endDate && endDate !== 'N/A') { %>
+            <p style="margin-top: 0.5rem; color: #22c55e;">✓ Garanție activă până la <%= endDate %>.</p>
+          <% } %>
+        <% } else if (warrantyStatus && warrantyStatus.toLowerCase().includes('in warranty')) { %>
+          <p style="margin-top: 0.5rem; color: #22c55e;">✓ Garanție activă conform verificării.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Additional Services Results -->
+    <% if (additionalResults && additionalResults.length > 0) { %>
+      <div class="additional-results-section">
+        <h2 class="section-title">Verificări suplimentare</h2>
+        <p class="section-subtitle">Informații adiționale despre dispozitiv</p>
+        
+        <% additionalResults.forEach(item => { %>
+          <div class="additional-result-card">
+            <div class="additional-result-header">
+              <div>
+                <h3><%= (item.service && (item.service.displayName || item.service.name)) || 'Verificare suplimentară' %></h3>
+                <span class="result-category"><%= (item.service && item.service.category) || 'Info suplimentară' %></span>
+              </div>
+            </div>
+            <% if (item.service && item.service.description) { %>
+              <p class="additional-result-description"><%= item.service.description %></p>
+            <% } %>
+            
+            <div class="additional-result-content">
+              <% if (item.isHTML) { %>
+                <!-- HTML Result -->
+                <div class="result-html-content">
+                  <%- item.sanitizedHtml || '' %>
+                </div>
+              <% } else if (item.parsedData) { %>
+                <!-- JSON Result -->
+                <div class="result-json-content">
+                  <% const data = item.parsedData; %>
+                  <% Object.keys(data).forEach(key => { %>
+                    <% if (data[key] !== null && data[key] !== undefined && data[key] !== '') { %>
+                      <div class="result-field">
+                        <strong><%= key %>:</strong>
+                        <span><%= typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key] %></span>
+                      </div>
+                    <% } %>
+                  <% }); %>
+                </div>
+              <% } else { %>
+                <!-- Plain text result -->
+                <div class="result-text-content">
+                  <pre><%= item.rawResult %></pre>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="result-actions">
+    <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+    <% if (user) { %>
+      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
+    <% } %>
+  </div>
+</div>
+
+<% if (!isEmailView) { %>
+  <%- include('../partials/footer') %>
+<% } %>

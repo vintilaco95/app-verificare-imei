@@ -1,0 +1,62 @@
+<%- include('../partials/header', { title: 'Termeni și Condiții', user: user }) %>
+
+<section class="legal-page">
+  <header class="legal-hero">
+    <h1>Termeni și Condiții</h1>
+    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+  </header>
+
+  <article class="legal-content">
+    <section class="legal-section">
+      <h2>1. Introducere</h2>
+      <p>
+        Platforma IMEI Check oferă servicii de verificare a istoricului dispozitivelor mobile. Prin accesarea și utilizarea
+        site-ului confirmi că ai citit, înțeles și ești de acord cu acești Termeni și Condiții.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>2. Condiții de utilizare</h2>
+      <ul>
+        <li>Serviciile sunt destinate exclusiv verificării legitime a dispozitivelor mobile.</li>
+        <li>Este interzisă utilizarea platformei în scopuri frauduloase sau pentru accesarea unor date fără drept.</li>
+        <li>Ne rezervăm dreptul de a suspenda sau închide conturile care încalcă acești termeni.</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>3. Conturi și plăți</h2>
+      <p>
+        Utilizatorii autentificați pot achiziționa credite pentru verificări multiple. Vizitatorii neautentificați pot efectua
+        verificări prin plata unică cu cardul. Toate plățile sunt procesate securizat prin Stripe.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>4. Politica de rambursare</h2>
+      <p>
+        Pentru interogările finalizate cu succes, sumele achitate nu pot fi rambursate. Dacă o verificare nu poate fi procesată
+        din motive tehnice, creditul sau suma achitată va fi returnată automat în contul tău.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>5. Limitarea răspunderii</h2>
+      <p>
+        Informațiile furnizate sunt preluate din surse externe, iar acuratețea lor poate depinde de actualizările partenerilor.
+        Nu ne asumăm răspunderea pentru deciziile luate exclusiv în baza rapoartelor generate.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>6. Modificări</h2>
+      <p>
+        Ne rezervăm dreptul de a actualiza acești Termeni și Condiții. Versiunea actualizată va fi disponibilă pe această pagină,
+        iar utilizarea continuă a platformei reprezintă acceptarea modificărilor.
+      </p>
+    </section>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>
+

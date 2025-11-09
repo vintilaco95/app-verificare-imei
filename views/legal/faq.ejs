@@ -1,0 +1,27 @@
+<%- include('../partials/header', { title: 'Întrebări Frecvente', user: user }) %>
+
+<section class="legal-page">
+  <header class="legal-hero">
+    <h1>Întrebări Frecvente</h1>
+    <p>Găsește rapid răspunsuri la cele mai comune întrebări despre IMEI Check.</p>
+  </header>
+
+  <article class="legal-content faq-list">
+    <% if (Array.isArray(faqs)) { %>
+      <% faqs.forEach(function(item, index) { %>
+        <section class="legal-section faq-item">
+          <button class="faq-toggle" aria-expanded="false" aria-controls="faq-answer-<%= index %>">
+            <span><%= item.question %></span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer" id="faq-answer-<%= index %>" hidden>
+            <p><%= item.answer %></p>
+          </div>
+        </section>
+      <% }) %>
+    <% } %>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>
+

@@ -1,0 +1,187 @@
+const Order = require('../models/Order');
+const User = require('../models/User');
+const CreditTransaction = require('../models/CreditTransaction');
+const imeiService = require('./imeiService');
+const emailService = require('./emailService');
+const { calculateTotalPrice } = require('../config/pricing');
+
+async function processOrder(jobData) {
+  const {
+    orderId,
+    imei,
+    userId = null,
+    email = null,
+    detectedBrand = null,
+    additionalServiceIds = []
+  } = jobData;
+
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) {
+      console.warn(`[OrderProcessor] Order ${orderId} not found. Skipping job.`);
+      return;
+    }
+
+    if (!userId && order.paymentStatus !== 'paid') {
+      console.warn(`[OrderProcessor] Guest order ${orderId} payment incomplete. Marking as failed.`);
+      order.status = 'failed';
+      order.model = 'Plata nu a fost finalizată';
+      await order.save();
+      return;
+    }
+
+    const result = await imeiService.verifyIMEI(
+      imei,
+      userId,
+      email,
+      detectedBrand,
+      additionalServiceIds
+    );
+
+    if (!result.success) {
+      await markOrderFailed(order, imei, userId, 'Eroare verificare IMEI');
+      return;
+    }
+
+    const initialPrice = order.price || 0;
+    const effectiveBrandForPricing = (result.brand || order.brand || 'default');
+    const finalCost = calculateTotalPrice(effectiveBrandForPricing, additionalServiceIds);
+    let priceDifference = 0;
+
+    if (Math.abs(finalCost - initialPrice) > 0.0001) {
+      priceDifference = parseFloat((finalCost - initialPrice).toFixed(2));
+      order.price = finalCost;
+    }
+
+    order.orderId = result.data.orderId || order.orderId;
+    order.serviceId = result.data.service || order.serviceId;
+    order.serviceName = 'IMEI Verification';
+    order.status = result.data.status === 'success' ? 'success' : 'failed';
+    order.result = result.data.result || '';
+    order.object = result.data.object || null;
+    order.brand = result.brand || order.brand;
+    order.model = result.model || order.model;
+
+    await order.save();
+
+    if (userId && Math.abs(priceDifference) > 0.0001) {
+      await handlePriceAdjustment(userId, order, imei, priceDifference);
+    }
+
+    if (userId && (order.status === 'failed' || order.status === 'error')) {
+      await refundUser(userId, order, `Refund pentru verificare eșuată IMEI: ${imei}`);
+    }
+
+    if (result.data && result.data.status === 'success') {
+      await sendEmailResult(userId, email, order, result.data);
+    }
+  } catch (error) {
+    console.error('[OrderProcessor] Error while processing order:', error);
+    await handleProcessingError(jobData, error);
+  }
+}
+
+async function markOrderFailed(order, imei, userId, reason) {
+  order.status = 'failed';
+  order.model = 'Error';
+  await order.save();
+
+  if (userId) {
+    await refundUser(userId, order, `${reason}: ${imei}`);
+  }
+}
+
+async function handlePriceAdjustment(userId, order, imei, priceDifference) {
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  const adjustmentDescription = `Ajustare preț verificare IMEI: ${imei}`;
+
+  if (priceDifference > 0) {
+    user.credits -= priceDifference;
+    await user.save();
+
+    await CreditTransaction.create({
+      userId: user._id,
+      type: 'usage',
+      amount: -priceDifference,
+      description: adjustmentDescription,
+      orderId: order._id
+    });
+  } else if (priceDifference < 0) {
+    const refundAmount = Math.abs(priceDifference);
+    user.credits += refundAmount;
+    await user.save();
+
+    await CreditTransaction.create({
+      userId: user._id,
+      type: 'refund',
+      amount: refundAmount,
+      description: adjustmentDescription,
+      orderId: order._id
+    });
+  }
+}
+
+async function refundUser(userId, order, description) {
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  user.credits += order.price;
+  await user.save();
+
+  await CreditTransaction.create({
+    userId: user._id,
+    type: 'refund',
+    amount: order.price,
+    description,
+    orderId: order._id
+  });
+}
+
+async function sendEmailResult(userId, email, order, resultData) {
+  const { generateResultHTML } = require('./generateResultHTML');
+  const { emailHTML, fullHTML } = await generateResultHTML(order);
+
+  let targetEmail = email;
+  if (!targetEmail && userId) {
+    const user = await User.findById(userId);
+    targetEmail = user ? user.email : null;
+  }
+
+  if (!targetEmail) {
+    console.warn(`[OrderProcessor] No email available for order ${order._id}. Skipping notification.`);
+    return;
+  }
+
+  await emailService.sendVerificationResult(targetEmail, order, resultData, {
+    emailHTML,
+    fullHTML
+  });
+  order.emailSent = true;
+  await order.save();
+}
+
+async function handleProcessingError(jobData, error) {
+  const { orderId, imei, userId } = jobData;
+
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) return;
+
+    order.status = 'error';
+    order.model = 'Error';
+    await order.save();
+
+    if (userId) {
+      await refundUser(userId, order, `Refund pentru eroare verificare IMEI: ${imei}`);
+    }
+  } catch (err) {
+    console.error('[OrderProcessor] Failed to update order after error:', err);
+  }
+}
+
+module.exports = {
+  processOrder
+};
+

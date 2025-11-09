@@ -1,0 +1,17 @@
+<% if (typeof errors !== 'undefined' && errors !== null && errors && errors.length > 0) { %>
+  <div class="flash-messages">
+    <% errors.forEach(error => { %>
+      <div class="flash flash-error">
+        <span><%= typeof error === 'string' ? error : error.msg %></span>
+      </div>
+    <% }); %>
+  </div>
+<% } %>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="flash-messages">
+    <div class="flash flash-success">
+      <span><%= success %></span>
+    </div>
+  </div>
+<% } %>

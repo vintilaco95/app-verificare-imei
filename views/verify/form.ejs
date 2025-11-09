@@ -1,0 +1,365 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="verify-container">
+  <div class="verify-card">
+    <h1 class="verify-title">Verificare IMEI</h1>
+    <p class="verify-subtitle">
+      Introdu IMEI-ul telefonului pentru a verifica dacă este sigur pentru cumpărare
+    </p>
+    
+    <%- include('../partials/flash', { errors: errors }) %>
+    
+    <% const brandLabels = { apple: 'Apple', samsung: 'Samsung', honor: 'Honor', huawei: 'Huawei', xiaomi: 'Xiaomi', oneplus: 'OnePlus', motorola: 'Motorola', default: 'Alte branduri' }; %>
+    <% if (user) { %>
+      <!-- Authenticated user form -->
+      <form action="/verify/imei" method="POST" class="verify-form" id="verify-form">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+        <div class="form-group">
+          <label for="imei">IMEI (15 cifre)</label>
+          <input 
+            type="text" 
+            id="imei" 
+            name="imei" 
+            required 
+            pattern="[0-9]{15}"
+            maxlength="15"
+            placeholder="Ex: 354449442825304"
+            class="imei-input"
+            autocomplete="off"
+          >
+          <small class="form-hint">IMEI-ul se găsește în Setări → Despre telefon sau tastând *#06#</small>
+          <div id="imei-error" class="imei-feedback" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+          <div id="imei-valid" class="imei-feedback" style="color: #22c55e; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+          
+          <!-- Previous Verifications -->
+          <div id="previous-verifications" class="previous-verifications" style="display: none; margin-top: 1rem;">
+            <div class="previous-verifications-header">
+              <span class="previous-icon">📋</span>
+              <span class="previous-text">Acest IMEI a fost verificat anterior</span>
+            </div>
+            <div id="previous-verifications-list" class="previous-verifications-list"></div>
+          </div>
+        </div>
+        
+        <!-- Additional Services (will be available after brand detection via API) -->
+        <div id="additional-services" class="additional-services" style="display: none; margin-top: 1.5rem;">
+          <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">Verificări suplimentare (opțional)</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Serviciile suplimentare vor fi disponibile după ce brandul telefonului este detectat automat.
+          </p>
+          <div id="additional-services-list"></div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-large btn-block" id="submit-btn">
+          <span>Verifică IMEI</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"></path>
+          </svg>
+        </button>
+      </form>
+      
+      <% if (pricing) { %>
+        <section class="pricing-section verify-pricing">
+          <h2 class="section-title">Prețuri pe brand</h2>
+          <p class="section-subtitle">Suma se debitează automat după identificarea brandului.</p>
+          <div class="pricing-grid pricing-grid-compact">
+            <% Object.keys(pricing).forEach(function(key) { %>
+              <div class="pricing-card">
+                <div class="pricing-brand">
+                  <%= key === 'apple' ? '🍎 ' : key === 'samsung' ? '📱 ' : key === 'honor' ? '🏆 ' : key === 'huawei' ? '🇨🇳 ' : key === 'xiaomi' ? '📲 ' : key === 'oneplus' ? '⚡ ' : key === 'motorola' ? '📶 ' : '🌐 ' %>
+                  <%= brandLabels[key] || key %>
+                </div>
+                <div class="pricing-price"><%= pricing[key].toFixed(2) %> <span class="pricing-currency">credite</span></div>
+                <p class="pricing-description">
+                  <%= key === 'apple' ? 'Verificare completă iPhone' :
+                      key === 'samsung' ? 'Verificare + Knox Status' :
+                      key === 'honor' ? 'Informații complete' :
+                      key === 'huawei' ? 'Verificare IMEI' :
+                      key === 'xiaomi' ? 'MI Lock & Info' :
+                      key === 'oneplus' ? 'Verificare IMEI rapidă' :
+                      key === 'motorola' ? 'Info + blacklist' :
+                      'Verificare standard' %>
+                </p>
+              </div>
+            <% }); %>
+          </div>
+        </section>
+      <% } %>
+    <% } else { %>
+      <!-- Guest user form -->
+      <form action="/verify/imei/guest" method="POST" class="verify-form" id="verify-form-guest">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+        <div class="form-group">
+          <label for="imei-guest">IMEI (15 cifre)</label>
+          <input 
+            type="text" 
+            id="imei-guest" 
+            name="imei" 
+            required 
+            pattern="[0-9]{15}"
+            maxlength="15"
+            placeholder="Ex: 354449442825304"
+            class="imei-input"
+            autocomplete="off"
+          >
+          <small class="form-hint">IMEI-ul se găsește în Setări → Despre telefon sau tastând *#06#</small>
+          <div id="imei-error-guest" class="imei-feedback" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+          <div id="imei-valid-guest" class="imei-feedback" style="color: #22c55e; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email pentru rezultat</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            required 
+            placeholder="exemplu@email.com"
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="brand">Brand telefon</label>
+          <select id="brand" name="brand" required>
+            <option value="">Selectează brandul</option>
+            <% Object.keys(pricing || {}).forEach(function(key) { %>
+              <% if (key !== 'default') { %>
+                <option value="<%= key %>" <%= selectedBrand === key ? 'selected' : '' %>><%= brandLabels[key] || key %></option>
+              <% } %>
+            <% }); %>
+            <option value="default" <%= selectedBrand === 'default' ? 'selected' : '' %>>Alt brand / Necunoscut</option>
+          </select>
+          <small class="form-hint">Alege brandul pentru a calcula costul plății unice.</small>
+        </div>
+        
+        <div class="guest-price-info" id="guest-price-info">
+          <span class="guest-price-label">Cost verificare:</span>
+          <span class="guest-price-value" id="guest-price-value">—</span>
+        </div>
+        
+        <!-- Additional Services (will be available after brand detection via API) -->
+        <div id="additional-services-guest" class="additional-services" style="display: none; margin-top: 1.5rem;">
+          <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">Verificări suplimentare (opțional)</h3>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Serviciile suplimentare vor fi disponibile după ce brandul telefonului este detectat automat.
+          </p>
+          <div id="additional-services-list-guest"></div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-large btn-block" id="submit-btn-guest">
+          <span>Verifică IMEI</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"></path>
+          </svg>
+        </button>
+      </form>
+      
+      <% if (pricing) { %>
+        <section class="pricing-section verify-pricing">
+          <h2 class="section-title">Prețuri pe brand</h2>
+          <p class="section-subtitle">Plata unică se calculează în funcție de brandul detectat.</p>
+          <div class="pricing-grid pricing-grid-compact">
+            <% Object.keys(pricing).forEach(function(key) { %>
+              <div class="pricing-card">
+                <div class="pricing-brand">
+                  <%= key === 'apple' ? '🍎 ' : key === 'samsung' ? '📱 ' : key === 'honor' ? '🏆 ' : key === 'huawei' ? '🇨🇳 ' : key === 'xiaomi' ? '📲 ' : key === 'oneplus' ? '⚡ ' : key === 'motorola' ? '📶 ' : '🌐 ' %>
+                  <%= brandLabels[key] || key %>
+                </div>
+                <div class="pricing-price"><%= pricing[key].toFixed(2) %> <span class="pricing-currency">credite</span></div>
+                <p class="pricing-description">
+                  <%= key === 'apple' ? 'Verificare completă iPhone' :
+                      key === 'samsung' ? 'Verificare + Knox Status' :
+                      key === 'honor' ? 'Informații complete' :
+                      key === 'huawei' ? 'Verificare IMEI' :
+                      key === 'xiaomi' ? 'MI Lock & Info' :
+                      key === 'oneplus' ? 'Verificare IMEI rapidă' :
+                      key === 'motorola' ? 'Info + blacklist' :
+                      'Verificare standard' %>
+                </p>
+              </div>
+            <% }); %>
+          </div>
+        </section>
+      <% } %>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  window.serverPricing = <%- JSON.stringify(pricing || {}) %>;
+</script>
+<script src="/js/imei-validator.js"></script>
+<script src="/js/pricing.js"></script>
+<script>
+  // Initialize IMEI validation when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    <% if (user) { %>
+      // Authenticated user form
+      const imeiInput = document.getElementById('imei');
+      const imeiError = document.getElementById('imei-error');
+      const imeiValid = document.getElementById('imei-valid');
+      const form = document.getElementById('verify-form');
+      
+      initIMEIValidation('imei');
+      
+      // Check for previous verifications
+      let checkTimeout;
+      async function checkPreviousVerifications(imei) {
+        if (!imei || imei.length !== 15) {
+          document.getElementById('previous-verifications').style.display = 'none';
+          return;
+        }
+        
+        try {
+          const response = await fetch(`/verify/imei/check/${imei}`);
+          const data = await response.json();
+          
+          const prevContainer = document.getElementById('previous-verifications');
+          const prevList = document.getElementById('previous-verifications-list');
+          
+          if (data.found && data.orders && data.orders.length > 0) {
+            prevContainer.style.display = 'block';
+            prevList.innerHTML = '';
+            
+            data.orders.forEach(order => {
+              const orderDiv = document.createElement('div');
+              orderDiv.className = 'previous-order-item';
+              
+              const date = new Date(order.date).toLocaleString('ro-RO');
+              const statusText = {
+                'pending': 'În proces',
+                'success': 'Finalizat',
+                'failed': 'Eșuat',
+                'error': 'Eroare'
+              }[order.status] || order.status;
+              
+              const statusClass = `status-${order.status}`;
+              
+              orderDiv.innerHTML = `
+                <div class="previous-order-info">
+                  <span class="previous-order-date">${date}</span>
+                  <span class="previous-order-model">${order.model} - ${order.brand}</span>
+                  <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+                <a href="/verify/result/${order.id}" class="btn btn-sm">Deschide</a>
+              `;
+              
+              prevList.appendChild(orderDiv);
+            });
+            
+            if (data.count > data.orders.length) {
+              const moreDiv = document.createElement('div');
+              moreDiv.className = 'previous-order-more';
+              moreDiv.innerHTML = `<a href="/dashboard/orders" class="btn btn-sm btn-secondary">Vezi toate (${data.count})</a>`;
+              prevList.appendChild(moreDiv);
+            }
+          } else {
+            prevContainer.style.display = 'none';
+          }
+        } catch (error) {
+          console.error('Error checking previous verifications:', error);
+          document.getElementById('previous-verifications').style.display = 'none';
+        }
+      }
+      
+      // IMEI input handler - only validate, don't detect brand
+      imeiInput.addEventListener('input', function() {
+        const value = this.value.replace(/\D/g, '').substring(0, 15);
+        
+        // Clear previous timeout
+        clearTimeout(checkTimeout);
+        
+        if (value.length === 15 && validateIMEI(value)) {
+          // Hide additional services (will be available after API detects brand)
+          document.getElementById('additional-services').style.display = 'none';
+          
+          // Check for previous verifications after a short delay
+          checkTimeout = setTimeout(() => {
+            checkPreviousVerifications(value);
+          }, 500);
+        } else {
+          // Hide additional services and previous verifications if IMEI is invalid
+          document.getElementById('additional-services').style.display = 'none';
+          document.getElementById('previous-verifications').style.display = 'none';
+        }
+      });
+      
+      // Validate before submit
+      form.addEventListener('submit', function(e) {
+        const value = imeiInput.value.replace(/\D/g, '');
+        if (value.length !== 15 || !validateIMEI(value)) {
+          e.preventDefault();
+          if (imeiError) {
+            imeiError.textContent = 'Te rog introdu un IMEI valid (15 cifre)';
+            imeiError.style.color = '#ef4444';
+          }
+          imeiInput.style.borderColor = '#ef4444';
+          return false;
+        }
+      });
+    <% } else { %>
+      // Guest user form
+      const imeiInputGuest = document.getElementById('imei-guest');
+      const imeiErrorGuest = document.getElementById('imei-error-guest');
+      const imeiValidGuest = document.getElementById('imei-valid-guest');
+      const formGuest = document.getElementById('verify-form-guest');
+      const brandSelect = document.getElementById('brand');
+      const guestPriceValue = document.getElementById('guest-price-value');
+      
+      initIMEIValidation('imei-guest');
+
+      function updateGuestPriceDisplay() {
+        if (!guestPriceValue) return;
+        const brand = brandSelect ? brandSelect.value : '';
+        if (brand && window.serverPricing && typeof window.serverPricing[brand] !== 'undefined') {
+          guestPriceValue.textContent = `${Number(window.serverPricing[brand]).toFixed(2)} credite`;
+        } else {
+          guestPriceValue.textContent = '—';
+        }
+      }
+      
+      if (brandSelect) {
+        brandSelect.addEventListener('change', updateGuestPriceDisplay);
+        updateGuestPriceDisplay();
+      }
+      
+      // IMEI input handler - only validate, don't detect brand
+      imeiInputGuest.addEventListener('input', function() {
+        const value = this.value.replace(/\D/g, '').substring(0, 15);
+        
+        if (value.length === 15 && validateIMEI(value)) {
+          // Hide additional services (will be available after API detects brand)
+          document.getElementById('additional-services-guest').style.display = 'none';
+        } else {
+          // Hide additional services if IMEI is invalid and reset cost
+          document.getElementById('additional-services-guest').style.display = 'none';
+        }
+      });
+      
+      // Validate before submit
+      formGuest.addEventListener('submit', function(e) {
+        const value = imeiInputGuest.value.replace(/\D/g, '');
+        const brand = brandSelect ? brandSelect.value : '';
+        if (value.length !== 15 || !validateIMEI(value)) {
+          e.preventDefault();
+          if (imeiErrorGuest) {
+            imeiErrorGuest.textContent = 'Te rog introdu un IMEI valid (15 cifre)';
+            imeiErrorGuest.style.color = '#ef4444';
+          }
+          imeiInputGuest.style.borderColor = '#ef4444';
+          return false;
+        }
+        if (!brand) {
+          e.preventDefault();
+          if (imeiErrorGuest) {
+            imeiErrorGuest.textContent = 'Selectează brandul telefonului pentru a continua.';
+            imeiErrorGuest.style.color = '#ef4444';
+          }
+          return false;
+        }
+      });
+    <% } %>
+  });
+</script>
+
+<%- include('../partials/footer') %>

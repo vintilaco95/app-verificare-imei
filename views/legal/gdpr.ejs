@@ -1,0 +1,56 @@
+<%- include('../partials/header', { title: 'Politica GDPR', user: user }) %>
+
+<section class="legal-page">
+  <header class="legal-hero">
+    <h1>Politica GDPR</h1>
+    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+  </header>
+
+  <article class="legal-content">
+    <section class="legal-section">
+      <h2>1. Operator de date</h2>
+      <p>
+        Operatorul de date este IMEI Check, cu sediul în București, România. Pentru orice solicitare legată de protecția datelor,
+        ne poți contacta la <a href="mailto:telefoane@zengsm.ro">telefoane@zengsm.ro</a>.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>2. Temeiul legal</h2>
+      <p>Prelucrăm datele cu caracter personal în baza unuia dintre următoarele temeiuri:</p>
+      <ul>
+        <li>Executarea contractului de furnizare a serviciilor IMEI Check.</li>
+        <li>Obligații legale (emitere facturi, evidențe contabile).</li>
+        <li>Interes legitim (securitate, prevenirea fraudelor).</li>
+        <li>Consimțământ explicit pentru comunicări opționale.</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>3. Perioada de stocare</h2>
+      <p>
+        Datele sunt păstrate atât timp cât este necesar pentru furnizarea serviciului și respectarea obligațiilor legale.
+        Rezultatele verificărilor pot fi anonimizate după 12 luni pentru rapoarte statistice.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>4. Transferuri internaționale</h2>
+      <p>
+        Dacă un partener din afara UE este implicat în procesare, ne asigurăm că există garanții adecvate (Clauze Contractuale
+        Standard) conform GDPR.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>5. Securitate și audit</h2>
+      <p>
+        Revizuim periodic procedurile de securitate, efectuăm teste de penetrare și audituri interne pentru a proteja datele
+        personale împotriva accesului neautorizat sau a dezvăluirii accidentale.
+      </p>
+    </section>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>
+

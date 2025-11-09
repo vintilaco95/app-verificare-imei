@@ -1,0 +1,68 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>Credite</h1>
+    <div class="credits-display">
+      <p class="credits-label">Credite disponibile</p>
+      <p class="credits-value"><%= user.credits.toFixed(2) %></p>
+    </div>
+    <a href="/dashboard/credits/topup" class="btn btn-primary btn-large">Adaugă credite cu cardul</a>
+  </div>
+
+  <% if (errors && errors.length > 0) { %>
+    <div class="error-box">
+      <ul>
+        <% errors.forEach(error => { %>
+          <li><%= error.msg %></li>
+        <% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <div class="topup-packages">
+    <h2>Alege rapid un pachet</h2>
+    <div class="package-grid">
+      <% packages.forEach(pkg => { %>
+        <div class="package-card">
+          <h3><%= pkg.label %></h3>
+          <p class="package-credits"><%= pkg.credits %> credite</p>
+          <p class="package-description"><%= pkg.description %></p>
+          <p class="package-price"><%= pkg.price.toFixed(2) %> RON</p>
+          <form action="/dashboard/credits/topup" method="POST">
+            <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+            <input type="hidden" name="packageId" value="<%= pkg.id %>">
+            <button type="submit" class="btn btn-primary btn-block">Plătește cu cardul</button>
+          </form>
+        </div>
+      <% }); %>
+    </div>
+    <div class="custom-package">
+      <p>Ai nevoie de altă sumă? Poți alege o sumă personalizată în pagina de alimentare.</p>
+      <a href="/dashboard/credits/topup" class="btn btn-secondary">Sumă personalizată →</a>
+    </div>
+  </div>
+
+  <div class="transactions-section">
+    <h2>Istoric tranzacții</h2>
+    <% if (transactions.length > 0) { %>
+      <div class="transactions-table">
+        <% transactions.forEach(transaction => { %>
+          <div class="transaction-item">
+            <div class="transaction-info">
+              <p class="transaction-desc"><%= transaction.description %></p>
+              <p class="transaction-date"><%= new Date(transaction.createdAt).toLocaleString('ro-RO') %></p>
+            </div>
+            <div class="transaction-amount <%= transaction.type === 'purchase' ? 'positive' : transaction.type === 'refund' ? 'positive' : 'negative' %>">
+              <%= transaction.type === 'purchase' || transaction.type === 'refund' ? '+' : '' %><%= transaction.amount.toFixed(2) %> credite
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } else { %>
+      <p class="empty-state">Nu ai tranzacții încă.</p>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

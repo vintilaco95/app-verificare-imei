@@ -1,0 +1,46 @@
+<%- include('../partials/header', { title: 'Politica de Cookies', user: user }) %>
+
+<section class="legal-page">
+  <header class="legal-hero">
+    <h1>Politica de Cookies</h1>
+    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+  </header>
+
+  <article class="legal-content">
+    <section class="legal-section">
+      <h2>1. Ce sunt cookie-urile?</h2>
+      <p>
+        Cookie-urile sunt fișiere text mici stocate în browser pentru a ne ajuta să recunoaștem dispozitivul și să îți oferim
+        o experiență personalizată și sigură.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>2. Tipurile de cookie-uri pe care le folosim</h2>
+      <ul>
+        <li><strong>Necesare:</strong> Asigură funcționarea de bază a platformei (autentificare, securitate, sesiune).</li>
+        <li><strong>Preferințe:</strong> Salvează limba și alte setări ale utilizatorului.</li>
+        <li><strong>Analitice:</strong> Ne ajută să înțelegem cum este folosită platforma și să o optimizăm.</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>3. Gestionarea preferințelor</h2>
+      <p>
+        Poți modifica preferințele din browser sau folosind opțiunea „Setări” din bannerul de cookie-uri. Dezactivarea anumitor
+        cookie-uri poate afecta experiența de utilizare.
+      </p>
+    </section>
+
+    <section class="legal-section">
+      <h2>4. Parteneri terți</h2>
+      <p>
+        Cookie-urile terților (ex. Stripe) sunt utilizate pentru procesarea securizată a plăților și prevenirea fraudelor. Aceste
+        cookie-uri sunt esențiale și nu pot fi dezactivate.
+      </p>
+    </section>
+  </article>
+</section>
+
+<%- include('../partials/footer') %>
+

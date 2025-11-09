@@ -1,0 +1,537 @@
+<% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
+<% if (!isEmailView) { %>
+  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<% } %>
+
+<div class="result-container">
+  <% 
+    // Parse Samsung data from HTML result (data should be pre-parsed in route)
+    const samsungData = typeof samsungParsedData !== 'undefined' ? samsungParsedData : {};
+    
+    // Critical information is already formatted in route handler
+    // Use passed variables: iCloud, blacklist, knox, mdm, lostMode, networkLock, warranty, origin
+    
+    // Use Marketing Name from service 21, fallback to modelDesc/model
+    const model = samsungData.marketingName || samsungData.modelDesc || samsungData.model || 'Dispozitiv necunoscut';
+    const fullName = samsungData.fullName || '';
+    const modelCode = samsungData.modelCode || '';
+    const manufacturer = samsungData.manufacturer || '';
+    const modelNumber = samsungData.modelNumber || '';
+    const imei = samsungData.imei || order.imei;
+    const imei2 = samsungData.imei2 || '';
+    const serial = samsungData.serial || '';
+    const doNumber = samsungData.doNumber || '';
+    const productionDate = samsungData.productionDate || '';
+    const purchaseDate = samsungData.purchaseDate || '';
+    const warrantyUntil = samsungData.warrantyUntil || '';
+    const warrantyStatus = samsungData.warrantyStatus || '';
+    const salesBuyerCode = samsungData.salesBuyerCode || '';
+    const salesBuyerName = samsungData.salesBuyerName || '';
+    const carrier = samsungData.carrier || '';
+    const soldByCountry = samsungData.soldByCountry || '';
+    const shipToCountry = samsungData.shipToCountry || '';
+    const soldDate = samsungData.soldDate || '';
+    const shipDate = samsungData.shipDate || '';
+  %>
+
+  <div class="imei-report">
+    <!-- HEADER -->
+    <div class="report-header">
+      <div class="header-content">
+        <p class="report-label">Rezultat verificare IMEI</p>
+        <h2 class="report-model"><%= model %></h2>
+        <% if (fullName) { %>
+          <p class="report-desc">Full Name: <strong><%= fullName %></strong></p>
+        <% } %>
+        <% if (modelCode) { %>
+          <p class="report-desc">Model Code: <strong><%= modelCode %></strong></p>
+        <% } %>
+      </div>
+      <!-- SCOR RISC -->
+      <div class="score-box">
+        <p class="score-label">Scor siguranță</p>
+        <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / 10</p>
+        <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
+      </div>
+    </div>
+
+    <!-- INFORMATII CRITICE DE SECURITATE -->
+    <% 
+      // Ensure all critical variables are defined with defaults
+      const blacklistSafe = typeof blacklist !== 'undefined' && blacklist ? blacklist : { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' };
+      const knoxSafe = typeof knox !== 'undefined' ? knox : null;
+      const mdmSafe = typeof mdm !== 'undefined' ? mdm : null;
+      const networkLockSafe = typeof networkLock !== 'undefined' && networkLock ? networkLock : { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' };
+      const warrantySafe = typeof warranty !== 'undefined' && warranty ? warranty : { hasInfo: false, text: 'Nu avem informații despre garanție' };
+      const originSafe = typeof origin !== 'undefined' && origin ? origin : { hasInfo: false, text: 'Nu avem informații despre proveniență' };
+    %>
+    <div class="critical-info-section">
+      <div class="critical-info-card">
+        <h3 class="critical-info-title">🔒 Informații Critice de Securitate</h3>
+        
+        <div class="critical-info-grid">
+          <!-- 1. Blacklist Status -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Status Blacklist:</div>
+            <div class="critical-info-value status-<%= blacklistSafe.status === 'blacklisted' ? 'danger' : blacklistSafe.status === 'clean' ? 'safe' : 'unknown' %>">
+              <%= blacklistSafe.text %>
+            </div>
+          </div>
+          
+          <!-- 2. Knox Guard -->
+          <% if (knoxSafe) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">Knox Guard:</div>
+            <div class="critical-info-value status-<%= knoxSafe.status === 'active' ? 'warning' : knoxSafe.status === 'inactive' ? 'safe' : 'unknown' %>">
+              <%= knoxSafe.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 3. MDM Lock -->
+          <% if (mdmSafe) { %>
+          <div class="critical-info-item">
+            <div class="critical-info-label">MDM Lock:</div>
+            <div class="critical-info-value status-<%= mdmSafe.status === 'locked' ? 'warning' : mdmSafe.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= mdmSafe.text %>
+            </div>
+          </div>
+          <% } %>
+          
+          <!-- 4. Network Lock -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Blocare Rețea:</div>
+            <div class="critical-info-value status-<%= networkLockSafe.status === 'locked' ? 'danger' : networkLockSafe.status === 'locked_orange' ? 'warning' : networkLockSafe.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= networkLockSafe.text %>
+            </div>
+          </div>
+          
+          <!-- 5. Warranty Info -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Garanție:</div>
+            <div class="critical-info-value status-<%= warrantySafe.hasInfo ? (warrantySafe.status === 'active' ? 'safe' : warrantySafe.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
+              <%= warrantySafe.text %>
+            </div>
+          </div>
+          
+          <!-- 6. Origin Info -->
+          <div class="critical-info-item">
+            <div class="critical-info-label">Proveniență:</div>
+            <div class="critical-info-value <%= originSafe.hasInfo ? '' : 'status-unknown' %>">
+              <%= originSafe.text %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTE (dacă sunt probleme critice) -->
+    <% if (blacklistSafe && blacklistSafe.status === 'blacklisted') { %>
+      <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+        <div class="alert-icon">🚫</div>
+        <div class="alert-content">
+          <p><strong>Dispozitiv Blocat/Furat</strong></p>
+          <p>Dispozitivul este înregistrat în baza de date ca blocat sau furat. <strong>NU CUMPĂRA</strong> acest dispozitiv.</p>
+        </div>
+      </div>
+    <% } %>
+    
+    <% if (knoxSafe && knoxSafe.status === 'active') { %>
+      <div class="alert-box">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <p><strong>Samsung Knox Guard este ACTIV.</strong></p>
+          <p>Dispozitivul este înregistrat în sistemul Samsung Knox Guard și poate fi supus unor politici de blocare sau monitorizare.</p>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- INFORMATII SUPLIMENTARE -->
+    <div class="report-grid">
+      <!-- IDENTIFICARE -->
+      <div class="report-card">
+        <h3>Identificare dispozitiv</h3>
+        <p>Marketing Name: <strong><%= model %></strong></p>
+        <% if (fullName) { %>
+          <p>Full Name: <strong><%= fullName %></strong></p>
+        <% } %>
+        <% if (modelCode) { %>
+          <p>Model Code: <strong><%= modelCode %></strong></p>
+        <% } %>
+        <% if (modelNumber) { %>
+          <p>Model Number: <strong><%= modelNumber %></strong></p>
+        <% } %>
+        <% if (manufacturer) { %>
+          <p>Manufacturer: <strong><%= manufacturer %></strong></p>
+        <% } %>
+        <p>IMEI: <strong><%= imei %></strong></p>
+        <% if (imei2) { %>
+          <p>IMEI secundar: <strong><%= imei2 %></strong></p>
+        <% } %>
+        <% if (serial) { %>
+          <p>Serial Number: <strong><%= serial %></strong></p>
+        <% } %>
+        <% if (doNumber) { %>
+          <p>DO Number: <strong><%= doNumber %></strong></p>
+        <% } %>
+      </div>
+      
+      <!-- GARANȚIE & ACHIZIȚIE -->
+      <div class="report-card">
+        <h3>Garanție & achiziție</h3>
+        <% if (warrantyStatus) { %>
+          <p>Status garanție: <strong><%= warrantyStatus %></strong></p>
+        <% } %>
+        <% if (warrantyUntil) { %>
+          <p>Garanție până la: <strong><%= warrantyUntil %></strong></p>
+        <% } %>
+        <% if (purchaseDate) { %>
+          <p>Data achiziție: <strong><%= purchaseDate %></strong></p>
+        <% } %>
+        <% if (productionDate) { %>
+          <p>Data producție: <strong><%= productionDate %></strong></p>
+        <% } %>
+        <% if (soldDate) { %>
+          <p>Data vânzare: <strong><%= soldDate %></strong></p>
+        <% } %>
+        <% if (shipDate) { %>
+          <p>Data expediere: <strong><%= shipDate %></strong></p>
+        <% } %>
+      </div>
+      
+      <!-- DISTRIBUȚIE & VÂNZĂTOR -->
+      <% if (salesBuyerName || salesBuyerCode || soldByCountry || shipToCountry || carrier) { %>
+      <div class="report-card">
+        <h3>Distribuție & vânzător</h3>
+        <% if (salesBuyerName) { %>
+          <p>Vânzător: <strong><%= salesBuyerName %></strong></p>
+        <% } %>
+        <% if (salesBuyerCode) { %>
+          <p>Cod vânzător: <strong><%= salesBuyerCode %></strong></p>
+        <% } %>
+        <% if (carrier) { %>
+          <p>Operator: <strong><%= carrier %></strong></p>
+        <% } %>
+        <% if (soldByCountry) { %>
+          <p>Țară vânzare: <strong><%= soldByCountry %></strong></p>
+        <% } %>
+        <% if (shipToCountry) { %>
+          <p>Țară expediere: <strong><%= shipToCountry %></strong></p>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- SFATURI -->
+    <div class="report-tips">
+      <h3>Sfaturi pentru cumpărător</h3>
+      <ol>
+        <li>Verifică dacă Samsung Knox Guard este dezactivat (ar trebui să fie OFF).</li>
+        <li>Resetează complet dispozitivul și verifică dacă nu mai cere cont vechi.</li>
+        <li>Verifică factura și proveniența.</li>
+        <li>Testează toate funcțiile hardware, inclusiv S Pen pentru modelele compatibile.</li>
+        <li>Verifică starea bateriei în setări și numărul de cicluri de încărcare.</li>
+        <li>Asigură-te că dispozitivul este deblocat (Factory Unlocked).</li>
+      </ol>
+    </div>
+
+    <!-- CONCLUZIE -->
+    <div class="report-conclusion">
+      <div class="conclusion-box">
+        <p><strong>Concluzie:</strong> <%= typeof summaryText !== 'undefined' ? summaryText : 'Dispozitivul este în regulă pentru achiziție.' %></p>
+      </div>
+    </div>
+
+    <!-- DATE SERVICIU 9 (PROVENIENȚĂ ȘI RISC) -->
+    <% 
+      // Check if service9Data exists - handle both object and string formats
+      let service9Data = null;
+      if (order.object) {
+        // If order.object is a string, try to parse it
+        if (typeof order.object === 'string') {
+          try {
+            const parsed = JSON.parse(order.object);
+            service9Data = parsed.service9Data;
+          } catch (e) {
+            // Not JSON, ignore
+          }
+        } else if (typeof order.object === 'object') {
+          service9Data = order.object.service9Data;
+        }
+      }
+    %>
+    <% if (service9Data) { %>
+      <% const service9 = service9Data; %>
+      <div class="service9-section" style="margin-top: 30px; padding: 20px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; border-left: 4px solid #3b82f6;">
+        <h2 class="section-title" style="color: #3b82f6; margin-bottom: 20px;">
+          📋 Informații Detaliate Proveniență și Riscul de Blocare (GSX)
+        </h2>
+        
+        <div class="report-grid">
+          <!-- IDENTIFICARE DISPOZITIV -->
+          <div class="report-card">
+            <h3>📱 Identificare Dispozitiv</h3>
+            <% if (service9.modelDescription) { %>
+              <p><strong>Model:</strong> <%= service9.modelDescription %></p>
+            <% } %>
+            <% if (service9.model) { %>
+              <p><strong>Model complet:</strong> <%= service9.model %></p>
+            <% } %>
+            <% if (service9.mpn) { %>
+              <p><strong>MPN (Model Part Number):</strong> <%= service9.mpn %></p>
+            <% } %>
+            <% if (service9.imei) { %>
+              <p><strong>IMEI:</strong> <%= service9.imei %></p>
+            <% } %>
+            <% if (service9.imei2) { %>
+              <p><strong>IMEI 2:</strong> <%= service9.imei2 %></p>
+            <% } %>
+            <% if (service9.serial) { %>
+              <p><strong>Serial Number:</strong> <%= service9.serial %></p>
+            <% } %>
+            <% if (service9.productVersion) { %>
+              <p><strong>Versiune software:</strong> <%= service9.productVersion %></p>
+            <% } %>
+          </div>
+          
+          <!-- PROVENIENȚĂ ȘI ACHIZIȚIE -->
+          <div class="report-card">
+            <h3>📍 Proveniență și Achiziție</h3>
+            <% if (service9.soldToName) { %>
+              <p><strong>Vândut de:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.soldToName %></span></p>
+            <% } %>
+            <% if (service9.purchaseCountry) { %>
+              <p><strong>Țara de achiziție:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.purchaseCountry %></span></p>
+            <% } %>
+            <% if (service9.purchaseDate) { %>
+              <% 
+                const purchaseDate = new Date(service9.purchaseDate);
+                const isValidDate = purchaseDate.getFullYear() > 2000;
+              %>
+              <% if (isValidDate) { %>
+                <p><strong>Data achiziției:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.purchaseDate) : purchaseDate.toLocaleDateString('ro-RO') %></p>
+              <% } else { %>
+                <p><strong>Data achiziției:</strong> <span style="color: #64748b;">Nu este disponibilă</span></p>
+              <% } %>
+            <% } %>
+            <% if (service9.firstActivationDate) { %>
+              <p><strong>Prima activare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.firstActivationDate) : new Date(service9.firstActivationDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.carrier) { %>
+              <p><strong>Operator SIM:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.carrier %></span></p>
+            <% } %>
+            <% if (service9.registrationDate) { %>
+              <p><strong>Data înregistrării:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.registrationDate) : new Date(service9.registrationDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+          </div>
+          
+          <!-- STATUS GSX ȘI BLO CARE -->
+          <div class="report-card">
+            <h3>🔓 Status GSX și Blocare</h3>
+            <% if (service9.gsxUnlocked !== undefined) { %>
+              <p><strong>GSX Unlocked:</strong> 
+                <span style="color: <%= service9.gsxUnlocked ? '#22c55e' : '#ef4444' %>; font-weight: bold;">
+                  <%= service9.gsxUnlocked ? 'DA - Deblocat' : 'NU - Blocat' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.unlockDate) { %>
+              <p><strong>Data deblocare GSX:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.unlockDate) : new Date(service9.unlockDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.mdmStatus !== undefined) { %>
+              <p><strong>MDM Lock:</strong> 
+                <span style="color: <%= service9.mdmStatus ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.mdmStatus ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                </span>
+              </p>
+            <% } %>
+          </div>
+          
+          <!-- ISTORIC ȘI STATUS GARANȚIE -->
+          <div class="report-card">
+            <h3>📜 Istoric și Garanție</h3>
+            <% if (service9.gsxCaseHistory !== undefined) { %>
+              <p><strong>Istoric cazuri GSX:</strong> 
+                <span style="color: <%= service9.gsxCaseHistory > 0 ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.gsxCaseHistory %> <%= service9.gsxCaseHistory > 0 ? '⚠️' : '✓' %>
+                </span>
+              </p>
+              <% if (service9.gsxCaseHistory > 0) { %>
+                <p style="color: #f97316; font-size: 0.9em; margin-top: 5px;">⚠️ Dispozitivul are <%= service9.gsxCaseHistory %> caz(uri) în istoricul GSX</p>
+              <% } %>
+            <% } %>
+            <% if (service9.gsxReplacementHistory !== undefined) { %>
+              <p><strong>Istoric înlocuiri:</strong> 
+                <span style="color: <%= service9.gsxReplacementHistory > 0 ? '#f97316' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.gsxReplacementHistory %> <%= service9.gsxReplacementHistory > 0 ? '⚠️' : '✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.replaced !== undefined) { %>
+              <p><strong>Înlocuit:</strong> 
+                <span style="color: <%= service9.replaced ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.replaced ? 'DA ⚠️' : 'NU ✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.loaner !== undefined) { %>
+              <p><strong>Dispozitiv de înlocuire (Loaner):</strong> 
+                <span style="color: <%= service9.loaner ? '#f97316' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.loaner ? 'DA ⚠️' : 'NU ✓' %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.warrantyStatusDescription) { %>
+              <p><strong>Status garanție:</strong> 
+                <span style="color: <%= service9.warrantyStatusDescription.toLowerCase().includes('out') || service9.warrantyStatusDescription.toLowerCase().includes('no coverage') ? '#f97316' : '#22c55e' %>; font-weight: bold;">
+                  <%= service9.warrantyStatusDescription %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.warrantyStatusCode) { %>
+              <p><strong>Cod status garanție:</strong> <%= service9.warrantyStatusCode %></p>
+            <% } %>
+            <% if (service9.coverageStartDate) { %>
+              <p><strong>Garanție început:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageStartDate) : new Date(service9.coverageStartDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.coverageEndDate) { %>
+              <p><strong>Garanție expirare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageEndDate) : new Date(service9.coverageEndDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.contractCoverageStartDate) { %>
+              <p><strong>Contract început:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageStartDate) : new Date(service9.contractCoverageStartDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+            <% if (service9.contractCoverageEndDate) { %>
+              <p><strong>Contract expirare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageEndDate) : new Date(service9.contractCoverageEndDate).toLocaleDateString('ro-RO') %></p>
+            <% } %>
+          </div>
+          
+          <!-- POLITICI DE ACTIVARE -->
+          <div class="report-card">
+            <h3>⚙️ Politici de Activare</h3>
+            <% if (service9.initialActivationPolicyDetails) { %>
+              <p><strong>Politică inițială:</strong> 
+                <span style="color: <%= service9.initialActivationPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
+                  <%= service9.initialActivationPolicyDetails %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.appliedActivationDetails) { %>
+              <p><strong>Politică aplicată:</strong> 
+                <span style="color: <%= service9.appliedActivationDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
+                  <%= service9.appliedActivationDetails %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.nextTetherPolicyDetails) { %>
+              <p><strong>Următoarea politică:</strong> 
+                <span style="color: <%= service9.nextTetherPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
+                  <%= service9.nextTetherPolicyDetails %>
+                </span>
+              </p>
+            <% } %>
+            <% if (service9.ctoConfiguration) { %>
+              <p><strong>Configurare CTO:</strong> <%= service9.ctoConfiguration %></p>
+            <% } %>
+          </div>
+        </div>
+        
+        <!-- ALERTE IMPORTANTE -->
+        <% 
+          const hasWarnings = 
+            (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) ||
+            (service9.replaced === true) ||
+            (service9.loaner === true) ||
+            (service9.mdmStatus === true);
+        %>
+        <% if (hasWarnings) { %>
+          <div style="margin-top: 20px; padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid #ef4444;">
+            <h4 style="color: #ef4444; margin-bottom: 10px;">⚠️ Atenție - Probleme Identificate</h4>
+            <ul style="margin-left: 20px; color: #dc2626;">
+              <% if (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) { %>
+                <li>Dispozitivul are <%= service9.gsxCaseHistory %> caz(uri) în istoricul GSX - poate indica probleme anterioare</li>
+              <% } %>
+              <% if (service9.replaced === true) { %>
+                <li>Dispozitivul a fost înlocuit - verifică legitimitatea</li>
+              <% } %>
+              <% if (service9.loaner === true) { %>
+                <li>Dispozitivul este un dispozitiv de înlocuire (loaner) - nu este dispozitivul original</li>
+              <% } %>
+              <% if (service9.mdmStatus === true) { %>
+                <li>MDM Lock este ACTIV - dispozitivul este gestionat de o companie</li>
+              <% } %>
+            </ul>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="result-actions">
+    <% if (user && (!order.additionalServices || !order.additionalServices.includes(900))) { %>
+      <button id="enhance-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
+        📋 Completează datele cu proveniența și riscul de blocare (5 credite)
+      </button>
+    <% } %>
+    <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+    <% if (user) { %>
+      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
+    <% } %>
+  </div>
+</div>
+
+<% if (user) { %>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const enhanceBtn = document.getElementById('enhance-btn');
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
+    window.csrfToken = csrfToken;
+
+    if (enhanceBtn) {
+      enhanceBtn.addEventListener('click', async function() {
+        if (!confirm('Ești sigur că vrei să completezi datele cu proveniența și riscul de blocare? Această operațiune costă 5 credite.')) {
+          return;
+        }
+        
+        const orderId = enhanceBtn.getAttribute('data-order-id');
+        enhanceBtn.disabled = true;
+        enhanceBtn.textContent = 'Se procesează...';
+        
+        try {
+          const response = await fetch(`/verify/enhance/${orderId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+                'csrf-token': csrfToken
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ _csrf: csrfToken })
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.success) {
+            // Reload page to show updated data
+            window.location.reload();
+          } else {
+            alert(data.error || 'Eroare la completarea datelor');
+            enhanceBtn.disabled = false;
+            enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Eroare la completarea datelor');
+          enhanceBtn.disabled = false;
+          enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
+        }
+      });
+    }
+  });
+</script>
+<% } %>
+
+<% if (!isEmailView) { %>
+  <%- include('../partials/footer') %>
+<% } %>
+

@@ -1,0 +1,25 @@
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="verify-container">
+  <div class="verify-card" style="text-align: center; max-width: 600px; margin: 2rem auto;">
+    <div style="font-size: 4rem; margin-bottom: 1rem;">❌</div>
+    <h1 style="color: var(--text-primary); margin-bottom: 1rem;">Plată Anulată</h1>
+    <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+      Ai anulat procesul de plată. Verificarea IMEI nu a fost inițiată.
+    </p>
+    
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+      <a href="/verify/imei" class="btn btn-primary">Încearcă din nou</a>
+      <a href="/" class="btn btn-secondary">Înapoi la pagina principală</a>
+    </div>
+    
+    <% if (orderId) { %>
+      <p style="margin-top: 2rem; font-size: 0.9rem; color: var(--text-secondary);">
+        ID comandă: <code><%= orderId %></code>
+      </p>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+
