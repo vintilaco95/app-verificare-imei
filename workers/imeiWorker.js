@@ -9,13 +9,35 @@ const queueName = 'imei-verification';
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
 function createConnection() {
+  // Log Redis URL for debugging (mask password)
+  const maskedUrl = redisUrl.replace(/:([^:@]+)@/, ':****@');
+  console.log(`[Worker Redis] ==========================================`);
+  console.log(`[Worker Redis] REDIS_URL env var: ${process.env.REDIS_URL ? 'SET' : 'NOT SET'}`);
+  console.log(`[Worker Redis] Connecting to: ${maskedUrl}`);
+  console.log(`[Worker Redis] Full URL (first 50 chars): ${redisUrl.substring(0, 50)}...`);
+  console.log(`[Worker Redis] ==========================================`);
+  
   const connection = new Redis(redisUrl, {
     maxRetriesPerRequest: null,
-    enableReadyCheck: true
+    enableReadyCheck: true,
+    connectTimeout: 10000,
+    lazyConnect: false
   });
 
   connection.on('error', (err) => {
+    console.error('[Worker Redis] ==========================================');
     console.error('[Worker Redis] Connection error:', err.message);
+    console.error('[Worker Redis] Error code:', err.code);
+    console.error('[Worker Redis] Full error:', err);
+    console.error('[Worker Redis] ==========================================');
+  });
+
+  connection.on('connect', () => {
+    console.log('[Worker Redis] ✅ Connected successfully');
+  });
+
+  connection.on('ready', () => {
+    console.log('[Worker Redis] ✅ Redis is ready to accept commands');
   });
 
   return connection;

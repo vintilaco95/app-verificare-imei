@@ -126,6 +126,14 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/imei-veri
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
+// Test Redis connection at startup
+try {
+  const { queue } = require('./services/verificationQueue');
+  console.log('✅ Redis queue initialized');
+} catch (err) {
+  console.error('⚠️ Redis queue initialization error:', err.message);
+}
+
 // Routes
 app.use('/', require('./routes/index'));
 app.use('/auth', require('./routes/auth'));

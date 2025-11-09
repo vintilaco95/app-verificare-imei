@@ -17,10 +17,7 @@ services:
       - key: MONGODB_URI
         sync: false  # Setează manual în dashboard-ul Render
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: imei-redis
-          property: connectionString
+        sync: false  # Setează manual în dashboard - folosește "Internal Redis URL" din Redis service
       - key: SESSION_SECRET
         generateValue: true  # Render va genera automat
       - key: IMEI_API_KEY
@@ -51,7 +48,7 @@ services:
   - type: redis
     name: imei-redis
     plan: starter
-    maxmemoryPolicy: allkeys-lru
+    maxmemoryPolicy: noeviction  # IMPORTANT: noeviction pentru BullMQ job queues
 
   # Worker Service (procesează job-urile din coadă)
   - type: worker
@@ -66,10 +63,7 @@ services:
       - key: MONGODB_URI
         sync: false  # Setează manual (același ca pentru web service)
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: imei-redis
-          property: connectionString
+        sync: false  # Setează manual în dashboard - folosește "Internal Redis URL" din Redis service
       - key: IMEI_API_KEY
         sync: false  # Setează manual (același ca pentru web service)
       - key: EMAIL_HOST
