@@ -5,6 +5,7 @@ const MongoStore = require('connect-mongo');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
+const { defaultLang, supportedLangs, getTranslation } = require('./config/translations');
 require('dotenv').config();
 
 const app = express();
@@ -47,6 +48,28 @@ app.use(session({
   }
 }));
 
+app.use((req, res, next) => {
+  let lang = defaultLang;
+
+  if (req.session && req.session.lang && supportedLangs.includes(req.session.lang)) {
+    lang = req.session.lang;
+  }
+
+  if (req.query.lang && supportedLangs.includes(req.query.lang)) {
+    lang = req.query.lang;
+    if (req.session) {
+      req.session.lang = lang;
+    }
+  }
+
+  res.locals.currentLang = lang;
+  res.locals.currentLangLabel = getTranslation(lang, 'nav.language.current');
+  res.locals.t = (key) => getTranslation(lang, key);
+  res.locals.switchLang = lang === 'ro' ? 'en' : 'ro';
+  res.locals.switchLangLabel = getTranslation(lang === 'ro' ? 'en' : 'ro', 'nav.language.current');
+  next();
+});
+
 // Attach user to all requests (MUST be after session)
 const { attachUser } = require('./middleware/auth');
 app.use(attachUser);
@@ -74,6 +97,7 @@ app.use('/verify/imei', verifyLimiter);
 app.use('/verify/imei/guest', verifyLimiter);
 app.use('/verify/imei/check', verifyLimiter);
 app.use('/verify/enhance', verifyLimiter);
+app.use('/verify/apple-mdm', verifyLimiter);
 
 // CSRF protection
 const csrfProtection = csrf({ cookie: false });

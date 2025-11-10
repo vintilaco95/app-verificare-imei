@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const { getTranslation } = require('../config/translations');
+const { DEFAULT_LANGUAGE, normalizeLang } = require('./emailFormatter');
 
 // Configure email transporter (only if credentials are provided)
 let transporter = null;
@@ -29,13 +31,15 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
 /**
  * Send IMEI verification result via email using the dedicated HTML email template.
  */
-async function sendVerificationResult(email, order, resultData, renderedHTML) {
+async function sendVerificationResult(email, order, resultData, renderedHTML, options = {}) {
   if (!transporter) {
     console.log('Email service not configured. Skipping email send.');
     return { success: false, error: 'Email service not configured' };
   }
   
   try {
+    const requestedLang = options && options.lang ? options.lang : (order && order.language ? order.language : DEFAULT_LANGUAGE);
+    const lang = normalizeLang(requestedLang);
     // Determine rendered HTML fragments
     let emailContent = null;
     
@@ -45,7 +49,7 @@ async function sendVerificationResult(email, order, resultData, renderedHTML) {
     
     if (!emailContent) {
       const { generateResultHTML } = require('./generateResultHTML');
-      const generated = await generateResultHTML(order);
+      const generated = await generateResultHTML(order, { lang });
       emailContent = generated.emailHTML;
     }
     
@@ -56,13 +60,19 @@ async function sendVerificationResult(email, order, resultData, renderedHTML) {
     const fromAddress = process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@') 
       ? process.env.EMAIL_FROM 
       : process.env.EMAIL_USER;
+
+    const subjectTemplate = getTranslation(lang, 'email.subject.result');
+    const textTemplate = getTranslation(lang, 'email.text.result');
+    const imeiValue = order && order.imei ? order.imei : '';
+    const subject = subjectTemplate.replace('{imei}', imeiValue);
+    const textBody = textTemplate.replace('{imei}', imeiValue);
     
     const mailOptions = {
       from: `"IMEI Verification" <${fromAddress}>`,
       to: email,
-      subject: `Rezultat verificare IMEI - ${order.imei}`,
+      subject,
       html: emailContent,
-      text: `Rezultat verificare IMEI pentru ${order.imei}`
+      text: textBody
     };
     
     console.log('📤 Attempting to send email:');

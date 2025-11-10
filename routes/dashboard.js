@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     ]);
     
     res.render('dashboard/index', {
-      title: 'Dashboard',
+      title: res.locals.t ? res.locals.t('dashboard.overview.pageTitle') : 'Dashboard',
       user: user,
       orders: orders,
       transactions: transactions,
@@ -66,7 +66,7 @@ router.get('/orders', async (req, res) => {
     })).sort((a, b) => new Date(b.lastChecked) - new Date(a.lastChecked));
     
     res.render('dashboard/orders', {
-      title: 'Istoric verificări',
+      title: res.locals.t ? res.locals.t('dashboard.orders.pageTitle') : 'Istoric verificări',
       user: req.user,
       orders: orders,
       groupedOrders: groupedArray
@@ -87,7 +87,7 @@ router.get('/credits', async (req, res) => {
       .populate('orderId');
     
     res.render('dashboard/credits', {
-      title: 'Credite',
+      title: res.locals.t ? res.locals.t('dashboard.credits.pageTitle') : 'Credite',
       user: req.user,
       transactions: transactions,
       packages: CREDIT_PACKAGES,
@@ -135,7 +135,7 @@ router.post('/credits/add', async (req, res) => {
 // Show credit top-up options
 router.get('/credits/topup', (req, res) => {
   res.render('dashboard/topup', {
-    title: 'Încarcă credite',
+    title: res.locals.t ? res.locals.t('dashboard.topup.pageTitle') : 'Încarcă credite',
     user: req.user,
     packages: CREDIT_PACKAGES,
     minAmount: MIN_TOPUP_AMOUNT,
@@ -154,7 +154,7 @@ router.post('/credits/topup', async (req, res) => {
       selectedPackage = CREDIT_PACKAGES.find(pkg => pkg.id === packageId);
       if (!selectedPackage) {
         return res.status(400).render('dashboard/topup', {
-          title: 'Încarcă credite',
+          title: res.locals.t ? res.locals.t('dashboard.topup.pageTitle') : 'Încarcă credite',
           user: req.user,
           packages: CREDIT_PACKAGES,
           minAmount: MIN_TOPUP_AMOUNT,
@@ -167,7 +167,7 @@ router.post('/credits/topup', async (req, res) => {
       const parsed = parseFloat(customAmount);
       if (isNaN(parsed) || parsed < MIN_TOPUP_AMOUNT) {
         return res.status(400).render('dashboard/topup', {
-          title: 'Încarcă credite',
+          title: res.locals.t ? res.locals.t('dashboard.topup.pageTitle') : 'Încarcă credite',
           user: req.user,
           packages: CREDIT_PACKAGES,
           minAmount: MIN_TOPUP_AMOUNT,
@@ -192,7 +192,7 @@ router.post('/credits/topup', async (req, res) => {
   } catch (error) {
     console.error('Credit top-up error:', error);
     res.status(500).render('dashboard/topup', {
-      title: 'Încarcă credite',
+      title: res.locals.t ? res.locals.t('dashboard.topup.pageTitle') : 'Încarcă credite',
       user: req.user,
       packages: CREDIT_PACKAGES,
       minAmount: MIN_TOPUP_AMOUNT,
@@ -226,7 +226,7 @@ router.get('/credits/success', async (req, res) => {
       : session.amount_total / 100;
 
     res.render('dashboard/topup-success', {
-      title: 'Plată reușită',
+      title: res.locals.t ? res.locals.t('dashboard.topupSuccess.pageTitle') : 'Plată reușită',
       user: req.user,
       chargedAmount: chargedAmount,
       transactionRecorded: !!transaction
@@ -243,7 +243,7 @@ router.get('/credits/success', async (req, res) => {
 // Handle cancel redirect after Stripe payment
 router.get('/credits/cancel', (req, res) => {
   res.render('dashboard/topup-cancelled', {
-    title: 'Plată anulată',
+    title: res.locals.t ? res.locals.t('dashboard.topupCancelled.pageTitle') : 'Plată anulată',
     user: req.user
   });
 });

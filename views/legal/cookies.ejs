@@ -1,46 +1,75 @@
-<%- include('../partials/header', { title: 'Politica de Cookies', user: user }) %>
+<%
+  const tt = (typeof t === 'function')
+    ? t
+    : (typeof locals !== 'undefined' && typeof locals.t === 'function' ? locals.t : (key) => key);
+  const currentLangValue = typeof currentLang !== 'undefined'
+    ? currentLang
+    : (typeof locals !== 'undefined' && typeof locals.currentLang !== 'undefined' ? locals.currentLang : 'ro');
+  const currentLangLabelValue = typeof currentLangLabel !== 'undefined'
+    ? currentLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.currentLangLabel !== 'undefined' ? locals.currentLangLabel : currentLangValue);
+  const switchLangValue = typeof switchLang !== 'undefined'
+    ? switchLang
+    : (typeof locals !== 'undefined' && typeof locals.switchLang !== 'undefined' ? locals.switchLang : (currentLangValue === 'ro' ? 'en' : 'ro'));
+  const switchLangLabelValue = typeof switchLangLabel !== 'undefined'
+    ? switchLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined' ? locals.switchLangLabel : currentLangLabelValue);
+  const csrfValue = typeof csrfToken !== 'undefined'
+    ? csrfToken
+    : (typeof locals !== 'undefined' && typeof locals.csrfToken !== 'undefined' ? locals.csrfToken : '');
+  const headerProps = {
+    title: tt('legal.cookies.pageTitle'),
+    user: typeof user !== 'undefined' ? user : (typeof locals !== 'undefined' && typeof locals.user !== 'undefined' ? locals.user : null),
+    csrfToken: csrfValue,
+    t: typeof t === 'function' ? t : null,
+    currentLang: currentLangValue,
+    currentLangLabel: currentLangLabelValue,
+    switchLang: switchLangValue,
+    switchLangLabel: switchLangLabelValue
+  };
+  const locale = currentLangValue === 'en' ? 'en-GB' : 'ro-RO';
+  const lastUpdated = tt('legal.cookies.lastUpdated').replace('{date}', new Date().toLocaleDateString(locale));
+%>
+<%- include('../partials/header', headerProps) %>
 
 <section class="legal-page">
   <header class="legal-hero">
-    <h1>Politica de Cookies</h1>
-    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+    <h1><%= tt('legal.cookies.pageTitle') %></h1>
+    <p><%= lastUpdated %></p>
   </header>
 
   <article class="legal-content">
     <section class="legal-section">
-      <h2>1. Ce sunt cookie-urile?</h2>
-      <p>
-        Cookie-urile sunt fișiere text mici stocate în browser pentru a ne ajuta să recunoaștem dispozitivul și să îți oferim
-        o experiență personalizată și sigură.
-      </p>
+      <h2><%= tt('legal.cookies.sections.1.title') %></h2>
+      <p><%= tt('legal.cookies.sections.1.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>2. Tipurile de cookie-uri pe care le folosim</h2>
+      <h2><%= tt('legal.cookies.sections.2.title') %></h2>
       <ul>
-        <li><strong>Necesare:</strong> Asigură funcționarea de bază a platformei (autentificare, securitate, sesiune).</li>
-        <li><strong>Preferințe:</strong> Salvează limba și alte setări ale utilizatorului.</li>
-        <li><strong>Analitice:</strong> Ne ajută să înțelegem cum este folosită platforma și să o optimizăm.</li>
+        <li><%- tt('legal.cookies.sections.2.items.1') %></li>
+        <li><%- tt('legal.cookies.sections.2.items.2') %></li>
+        <li><%- tt('legal.cookies.sections.2.items.3') %></li>
       </ul>
     </section>
 
     <section class="legal-section">
-      <h2>3. Gestionarea preferințelor</h2>
-      <p>
-        Poți modifica preferințele din browser sau folosind opțiunea „Setări” din bannerul de cookie-uri. Dezactivarea anumitor
-        cookie-uri poate afecta experiența de utilizare.
-      </p>
+      <h2><%= tt('legal.cookies.sections.3.title') %></h2>
+      <p><%= tt('legal.cookies.sections.3.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>4. Parteneri terți</h2>
-      <p>
-        Cookie-urile terților (ex. Stripe) sunt utilizate pentru procesarea securizată a plăților și prevenirea fraudelor. Aceste
-        cookie-uri sunt esențiale și nu pot fi dezactivate.
-      </p>
+      <h2><%= tt('legal.cookies.sections.4.title') %></h2>
+      <p><%= tt('legal.cookies.sections.4.body') %></p>
     </section>
   </article>
 </section>
 
-<%- include('../partials/footer') %>
+<%- include('../partials/footer', {
+  t: typeof t === 'function' ? t : null,
+  currentLang: currentLangValue,
+  currentLangLabel: currentLangLabelValue,
+  switchLang: switchLangValue,
+  switchLangLabel: switchLangLabelValue
+}) %>
 

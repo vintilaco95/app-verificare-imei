@@ -4,6 +4,7 @@
  */
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { BASE_CURRENCY } = require('../config/currency');
 
 if (!process.env.STRIPE_SECRET_KEY) {
   console.warn('⚠️  STRIPE_SECRET_KEY not set in .env file');
@@ -24,14 +25,20 @@ async function createCheckoutSession(orderId, amount, email, imei, options = {})
       console.log(`[Stripe] Amount adjusted from ${amount.toFixed(2)} to ${finalAmount.toFixed(2)} RON (Stripe minimum)`);
     }
     
-    const { brand = null, additionalServiceIds = [] } = options || {};
+    const {
+      brand = null,
+      additionalServiceIds = [],
+      creditsAmount = null,
+      currency: rawCurrency = BASE_CURRENCY
+    } = options || {};
+    const currency = (rawCurrency || BASE_CURRENCY).toLowerCase();
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'ron', // Romanian Leu
+            currency,
             product_data: {
               name: 'Verificare IMEI',
               description: `Verificare IMEI pentru telefon: ${imei}`,
@@ -53,6 +60,8 @@ async function createCheckoutSession(orderId, amount, email, imei, options = {})
         additionalServices: Array.isArray(additionalServiceIds) && additionalServiceIds.length > 0
           ? additionalServiceIds.join(',')
           : '',
+        creditsAmount: creditsAmount !== null ? creditsAmount.toString() : '',
+        currency: currency.toUpperCase(),
         originalAmount: amount.toString(),
         finalAmount: finalAmount.toString()
       },
@@ -91,7 +100,7 @@ async function createCreditTopupSession(userId, amount, email, options = {}) {
       line_items: [
         {
           price_data: {
-            currency: 'ron',
+            currency: BASE_CURRENCY.toLowerCase(),
             product_data: {
               name: 'Încărcare credite IMEI Check',
               description: `Pachet ${packageId !== 'custom' ? packageId : 'personalizat'} - ${finalAmount.toFixed(2)} credite`
@@ -110,7 +119,8 @@ async function createCreditTopupSession(userId, amount, email, options = {}) {
         userId: userId.toString(),
         packageId,
         requestedAmount: amount.toString(),
-        chargedAmount: finalAmount.toString()
+        chargedAmount: finalAmount.toString(),
+        currency: BASE_CURRENCY
       },
       expires_at: Math.floor(Date.now() / 1000) + (30 * 60)
     });

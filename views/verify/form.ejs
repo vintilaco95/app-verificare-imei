@@ -1,21 +1,69 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('verify.form.pageTitle'), user: user }) %>
+
+<% 
+  const locale = currentLang === 'en' ? 'en-US' : 'ro-RO';
+  const creditUnitValue = typeof creditValue !== 'undefined' ? creditValue : 1;
+  const currencyCodeValue = typeof currencyCode !== 'undefined' ? currencyCode : 'RON';
+  const guestVerificationCreditsValue = typeof guestVerificationCredits !== 'undefined'
+    ? guestVerificationCredits
+    : 3;
+  const brandLabels = {
+    apple: t('verify.form.brands.apple'),
+    samsung: t('verify.form.brands.samsung'),
+    honor: t('verify.form.brands.honor'),
+    huawei: t('verify.form.brands.huawei'),
+    xiaomi: t('verify.form.brands.xiaomi'),
+    oneplus: t('verify.form.brands.oneplus'),
+    motorola: t('verify.form.brands.motorola'),
+    default: t('verify.form.brands.default')
+  };
+  const brandDescriptions = {
+    apple: t('verify.form.brandDescriptions.apple'),
+    samsung: t('verify.form.brandDescriptions.samsung'),
+    honor: t('verify.form.brandDescriptions.honor'),
+    huawei: t('verify.form.brandDescriptions.huawei'),
+    xiaomi: t('verify.form.brandDescriptions.xiaomi'),
+    oneplus: t('verify.form.brandDescriptions.oneplus'),
+    motorola: t('verify.form.brandDescriptions.motorola'),
+    default: t('verify.form.brandDescriptions.default')
+  };
+  const brandIcons = {
+    apple: '🍎',
+    samsung: '📱',
+    honor: '🏆',
+    huawei: '🇨🇳',
+    xiaomi: '📲',
+    oneplus: '⚡',
+    motorola: '📶',
+    default: '🌐'
+  };
+  const formatCredits = (value) => {
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    return Number.isInteger(num) ? num.toFixed(0) : num.toFixed(2);
+  };
+  const formatCurrencyAmount = (value) => {
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    return (num * creditUnitValue).toFixed(2);
+  };
+%>
 
 <div class="verify-container">
   <div class="verify-card">
-    <h1 class="verify-title">Verificare IMEI</h1>
+    <h1 class="verify-title"><%= t('verify.form.heading') %></h1>
     <p class="verify-subtitle">
-      Introdu IMEI-ul telefonului pentru a verifica dacă este sigur pentru cumpărare
+      <%= t('verify.form.subtitle') %>
     </p>
     
     <%- include('../partials/flash', { errors: errors }) %>
     
-    <% const brandLabels = { apple: 'Apple', samsung: 'Samsung', honor: 'Honor', huawei: 'Huawei', xiaomi: 'Xiaomi', oneplus: 'OnePlus', motorola: 'Motorola', default: 'Alte branduri' }; %>
     <% if (user) { %>
       <!-- Authenticated user form -->
       <form action="/verify/imei" method="POST" class="verify-form" id="verify-form">
         <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
         <div class="form-group">
-          <label for="imei">IMEI (15 cifre)</label>
+          <label for="imei"><%= t('verify.form.fields.imei.label') %></label>
           <input 
             type="text" 
             id="imei" 
@@ -23,11 +71,11 @@
             required 
             pattern="[0-9]{15}"
             maxlength="15"
-            placeholder="Ex: 354449442825304"
+            placeholder="<%= t('verify.form.fields.imei.placeholder') %>"
             class="imei-input"
             autocomplete="off"
           >
-          <small class="form-hint">IMEI-ul se găsește în Setări → Despre telefon sau tastând *#06#</small>
+          <small class="form-hint"><%= t('verify.form.fields.imei.hint') %></small>
           <div id="imei-error" class="imei-feedback" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;"></div>
           <div id="imei-valid" class="imei-feedback" style="color: #22c55e; font-size: 0.85rem; margin-top: 0.5rem;"></div>
           
@@ -35,7 +83,7 @@
           <div id="previous-verifications" class="previous-verifications" style="display: none; margin-top: 1rem;">
             <div class="previous-verifications-header">
               <span class="previous-icon">📋</span>
-              <span class="previous-text">Acest IMEI a fost verificat anterior</span>
+              <span class="previous-text"><%= t('verify.form.previousChecks.title') %></span>
             </div>
             <div id="previous-verifications-list" class="previous-verifications-list"></div>
           </div>
@@ -43,15 +91,15 @@
         
         <!-- Additional Services (will be available after brand detection via API) -->
         <div id="additional-services" class="additional-services" style="display: none; margin-top: 1.5rem;">
-          <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">Verificări suplimentare (opțional)</h3>
+          <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);"><%= t('verify.form.additional.heading') %></h3>
           <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
-            Serviciile suplimentare vor fi disponibile după ce brandul telefonului este detectat automat.
+            <%= t('verify.form.additional.description') %>
           </p>
           <div id="additional-services-list"></div>
         </div>
         
         <button type="submit" class="btn btn-primary btn-large btn-block" id="submit-btn">
-          <span>Verifică IMEI</span>
+          <span><%= t('verify.form.actions.submit') %></span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M5 12h14M12 5l7 7-7 7"></path>
           </svg>
@@ -60,26 +108,16 @@
       
       <% if (pricing) { %>
         <section class="pricing-section verify-pricing">
-          <h2 class="section-title">Prețuri pe brand</h2>
-          <p class="section-subtitle">Suma se debitează automat după identificarea brandului.</p>
+          <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
+          <p class="section-subtitle"><%= t('verify.form.pricing.subtitleAuth') %></p>
           <div class="pricing-grid pricing-grid-compact">
             <% Object.keys(pricing).forEach(function(key) { %>
               <div class="pricing-card">
                 <div class="pricing-brand">
-                  <%= key === 'apple' ? '🍎 ' : key === 'samsung' ? '📱 ' : key === 'honor' ? '🏆 ' : key === 'huawei' ? '🇨🇳 ' : key === 'xiaomi' ? '📲 ' : key === 'oneplus' ? '⚡ ' : key === 'motorola' ? '📶 ' : '🌐 ' %>
-                  <%= brandLabels[key] || key %>
+                  <%= `${brandIcons[key] || brandIcons.default} ${brandLabels[key] || key}` %>
                 </div>
-                <div class="pricing-price"><%= pricing[key].toFixed(2) %> <span class="pricing-currency">credite</span></div>
-                <p class="pricing-description">
-                  <%= key === 'apple' ? 'Verificare completă iPhone' :
-                      key === 'samsung' ? 'Verificare + Knox Status' :
-                      key === 'honor' ? 'Informații complete' :
-                      key === 'huawei' ? 'Verificare IMEI' :
-                      key === 'xiaomi' ? 'MI Lock & Info' :
-                      key === 'oneplus' ? 'Verificare IMEI rapidă' :
-                      key === 'motorola' ? 'Info + blacklist' :
-                      'Verificare standard' %>
-                </p>
+                <div class="pricing-price"><%= formatCredits(pricing[key]) %> <span class="pricing-currency"><%= t('common.labels.credits') %></span></div>
+                <p class="pricing-description"><%= brandDescriptions[key] || brandDescriptions.default %></p>
               </div>
             <% }); %>
           </div>
@@ -90,7 +128,7 @@
       <form action="/verify/imei/guest" method="POST" class="verify-form" id="verify-form-guest">
         <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
         <div class="form-group">
-          <label for="imei-guest">IMEI (15 cifre)</label>
+          <label for="imei-guest"><%= t('verify.form.fields.imei.label') %></label>
           <input 
             type="text" 
             id="imei-guest" 
@@ -98,56 +136,56 @@
             required 
             pattern="[0-9]{15}"
             maxlength="15"
-            placeholder="Ex: 354449442825304"
+            placeholder="<%= t('verify.form.fields.imei.placeholder') %>"
             class="imei-input"
             autocomplete="off"
           >
-          <small class="form-hint">IMEI-ul se găsește în Setări → Despre telefon sau tastând *#06#</small>
+          <small class="form-hint"><%= t('verify.form.fields.imei.hint') %></small>
           <div id="imei-error-guest" class="imei-feedback" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;"></div>
           <div id="imei-valid-guest" class="imei-feedback" style="color: #22c55e; font-size: 0.85rem; margin-top: 0.5rem;"></div>
         </div>
         
         <div class="form-group">
-          <label for="email">Email pentru rezultat</label>
+          <label for="email"><%= t('verify.form.fields.email.label') %></label>
           <input 
             type="email" 
             id="email" 
             name="email" 
             required 
-            placeholder="exemplu@email.com"
+            placeholder="<%= t('verify.form.fields.email.placeholder') %>"
           >
         </div>
         
         <div class="form-group">
-          <label for="brand">Brand telefon</label>
+          <label for="brand"><%= t('verify.form.fields.brand.label') %></label>
           <select id="brand" name="brand" required>
-            <option value="">Selectează brandul</option>
+            <option value=""><%= t('verify.form.fields.brand.placeholder') %></option>
             <% Object.keys(pricing || {}).forEach(function(key) { %>
               <% if (key !== 'default') { %>
                 <option value="<%= key %>" <%= selectedBrand === key ? 'selected' : '' %>><%= brandLabels[key] || key %></option>
               <% } %>
             <% }); %>
-            <option value="default" <%= selectedBrand === 'default' ? 'selected' : '' %>>Alt brand / Necunoscut</option>
+            <option value="default" <%= selectedBrand === 'default' ? 'selected' : '' %>><%= t('verify.form.fields.brand.otherOption') %></option>
           </select>
-          <small class="form-hint">Alege brandul pentru a calcula costul plății unice.</small>
+          <small class="form-hint"><%= t('verify.form.fields.brand.hint') %></small>
         </div>
         
         <div class="guest-price-info" id="guest-price-info">
-          <span class="guest-price-label">Cost verificare:</span>
+          <span class="guest-price-label"><%= t('verify.form.guest.price.label') %></span>
           <span class="guest-price-value" id="guest-price-value">—</span>
         </div>
         
         <!-- Additional Services (will be available after brand detection via API) -->
         <div id="additional-services-guest" class="additional-services" style="display: none; margin-top: 1.5rem;">
-          <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">Verificări suplimentare (opțional)</h3>
+          <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);"><%= t('verify.form.additional.heading') %></h3>
           <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
-            Serviciile suplimentare vor fi disponibile după ce brandul telefonului este detectat automat.
+            <%= t('verify.form.additional.description') %>
           </p>
           <div id="additional-services-list-guest"></div>
         </div>
         
         <button type="submit" class="btn btn-primary btn-large btn-block" id="submit-btn-guest">
-          <span>Verifică IMEI</span>
+          <span><%= t('verify.form.actions.submit') %></span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M5 12h14M12 5l7 7-7 7"></path>
           </svg>
@@ -156,26 +194,19 @@
       
       <% if (pricing) { %>
         <section class="pricing-section verify-pricing">
-          <h2 class="section-title">Prețuri pe brand</h2>
-          <p class="section-subtitle">Plata unică se calculează în funcție de brandul detectat.</p>
+          <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
+          <p class="section-subtitle"><%= t('verify.form.pricing.subtitleGuest') %></p>
           <div class="pricing-grid pricing-grid-compact">
             <% Object.keys(pricing).forEach(function(key) { %>
               <div class="pricing-card">
                 <div class="pricing-brand">
-                  <%= key === 'apple' ? '🍎 ' : key === 'samsung' ? '📱 ' : key === 'honor' ? '🏆 ' : key === 'huawei' ? '🇨🇳 ' : key === 'xiaomi' ? '📲 ' : key === 'oneplus' ? '⚡ ' : key === 'motorola' ? '📶 ' : '🌐 ' %>
-                  <%= brandLabels[key] || key %>
+                  <%= `${brandIcons[key] || brandIcons.default} ${brandLabels[key] || key}` %>
                 </div>
-                <div class="pricing-price"><%= pricing[key].toFixed(2) %> <span class="pricing-currency">credite</span></div>
-                <p class="pricing-description">
-                  <%= key === 'apple' ? 'Verificare completă iPhone' :
-                      key === 'samsung' ? 'Verificare + Knox Status' :
-                      key === 'honor' ? 'Informații complete' :
-                      key === 'huawei' ? 'Verificare IMEI' :
-                      key === 'xiaomi' ? 'MI Lock & Info' :
-                      key === 'oneplus' ? 'Verificare IMEI rapidă' :
-                      key === 'motorola' ? 'Info + blacklist' :
-                      'Verificare standard' %>
-                </p>
+                <div class="pricing-price">
+                  <span class="pricing-primary"><%= formatCurrencyAmount(pricing[key]) %> <%= currencyCodeValue %></span>
+                  <span class="pricing-secondary">≈ <%= formatCredits(pricing[key]) %> <%= t('common.labels.credits') %></span>
+                </div>
+                <p class="pricing-description"><%= brandDescriptions[key] || brandDescriptions.default %></p>
               </div>
             <% }); %>
           </div>
@@ -187,12 +218,45 @@
 
 <script>
   window.serverPricing = <%- JSON.stringify(pricing || {}) %>;
+  window.creditValue = <%= creditUnitValue %>;
+  window.currencyCode = <%- JSON.stringify(currencyCodeValue) %>;
+  window.guestVerificationCredits = <%= guestVerificationCreditsValue %>;
 </script>
 <script src="/js/imei-validator.js"></script>
 <script src="/js/pricing.js"></script>
 <script>
   // Initialize IMEI validation when page loads
   document.addEventListener('DOMContentLoaded', function() {
+    const appLocale = '<%= locale %>';
+    const statusTexts = {
+      pending: '<%= t('status.pending') %>',
+      success: '<%= t('status.success') %>',
+      failed: '<%= t('status.failed') %>',
+      error: '<%= t('status.error') %>'
+    };
+    const previousOpenLabel = '<%= t('verify.form.previousChecks.open') %>';
+    const previousSeeAllLabel = '<%= t('verify.form.previousChecks.seeAll') %>';
+    const creditsLabel = '<%= t('common.labels.credits') %>';
+    const currencyLabelRaw = window.currencyCode || '<%= currencyCodeValue %>';
+    const currencyLabel = (currencyLabelRaw || 'RON').toUpperCase();
+    const rawCreditValue = parseFloat(window.creditValue !== undefined ? window.creditValue : '<%= creditUnitValue %>');
+    const creditUnitValueGuest = (!isNaN(rawCreditValue) && rawCreditValue > 0) ? rawCreditValue : <%= creditUnitValue %>;
+    const rawGuestCredits = parseFloat(
+      window.guestVerificationCredits !== undefined
+        ? window.guestVerificationCredits
+        : '<%= guestVerificationCreditsValue %>'
+    );
+    const guestVerificationCredits = (!isNaN(rawGuestCredits) && rawGuestCredits > 0)
+      ? rawGuestCredits
+      : <%= guestVerificationCreditsValue %>;
+    function formatCreditDisplay(value) {
+      if (typeof value !== 'number' || isNaN(value)) return value;
+      return Number.isInteger(value) ? value.toString() : value.toFixed(2);
+    }
+
+    const validationImeiMessage = '<%= t('verify.form.validation.invalidImei') %>';
+    const validationSelectBrandMessage = '<%= t('verify.form.validation.selectBrand') %>';
+
     <% if (user) { %>
       // Authenticated user form
       const imeiInput = document.getElementById('imei');
@@ -225,13 +289,8 @@
               const orderDiv = document.createElement('div');
               orderDiv.className = 'previous-order-item';
               
-              const date = new Date(order.date).toLocaleString('ro-RO');
-              const statusText = {
-                'pending': 'În proces',
-                'success': 'Finalizat',
-                'failed': 'Eșuat',
-                'error': 'Eroare'
-              }[order.status] || order.status;
+              const date = new Date(order.date).toLocaleString(appLocale);
+              const statusText = statusTexts[order.status] || order.status;
               
               const statusClass = `status-${order.status}`;
               
@@ -241,7 +300,7 @@
                   <span class="previous-order-model">${order.model} - ${order.brand}</span>
                   <span class="status-badge ${statusClass}">${statusText}</span>
                 </div>
-                <a href="/verify/result/${order.id}" class="btn btn-sm">Deschide</a>
+                <a href="/verify/result/${order.id}" class="btn btn-sm">${previousOpenLabel}</a>
               `;
               
               prevList.appendChild(orderDiv);
@@ -250,7 +309,7 @@
             if (data.count > data.orders.length) {
               const moreDiv = document.createElement('div');
               moreDiv.className = 'previous-order-more';
-              moreDiv.innerHTML = `<a href="/dashboard/orders" class="btn btn-sm btn-secondary">Vezi toate (${data.count})</a>`;
+              moreDiv.innerHTML = `<a href="/dashboard/orders" class="btn btn-sm btn-secondary">${previousSeeAllLabel} (${data.count})</a>`;
               prevList.appendChild(moreDiv);
             }
           } else {
@@ -290,7 +349,7 @@
         if (value.length !== 15 || !validateIMEI(value)) {
           e.preventDefault();
           if (imeiError) {
-            imeiError.textContent = 'Te rog introdu un IMEI valid (15 cifre)';
+            imeiError.textContent = validationImeiMessage;
             imeiError.style.color = '#ef4444';
           }
           imeiInput.style.borderColor = '#ef4444';
@@ -311,12 +370,39 @@
       function updateGuestPriceDisplay() {
         if (!guestPriceValue) return;
         const brand = brandSelect ? brandSelect.value : '';
-        if (brand && window.serverPricing && typeof window.serverPricing[brand] !== 'undefined') {
-          guestPriceValue.textContent = `${Number(window.serverPricing[brand]).toFixed(2)} credite`;
-        } else {
+        if (!brand) {
           guestPriceValue.textContent = '—';
+          return;
         }
+
+        const serverConfiguredCredits = window.serverPricing && typeof window.serverPricing[brand] !== 'undefined'
+          ? Number(window.serverPricing[brand])
+          : NaN;
+        const baseCredits = (!isNaN(guestVerificationCredits) && guestVerificationCredits > 0)
+          ? guestVerificationCredits
+          : (!isNaN(serverConfiguredCredits) ? serverConfiguredCredits : guestVerificationCredits);
+
+        if (isNaN(baseCredits)) {
+          guestPriceValue.textContent = '—';
+          return;
+        }
+
+        let totalCredits = baseCredits;
+        const additionalList = document.getElementById('additional-services-list-guest');
+        if (additionalList) {
+          const extraCredits = Array.from(additionalList.querySelectorAll('.service-checkbox-input:checked'))
+            .reduce((sum, checkbox) => {
+              const price = parseFloat(checkbox.dataset.price || '0');
+              return isNaN(price) ? sum : sum + price;
+            }, 0);
+          totalCredits += extraCredits;
+        }
+
+        const totalCreditsFormatted = formatCreditDisplay(totalCredits);
+        const currencyAmount = (totalCredits * creditUnitValueGuest).toFixed(2);
+        guestPriceValue.textContent = `${currencyAmount} ${currencyLabel} (≈ ${totalCreditsFormatted} ${creditsLabel})`;
       }
+      window.updateGuestPriceDisplay = updateGuestPriceDisplay;
       
       if (brandSelect) {
         brandSelect.addEventListener('change', updateGuestPriceDisplay);
@@ -343,7 +429,7 @@
         if (value.length !== 15 || !validateIMEI(value)) {
           e.preventDefault();
           if (imeiErrorGuest) {
-            imeiErrorGuest.textContent = 'Te rog introdu un IMEI valid (15 cifre)';
+            imeiErrorGuest.textContent = validationImeiMessage;
             imeiErrorGuest.style.color = '#ef4444';
           }
           imeiInputGuest.style.borderColor = '#ef4444';
@@ -352,7 +438,7 @@
         if (!brand) {
           e.preventDefault();
           if (imeiErrorGuest) {
-            imeiErrorGuest.textContent = 'Selectează brandul telefonului pentru a continua.';
+            imeiErrorGuest.textContent = validationSelectBrandMessage;
             imeiErrorGuest.style.color = '#ef4444';
           }
           return false;

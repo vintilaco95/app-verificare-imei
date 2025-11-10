@@ -1,10 +1,38 @@
+<% 
+  const tFn = (typeof t === 'function')
+    ? t
+    : (typeof locals !== 'undefined' && typeof locals.t === 'function'
+      ? locals.t
+      : (key) => key);
+  const currentLangValue = typeof currentLang !== 'undefined'
+    ? currentLang
+    : (typeof locals !== 'undefined' && typeof locals.currentLang !== 'undefined'
+      ? locals.currentLang
+      : 'ro');
+  const currentLangLabelValue = typeof currentLangLabel !== 'undefined'
+    ? currentLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.currentLangLabel !== 'undefined'
+      ? locals.currentLangLabel
+      : currentLangValue);
+  const switchLangValue = typeof switchLang !== 'undefined'
+    ? switchLang
+    : (typeof locals !== 'undefined' && typeof locals.switchLang !== 'undefined'
+      ? locals.switchLang
+      : (currentLangValue === 'ro' ? 'en' : 'ro'));
+  const switchLangLabelValue = typeof switchLangLabel !== 'undefined'
+    ? switchLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined'
+      ? locals.switchLangLabel
+      : currentLangLabelValue);
+%>
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="<%= currentLangValue %>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= typeof title !== 'undefined' ? title + ' - ' : '' %>Verificare IMEI</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>
     window.csrfToken = <%= JSON.stringify(typeof csrfToken !== 'undefined' ? csrfToken : '') %>;
@@ -27,38 +55,43 @@
     <div class="nav-container">
       <a href="/" class="nav-brand">
         <span class="nav-logo-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-          </svg>
+          <span class="logo-emoji" aria-hidden="true">🐶</span>
         </span>
-        <span class="nav-logo-text">verifică.ro</span>
+        <span class="nav-logo-text"><%= tFn('nav.brand') %></span>
       </a>
-      <button class="nav-toggle" type="button" aria-label="Deschide meniul" aria-expanded="false">
+      <button class="nav-toggle" type="button" aria-label="<%= tFn('nav.menu.open') %>" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
       </button>
       <div class="nav-links">
         <% if (typeof user !== 'undefined' && user) { %>
-          <a href="/" class="nav-link">Acasă</a>
-          <a href="/dashboard" class="nav-link">Dashboard</a>
-          <a href="/verify/imei" class="nav-link">Verificare IMEI</a>
-          <a href="/dashboard/orders" class="nav-link">Istoric</a>
+          <a href="/" class="nav-link"><%= tFn('nav.home') %></a>
+          <a href="/dashboard" class="nav-link"><%= tFn('nav.dashboard') %></a>
+          <a href="/verify/imei" class="nav-link"><%= tFn('nav.verify') %></a>
+          <a href="/dashboard/orders" class="nav-link"><%= tFn('nav.history') %></a>
           <div class="nav-credit-pill">
             <span class="credit-icon">🌕</span>
             <span class="credit-value"><%= user.credits.toFixed(2) %></span>
-            <a href="/dashboard/credits/topup" class="credit-add" aria-label="Adaugă credite">+</a>
+            <a href="/dashboard/credits/topup" class="credit-add" aria-label="<%= tFn('nav.credits.add') %>">+</a>
           </div>
           <form action="/auth/logout" method="POST" class="nav-form">
             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-            <button type="submit" class="nav-link nav-link-ghost">Deconectare</button>
+            <button type="submit" class="nav-link nav-link-ghost"><%= tFn('nav.logout') %></button>
           </form>
         <% } else { %>
-          <a href="/" class="nav-link">Acasă</a>
-          <a href="/verify/imei" class="nav-link">Verificare IMEI</a>
-          <a href="/auth/login" class="nav-link nav-link-ghost">Autentificare</a>
-          <a href="/auth/register" class="nav-link nav-link-primary">Înregistrare</a>
+          <a href="/" class="nav-link"><%= tFn('nav.home') %></a>
+          <a href="/verify/imei" class="nav-link"><%= tFn('nav.verify') %></a>
+          <a href="/auth/login" class="nav-link nav-link-ghost"><%= tFn('nav.login') %></a>
+          <a href="/auth/register" class="nav-link nav-link-primary"><%= tFn('nav.register') %></a>
         <% } %>
+        <a href="?lang=<%= switchLangValue %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
+          <span class="sr-only"><%= tFn('nav.language.toggleLabel') %></span>
+          <span class="lang-toggle" aria-hidden="true">
+            <span class="lang-flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>
+            <span class="lang-flag <%= currentLangValue === 'en' ? 'is-active' : '' %>">🇬🇧</span>
+          </span>
+        </a>
       </div>
     </div>
   </nav>

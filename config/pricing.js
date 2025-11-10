@@ -5,14 +5,14 @@
 const PRICING = {
   // Base prices per brand (default verification)
   base: {
-    apple: 1,      // Service 19 - Apple FULL INFO [+Carrier] B
-    samsung: 1,    // Service 37 - Samsung Info & KNOX STATUS
-    honor: 1,      // Service 58 - Honor Info
-    huawei: 1,    // Service 17 - Huawei IMEI Info
-    xiaomi: 1,    // Service 25 - Xiaomi MI LOCK & INFO
-    oneplus: 1,   // Service 27 - OnePlus IMEI Info
-    motorola: 1,  // Service 63 - Motorola Info
-    default: 1    // Fallback price
+    apple: 3,      // Service 19 - Apple FULL INFO [+Carrier] B
+    samsung: 3,    // Service 37 - Samsung Info & KNOX STATUS
+    honor: 3,      // Service 58 - Honor Info
+    huawei: 3,    // Service 17 - Huawei IMEI Info
+    xiaomi: 3,    // Service 25 - Xiaomi MI LOCK & INFO
+    oneplus: 3,   // Service 27 - OnePlus IMEI Info
+    motorola: 3,  // Service 63 - Motorola Info
+    default: 3    // Fallback price
   },
   
   // Additional services (optional, extra cost)

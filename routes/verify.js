@@ -19,10 +19,30 @@ const {
   formatLostModeStatus,
   formatNetworkLockStatus,
   formatOriginInfo,
-  calculateRiskScore
+  formatMiLockStatus,
+  calculateRiskScore,
+  getRiskDetails,
+  normalizeLang,
+  DEFAULT_LANGUAGE
 } = require('../services/emailFormatter');
+const { generateResultHTML } = require('../services/generateResultHTML');
+const { parseAppleMdmHTML } = require('../services/parseAppleMdmHTML');
+const {
+  CREDIT_VALUE,
+  BASE_CURRENCY,
+  GUEST_VERIFICATION_CREDITS
+} = require('../config/currency');
 const { processCreditTopupSession } = require('../services/creditTopupService');
 const { addVerificationJob } = require('../services/verificationQueue');
+
+const guestPricing = Object.keys(PRICING.base).reduce((acc, key) => {
+  acc[key] = GUEST_VERIFICATION_CREDITS;
+  return acc;
+}, {});
+
+function getPricingForUser(user) {
+  return user ? PRICING.base : guestPricing;
+}
 
 // Show verification form
 router.get('/imei', (req, res) => {
@@ -30,8 +50,11 @@ router.get('/imei', (req, res) => {
     title: 'Verificare IMEI',
     user: req.user || null,
     errors: null,
-    pricing: PRICING.base,
-    selectedBrand: null
+    pricing: getPricingForUser(req.user),
+    selectedBrand: null,
+    creditValue: CREDIT_VALUE,
+    currencyCode: BASE_CURRENCY,
+    guestVerificationCredits: GUEST_VERIFICATION_CREDITS
   });
 });
 
@@ -84,8 +107,11 @@ router.post('/imei', requireAuth, [
       title: 'Verificare IMEI',
       errors: errors.array(),
       user: req.user || null,
-      pricing: PRICING.base,
-      selectedBrand: null
+      pricing: getPricingForUser(req.user),
+      selectedBrand: null,
+      creditValue: CREDIT_VALUE,
+      currencyCode: BASE_CURRENCY,
+      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
     });
   }
   
@@ -101,8 +127,11 @@ router.post('/imei', requireAuth, [
         title: 'Verificare IMEI',
         errors: [{ msg: 'IMEI-ul trebuie să aibă exact 15 cifre' }],
         user: req.user || null,
-        pricing: PRICING.base,
-        selectedBrand: null
+        pricing: getPricingForUser(req.user),
+        selectedBrand: null,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
     
@@ -110,6 +139,7 @@ router.post('/imei', requireAuth, [
     const additionalServiceIds = Array.isArray(additionalServices) 
       ? additionalServices.map(id => parseInt(id))
       : (additionalServices ? [parseInt(additionalServices)] : []);
+    const lang = normalizeLang(res.locals.currentLang || req.session.lang || DEFAULT_LANGUAGE);
     
     // Detect brand upfront to determine correct pricing
     let pricingBrand = 'default';
@@ -132,8 +162,11 @@ router.post('/imei', requireAuth, [
         title: 'Verificare IMEI',
         errors: [{ msg: `Credite insuficiente. Ai ${user.credits.toFixed(2)} credite, dar ai nevoie de ${totalCost.toFixed(2)} credite.` }],
         user: req.user || null,
-        pricing: PRICING.base,
-        selectedBrand: null
+        pricing: getPricingForUser(req.user),
+        selectedBrand: null,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
     
@@ -151,7 +184,8 @@ router.post('/imei', requireAuth, [
       object: null,
       brand: detectedBrandForPricing || 'unknown', // Will be confirmed via API (service 11)
       model: 'Processing...',
-      additionalServices: additionalServiceIds
+      additionalServices: additionalServiceIds,
+      language: lang
     });
     await tempOrder.save();
     
@@ -177,7 +211,8 @@ router.post('/imei', requireAuth, [
         userId: user._id,
         email: user.email,
         detectedBrand: detectedBrandForPricing,
-        additionalServiceIds
+        additionalServiceIds,
+        language: lang
       });
     } catch (queueError) {
       console.error('[Queue] Failed to enqueue verification job:', queueError);
@@ -200,8 +235,11 @@ router.post('/imei', requireAuth, [
         title: 'Verificare IMEI',
         errors: [{ msg: 'Serviciul de procesare este indisponibil momentan. Te rugăm să încerci din nou.' }],
         user: req.user || null,
-        pricing: PRICING.base,
-        selectedBrand: null
+        pricing: getPricingForUser(req.user),
+        selectedBrand: null,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
     
@@ -213,8 +251,11 @@ router.post('/imei', requireAuth, [
       title: 'Verificare IMEI',
       errors: [{ msg: 'Eroare la verificare. Încearcă din nou.' }],
       user: req.user || null,
-      pricing: PRICING.base,
-      selectedBrand: null
+      pricing: getPricingForUser(req.user),
+      selectedBrand: null,
+      creditValue: CREDIT_VALUE,
+      currencyCode: BASE_CURRENCY,
+      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
     });
   }
 });
@@ -230,7 +271,11 @@ router.post('/imei/guest', [
       title: 'Verificare IMEI',
       errors: errors.array(),
       user: null,
-      pricing: PRICING.base
+      pricing: getPricingForUser(null),
+      selectedBrand: null,
+      creditValue: CREDIT_VALUE,
+      currencyCode: BASE_CURRENCY,
+      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
     });
   }
   
@@ -248,7 +293,11 @@ router.post('/imei/guest', [
         title: 'Verificare IMEI',
         errors: [{ msg: 'IMEI-ul trebuie să aibă exact 15 cifre' }],
         user: null,
-        pricing: PRICING.base
+        pricing: getPricingForUser(null),
+        selectedBrand: selectedBrandRaw || null,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
     
@@ -259,8 +308,11 @@ router.post('/imei/guest', [
         title: 'Verificare IMEI',
         errors: [{ msg: 'Te rugăm să selectezi brandul telefonului înainte de a continua.' }],
         user: null,
-        pricing: PRICING.base,
-        selectedBrand: brand || null
+        pricing: getPricingForUser(null),
+        selectedBrand: brand || null,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
     
@@ -268,21 +320,30 @@ router.post('/imei/guest', [
     const additionalServiceIds = Array.isArray(additionalServices) 
       ? additionalServices.map(id => parseInt(id))
       : (additionalServices ? [parseInt(additionalServices)] : []);
+    const lang = normalizeLang(res.locals.currentLang || req.session.lang || DEFAULT_LANGUAGE);
     
     // Use selected brand for pricing
     const pricingBrand = brand;
     let detectedBrandForPricing = null;
     
-    // Calculate total cost using selected brand
-    const totalCost = calculateTotalPrice(pricingBrand, additionalServiceIds);
+    // Calculate guest pricing: base credits override + additional services
+    const defaultTotalCredits = calculateTotalPrice(pricingBrand, additionalServiceIds);
+    const baseCredits = PRICING.base[pricingBrand] || PRICING.base.default || 1;
+    const additionalCredits = Math.max(0, parseFloat((defaultTotalCredits - baseCredits).toFixed(2)));
+    const totalCredits = parseFloat((GUEST_VERIFICATION_CREDITS + additionalCredits).toFixed(2));
+    const totalAmount = parseFloat((totalCredits * CREDIT_VALUE).toFixed(2));
     
     // Validate price (security: prevent price manipulation)
-    if (totalCost <= 0 || totalCost > 100) {
+    if (totalCredits <= 0 || totalCredits > 100) {
       return res.render('verify/form', {
         title: 'Verificare IMEI',
         errors: [{ msg: 'Preț invalid. Te rugăm să reîmprospătezi pagina și să încerci din nou.' }],
         user: null,
-        pricing: PRICING.base
+        pricing: getPricingForUser(null),
+        selectedBrand: brand || null,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
     
@@ -294,14 +355,17 @@ router.post('/imei/guest', [
       imei: imei,
       serviceId: 0,
       serviceName: 'IMEI Verification',
-      price: totalCost,
+      price: totalCredits,
+      currencyAmount: totalAmount,
+      currency: BASE_CURRENCY,
       status: 'pending',
       paymentStatus: 'pending', // Payment required before verification
       result: null,
       object: null,
       brand: pricingBrand || 'unknown', // Will be confirmed via API
       model: 'Processing...',
-      additionalServices: additionalServiceIds
+      additionalServices: additionalServiceIds,
+      language: lang
     });
     await tempOrder.save();
     
@@ -309,19 +373,21 @@ router.post('/imei/guest', [
     try {
       const { session, adjustedAmount } = await stripeService.createCheckoutSession(
         tempOrder._id.toString(),
-        totalCost,
+        totalAmount,
         email,
         imei,
         {
           brand: pricingBrand,
-          additionalServiceIds
+          additionalServiceIds,
+          creditsAmount: totalCredits,
+          currency: BASE_CURRENCY
         }
       );
       
       // If amount was adjusted due to Stripe minimum, update order price
-      if (adjustedAmount && adjustedAmount > totalCost) {
-        tempOrder.price = adjustedAmount;
-        console.log(`[Payment] Order price adjusted from ${totalCost.toFixed(2)} to ${adjustedAmount.toFixed(2)} RON (Stripe minimum)`);
+      if (adjustedAmount && adjustedAmount > totalAmount) {
+        tempOrder.currencyAmount = adjustedAmount;
+        console.log(`[Payment] Order price adjusted from ${totalAmount.toFixed(2)} to ${adjustedAmount.toFixed(2)} ${BASE_CURRENCY} (Stripe minimum)`);
       }
       
       // Save Stripe session ID to order
@@ -338,7 +404,11 @@ router.post('/imei/guest', [
         title: 'Verificare IMEI',
         errors: [{ msg: 'Eroare la inițierea plății. Te rugăm să încerci din nou.' }],
         user: null,
-        pricing: PRICING.base
+        pricing: getPricingForUser(null),
+        selectedBrand: pricingBrand,
+        creditValue: CREDIT_VALUE,
+        currencyCode: BASE_CURRENCY,
+        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
       });
     }
   } catch (error) {
@@ -347,8 +417,11 @@ router.post('/imei/guest', [
       title: 'Verificare IMEI',
       errors: [{ msg: 'Eroare la verificare. Încearcă din nou.' }],
       user: null,
-      pricing: PRICING.base,
-      selectedBrand: selectedBrandRaw || null
+      pricing: getPricingForUser(null),
+      selectedBrand: selectedBrandRaw || null,
+      creditValue: CREDIT_VALUE,
+      currencyCode: BASE_CURRENCY,
+      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
     });
   }
 });
@@ -430,843 +503,158 @@ router.get('/status/:orderId', async (req, res) => {
 router.get('/result/:orderId', async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId);
-    
+
     if (!order) {
       return res.status(404).render('404', { user: req.user || null });
     }
-    
-    // Check if order is still pending
+
     if (order.status === 'pending') {
       return res.redirect(`/verify/processing/${order._id}`);
     }
-    
-    // Check access (user must own the order or it's a guest order with email match)
+
     if (order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
-      return res.status(403).render('error', { 
+      return res.status(403).render('error', {
         error: 'Nu ai acces la acest rezultat',
         user: req.user || null
       });
     }
-    
-    // Determine template based on brand detected from service 11
-    // Brand is already set in order.brand from the API verification process
-    const brand = (order.brand || '').toLowerCase().trim();
-    
-    // Check brand-specific markers as fallback (in case brand wasn't set correctly)
-    const isSamsung = brand === 'samsung' || (!order.object && order.result && order.result.includes('Knox Registered'));
-    
-    const isHonor = brand === 'honor' || (!order.object && order.result && (
-      order.result.includes('HONOR') || 
-      order.result.includes('Marketing Name:') ||
-      order.result.includes('SKU Name:')
-    ));
-    
-    const isMotorola = brand === 'motorola' || (order.result && (
-      order.result.includes('MOTOROLA') ||
-      order.result.includes('Moto') ||
-      order.result.includes('Motorola')
-    ));
-    
-    const isXiaomi = brand === 'xiaomi' || (order.result && (
-      order.result.includes('Xiaomi') ||
-      order.result.includes('MI ') ||
-      order.result.includes('Redmi') ||
-      order.result.includes('POCO') ||
-      order.result.includes('MI Lock')
-    ));
-    
-    const isPixel = brand === 'google' || brand === 'pixel' || (order.result && (
-      order.result.includes('Pixel') ||
-      order.result.includes('Google Pixel')
-    ));
-    
-    const isHuawei = brand === 'huawei' || (order.result && (
-      order.result.includes('Huawei') ||
-      order.result.includes('SKU Name:') ||
-      order.result.includes('nova') ||
-      order.result.includes('HUAWEI')
-    ));
-    
+
     const renderCsrfToken = (typeof req.csrfToken === 'function') ? req.csrfToken() : '';
     console.log(`[VerifyResult] GET ${req.originalUrl} - csrfToken: ${renderCsrfToken || 'EMPTY'}`);
-    
-    // Parse additional service results
-    const { parseAdditionalResults } = require('../services/parseAdditionalResults');
-    const parsedResults = parseAdditionalResults(order);
-    
-    // Update order.result to only contain main result
-    const mainOrder = { ...order.toObject() };
-    mainOrder.result = parsedResults.mainResult;
-    
-    // Ensure order.object is properly parsed if it's a string
-    if (mainOrder.object && typeof mainOrder.object === 'string') {
-      try {
-        mainOrder.object = JSON.parse(mainOrder.object);
-      } catch (e) {
-        console.error('Error parsing order.object:', e);
-      }
-    }
-    
-    if (isSamsung) {
-      // Parse Samsung data - try service 21 format first, fallback to service 37 format
-      const { parseSamsung21, mergeSamsungData } = require('../services/parseSamsung21');
-      const { parseSamsungHTML } = require('../services/parseSamsungHTML');
-      
-      // Check if we have parsed data from service 21 (stored in order object or result)
-      let samsungParsedData = null;
-      
-      // Try to get parsed data from order object if it was stored there
-      if (mainOrder.object && mainOrder.object._parsedData) {
-        samsungParsedData = mainOrder.object._parsedData;
-      } else {
-        // Parse from result HTML - try service 21 format first
-        samsungParsedData = parseSamsung21(mainOrder.result || '');
-        
-        // If service 21 format doesn't have enough data, try service 37 format
-        if (!samsungParsedData.marketingName || !samsungParsedData.warrantyStatus) {
-          const data37 = parseSamsungHTML(mainOrder.result || '');
-          samsungParsedData = mergeSamsungData(samsungParsedData, data37);
-        }
-      }
-      
-      // Extract MDM status from additional results if available
-      let mdmStatus = null;
-      let mdmLocked = null;
-      if (parsedResults.additionalResults && parsedResults.additionalResults.length > 0) {
-        for (const result of parsedResults.additionalResults) {
-          if (result.parsedData) {
-            if (result.parsedData.mdmStatus !== undefined) {
-              mdmStatus = result.parsedData.mdmStatus;
-            }
-            if (result.parsedData.mdmLocked !== undefined) {
-              mdmLocked = result.parsedData.mdmLocked;
-            }
-          }
-        }
-      }
-      
-      // Also check main order object for MDM
-      if (mainOrder.object && mainOrder.object.mdmStatus !== undefined) {
-        mdmStatus = mainOrder.object.mdmStatus;
-      }
-      if (mainOrder.object && mainOrder.object.mdmLocked !== undefined) {
-        mdmLocked = mainOrder.object.mdmLocked;
-      }
-      
-      // Format critical information for Samsung
-      const reportData = mainOrder.object || samsungParsedData;
-      const iCloud = null; // Not applicable for Samsung
-      const blacklist = formatBlacklistStatus(
-        reportData.gsmaBlacklisted, 
-        reportData.blacklistStatus,
-        reportData.blacklistRecords,
-        reportData.blacklistData
-      );
-      // For Knox Guard, check explicitly if knoxGuard exists (even if false) in parsed data
-      let knoxValue = null;
-      if (samsungParsedData && samsungParsedData.knoxGuard !== undefined) {
-        knoxValue = samsungParsedData.knoxGuard;
-      } else if (samsungParsedData && samsungParsedData.knoxRegistered !== undefined) {
-        knoxValue = samsungParsedData.knoxRegistered;
-      } else if (reportData && reportData.knoxRegistered !== undefined) {
-        knoxValue = reportData.knoxRegistered;
-      }
-      const knox = knoxValue !== null ? formatKnoxStatus(knoxValue) : formatKnoxStatus(null);
-      // Use purchaseDate or productionDate for warranty calculation
-      const warranty = formatWarrantyInfo(samsungParsedData.purchaseDate || samsungParsedData.productionDate || reportData.estPurchaseDate, null, 'samsung');
-      
-      let mdm = null;
-      if (mdmStatus !== null || mdmLocked !== null) {
-        mdm = formatMDMStatus(mdmStatus, mdmLocked);
-      }
-      
-      const lostMode = null; // Not applicable for Samsung
-      // Carrier from service 21: "Open" means unlocked, otherwise it's the carrier name
-      const carrierText = samsungParsedData.carrier || reportData.carrier || '';
-      const isUnlocked = carrierText.toLowerCase() === 'open' || carrierText.toLowerCase().includes('unlock');
-      const networkLock = formatNetworkLockStatus(!isUnlocked, carrierText);
-      const origin = formatOriginInfo(samsungParsedData.soldByCountry || samsungParsedData.shipToCountry || reportData.country, samsungParsedData.salesBuyerName || reportData.soldBy, samsungParsedData.soldByCountry || reportData.soldByCountry);
-      
-      // Calculate risk score
-      const criticalInfo = {
-        iCloud,
-        blacklist,
-        knox,
-        mdm,
-        lostMode,
-        networkLock
-      };
-      
-      const riskScore = calculateRiskScore(criticalInfo);
-      
-      // Determine risk text and color
-      let riskText = 'Telefon sigur';
-      let scoreColor = '#22c55e';
-      let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-      
-      if (riskScore <= 2) {
-        riskText = 'Dispozitiv PERICULOS';
-        scoreColor = '#ef4444';
-        summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-      } else if (riskScore <= 4) {
-        riskText = 'Dispozitiv cu RISC RIDICAT';
-        scoreColor = '#f97316';
-        summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-      } else if (riskScore <= 6) {
-        riskText = 'Dispozitiv cu RISC MODERAT';
-        scoreColor = '#f59e0b';
-        summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-      }
-      
-      return res.render('verify/result-samsung', {
-        title: 'Rezultat verificare IMEI',
-        order: mainOrder,
-        user: req.user || null,
-        samsungParsedData: samsungParsedData,
-        additionalResults: parsedResults.additionalResults,
-        // Pass formatted critical information
-        iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        knox: knox || null,
-        mdm: mdm || null,
-        lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
-        riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.',
-        csrfToken: renderCsrfToken,
-        formatDate: formatDate || ((date) => date || 'Data necunoscută')
-      });
-    }
-    
-    if (isHonor) {
-      // Parse Honor HTML data
-      const { parseHonorHTML } = require('../services/parseHonorHTML');
-      const honorParsedData = parseHonorHTML(mainOrder.result || '');
-      
-      // Format critical information for Honor
-      const reportData = mainOrder.object || {};
-      const iCloud = null; // Not applicable for Honor
-      const blacklist = formatBlacklistStatus(
-        reportData.gsmaBlacklisted, 
-        reportData.blacklistStatus,
-        reportData.blacklistRecords,
-        reportData.blacklistData
-      );
-      const knox = null; // Not applicable for Honor
-      
-      // Extract MDM status from additional results if available
-      let mdmStatus = null;
-      let mdmLocked = null;
-      if (parsedResults.additionalResults && parsedResults.additionalResults.length > 0) {
-        for (const result of parsedResults.additionalResults) {
-          if (result.parsedData) {
-            if (result.parsedData.mdmStatus !== undefined) {
-              mdmStatus = result.parsedData.mdmStatus;
-            }
-            if (result.parsedData.mdmLocked !== undefined) {
-              mdmLocked = result.parsedData.mdmLocked;
-            }
-          }
-        }
-      }
-      if (mainOrder.object && mainOrder.object.mdmStatus !== undefined) {
-        mdmStatus = mainOrder.object.mdmStatus;
-      }
-      if (mainOrder.object && mainOrder.object.mdmLocked !== undefined) {
-        mdmLocked = mainOrder.object.mdmLocked;
-      }
-      
-      let mdm = null;
-      if (mdmStatus !== null || mdmLocked !== null) {
-        mdm = formatMDMStatus(mdmStatus, mdmLocked);
-      }
-      
-      const lostMode = null; // Not applicable for Honor
-      
-      // Network lock - Honor devices are usually unlocked, but check if available
-      const networkLock = formatNetworkLockStatus(false, ''); // Default to unlocked for Honor
-      
-      // Warranty info - use warranty start date from Honor data
-      const warranty = formatWarrantyInfo(
-        honorParsedData.warrantyStartDate || honorParsedData.bindDate, 
-        null, 
-        'honor'
-      );
-      
-      // Origin info
-      const origin = formatOriginInfo(
-        honorParsedData.countryName || '', 
-        honorParsedData.companyName || '', 
-        honorParsedData.countryName || ''
-      );
-      
-      // Calculate risk score
-      const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
-      const riskScore = calculateRiskScore(criticalInfo);
-      
-      // Determine risk text and color
-      let riskText = 'Telefon sigur';
-      let scoreColor = '#22c55e';
-      let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-      
-      if (riskScore <= 2) {
-        riskText = 'Dispozitiv PERICULOS';
-        scoreColor = '#ef4444';
-        summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-      } else if (riskScore <= 4) {
-        riskText = 'Dispozitiv cu RISC RIDICAT';
-        scoreColor = '#f97316';
-        summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-      } else if (riskScore <= 6) {
-        riskText = 'Dispozitiv cu RISC MODERAT';
-        scoreColor = '#f59e0b';
-        summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-      }
-      
-      return res.render('verify/result-honor', {
-        title: 'Rezultat verificare IMEI',
-        order: mainOrder,
-        user: req.user || null,
-        honorParsedData: honorParsedData,
-        additionalResults: parsedResults.additionalResults,
-        // Pass formatted critical information
-        iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        knox: knox || null,
-        mdm: mdm || null,
-        lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
-        riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.',
-        csrfToken: renderCsrfToken,
-        formatDate: formatDate || ((date) => date || 'Data necunoscută')
-      });
-    }
-    
-    if (isMotorola) {
-      // Parse Motorola HTML data
-      const { parseMotorolaHTML } = require('../services/parseMotorolaHTML');
-      const motorolaParsedData = parseMotorolaHTML(mainOrder.result || '');
-      
-      // Format critical information for Motorola
-      const reportData = mainOrder.object || {};
-      const iCloud = null; // Not applicable for Motorola
-      const blacklist = formatBlacklistStatus(
-        reportData.gsmaBlacklisted, 
-        reportData.blacklistStatus,
-        reportData.blacklistRecords,
-        reportData.blacklistData
-      );
-      const knox = null; // Not applicable for Motorola
-      
-      // Extract MDM status from additional results if available
-      let mdmStatus = null;
-      let mdmLocked = null;
-      if (parsedResults.additionalResults && parsedResults.additionalResults.length > 0) {
-        for (const result of parsedResults.additionalResults) {
-          if (result.parsedData) {
-            if (result.parsedData.mdmStatus !== undefined) {
-              mdmStatus = result.parsedData.mdmStatus;
-            }
-            if (result.parsedData.mdmLocked !== undefined) {
-              mdmLocked = result.parsedData.mdmLocked;
-            }
-          }
-        }
-      }
-      if (mainOrder.object && mainOrder.object.mdmStatus !== undefined) {
-        mdmStatus = mainOrder.object.mdmStatus;
-      }
-      if (mainOrder.object && mainOrder.object.mdmLocked !== undefined) {
-        mdmLocked = mainOrder.object.mdmLocked;
-      }
-      
-      let mdm = null;
-      if (mdmStatus !== null || mdmLocked !== null) {
-        mdm = formatMDMStatus(mdmStatus, mdmLocked);
-      }
-      
-      const lostMode = null; // Not applicable for Motorola
-      
-      // Network lock - check carrier, "WORLD COMM" usually means unlocked
-      const carrierText = motorolaParsedData.carrier || '';
-      const isUnlocked = carrierText.toLowerCase().includes('world comm') || carrierText.toLowerCase().includes('unlock');
-      const networkLock = formatNetworkLockStatus(!isUnlocked, carrierText);
-      
-      // Warranty info - use warranty start date or activation date
-      const warranty = formatWarrantyInfo(
-        motorolaParsedData.warrantyStartDate || motorolaParsedData.activationDate, 
-        motorolaParsedData.activationDate, 
-        'motorola'
-      );
-      
-      // Origin info
-      const origin = formatOriginInfo(
-        motorolaParsedData.shipToCountry || motorolaParsedData.soldByCountry || motorolaParsedData.country, 
-        motorolaParsedData.soldToCustomerName || '', 
-        motorolaParsedData.soldByCountry || ''
-      );
-      
-      // Calculate risk score
-      const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
-      const riskScore = calculateRiskScore(criticalInfo);
-      
-      // Determine risk text and color
-      let riskText = 'Telefon sigur';
-      let scoreColor = '#22c55e';
-      let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-      
-      if (riskScore <= 2) {
-        riskText = 'Dispozitiv PERICULOS';
-        scoreColor = '#ef4444';
-        summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-      } else if (riskScore <= 4) {
-        riskText = 'Dispozitiv cu RISC RIDICAT';
-        scoreColor = '#f97316';
-        summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-      } else if (riskScore <= 6) {
-        riskText = 'Dispozitiv cu RISC MODERAT';
-        scoreColor = '#f59e0b';
-        summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-      }
-      
-      return res.render('verify/result-motorola', {
-        title: 'Rezultat verificare IMEI',
-        order: mainOrder,
-        user: req.user || null,
-        motorolaParsedData: motorolaParsedData,
-        additionalResults: parsedResults.additionalResults,
-        // Pass formatted critical information
-        iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        knox: knox || null,
-        mdm: mdm || null,
-        lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
-        riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.',
-        csrfToken: renderCsrfToken,
-        formatDate: formatDate || ((date) => date || 'Data necunoscută')
-      });
-    }
-    
-    if (isXiaomi) {
-      // Parse Xiaomi data (use JSON object if available, otherwise parse HTML)
-      const { parseXiaomiHTML } = require('../services/parseXiaomiHTML');
-      const xiaomiParsedData = parseXiaomiHTML(mainOrder.result || '', mainOrder.object || null);
-      
-      // Use Xiaomi-specific template
-      return res.render('verify/result-xiaomi', {
-        title: 'Rezultat verificare IMEI',
-        order: mainOrder,
-        user: req.user || null,
-        xiaomiParsedData: xiaomiParsedData,
-        additionalResults: parsedResults.additionalResults,
-        csrfToken: renderCsrfToken
-      });
-    }
-    
-    if (isPixel) {
-      // Parse Pixel HTML data
-      const { parsePixelHTML } = require('../services/parsePixelHTML');
-      const pixelParsedData = parsePixelHTML(mainOrder.result || '');
-      
-      // Format critical information for Pixel
-      const reportData = mainOrder.object || {};
-      const iCloud = null; // Not applicable for Pixel
-      const blacklist = formatBlacklistStatus(
-        reportData.gsmaBlacklisted, 
-        reportData.blacklistStatus,
-        reportData.blacklistRecords,
-        reportData.blacklistData
-      );
-      const knox = null; // Not applicable for Pixel
-      
-      // Extract MDM status from additional results if available
-      let mdmStatus = null;
-      let mdmLocked = null;
-      if (parsedResults.additionalResults && parsedResults.additionalResults.length > 0) {
-        for (const result of parsedResults.additionalResults) {
-          if (result.parsedData) {
-            if (result.parsedData.mdmStatus !== undefined) {
-              mdmStatus = result.parsedData.mdmStatus;
-            }
-            if (result.parsedData.mdmLocked !== undefined) {
-              mdmLocked = result.parsedData.mdmLocked;
-            }
-          }
-        }
-      }
-      if (mainOrder.object && mainOrder.object.mdmStatus !== undefined) {
-        mdmStatus = mainOrder.object.mdmStatus;
-      }
-      if (mainOrder.object && mainOrder.object.mdmLocked !== undefined) {
-        mdmLocked = mainOrder.object.mdmLocked;
-      }
-      
-      let mdm = null;
-      if (mdmStatus !== null || mdmLocked !== null) {
-        mdm = formatMDMStatus(mdmStatus, mdmLocked);
-      }
-      
-      const lostMode = null; // Not applicable for Pixel
-      
-      // Network lock - check if model includes "(Unlocked)" or "Unlocked"
-      const modelText = pixelParsedData.model || '';
-      const isUnlocked = modelText.toLowerCase().includes('(unlocked)') || modelText.toLowerCase().includes('unlocked');
-      const networkLock = formatNetworkLockStatus(!isUnlocked, isUnlocked ? 'Unlocked' : '');
-      
-      // Warranty info - parse from warranty string
-      // For Pixel, warranty is typically 2 years from activation
-      // If warranty expired, calculate start date by subtracting 2 years from end date
-      let warrantyStartDate = null;
-      if (pixelParsedData.warrantyEndDateFormatted) {
-        // Calculate start date: subtract 2 years from end date
-        try {
-          const endDate = new Date(pixelParsedData.warrantyEndDateFormatted);
-          if (!isNaN(endDate.getTime())) {
-            const startDate = new Date(endDate);
-            startDate.setFullYear(startDate.getFullYear() - 2);
-            warrantyStartDate = startDate.toISOString().split('T')[0];
-          }
-        } catch (e) {
-          console.warn('Could not parse warranty end date for Pixel:', e);
-        }
-      } else if (pixelParsedData.warrantyEndDate) {
-        // Try to parse DD.MM.YYYY format
-        const dateParts = pixelParsedData.warrantyEndDate.split(/[.\/]/);
-        if (dateParts.length === 3) {
-          const day = dateParts[0].padStart(2, '0');
-          const month = dateParts[1].padStart(2, '0');
-          const year = dateParts[2].length === 2 ? '20' + dateParts[2] : dateParts[2];
-          try {
-            const endDate = new Date(`${year}-${month}-${day}`);
-            if (!isNaN(endDate.getTime())) {
-              const startDate = new Date(endDate);
-              startDate.setFullYear(startDate.getFullYear() - 2);
-              warrantyStartDate = startDate.toISOString().split('T')[0];
-            }
-          } catch (e) {
-            console.warn('Could not parse warranty end date for Pixel:', e);
-          }
-        }
-      }
-      const warranty = formatWarrantyInfo(
-        warrantyStartDate, 
-        pixelParsedData.activationStatus === 'Activated' ? warrantyStartDate : null, 
-        'pixel'
-      );
-      
-      // Origin info - Pixel doesn't have origin info in API response
-      const origin = formatOriginInfo(null, null, null);
-      
-      // Calculate risk score
-      const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
-      const riskScore = calculateRiskScore(criticalInfo);
-      
-      // Determine risk text and color
-      let riskText = 'Telefon sigur';
-      let scoreColor = '#22c55e';
-      let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-      
-      if (riskScore <= 2) {
-        riskText = 'Dispozitiv PERICULOS';
-        scoreColor = '#ef4444';
-        summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-      } else if (riskScore <= 4) {
-        riskText = 'Dispozitiv cu RISC RIDICAT';
-        scoreColor = '#f97316';
-        summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-      } else if (riskScore <= 6) {
-        riskText = 'Dispozitiv cu RISC MODERAT';
-        scoreColor = '#f59e0b';
-        summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-      }
-      
-      return res.render('verify/result-pixel', {
-        title: 'Rezultat verificare IMEI',
-        order: mainOrder,
-        user: req.user || null,
-        pixelParsedData: pixelParsedData,
-        additionalResults: parsedResults.additionalResults,
-        // Pass formatted critical information
-        iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        knox: knox || null,
-        mdm: mdm || null,
-        lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
-        riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.',
-        csrfToken: renderCsrfToken,
-        formatDate: formatDate || ((date) => date || 'Data necunoscută')
-      });
-    }
-    
-    if (isHuawei) {
-      // Parse Huawei HTML data
-      const { parseHuaweiHTML } = require('../services/parseHuaweiHTML');
-      const huaweiParsedData = parseHuaweiHTML(mainOrder.result || '');
-      
-      // Format critical information for Huawei
-      const reportData = mainOrder.object || {};
-      const iCloud = null; // Not applicable for Huawei
-      const blacklist = formatBlacklistStatus(
-        reportData.gsmaBlacklisted, 
-        reportData.blacklistStatus,
-        reportData.blacklistRecords,
-        reportData.blacklistData
-      );
-      const knox = null; // Not applicable for Huawei
-      
-      // Extract MDM status from additional results if available
-      let mdmStatus = null;
-      let mdmLocked = null;
-      if (parsedResults.additionalResults && parsedResults.additionalResults.length > 0) {
-        for (const result of parsedResults.additionalResults) {
-          if (result.parsedData) {
-            if (result.parsedData.mdmStatus !== undefined) {
-              mdmStatus = result.parsedData.mdmStatus;
-            }
-            if (result.parsedData.mdmLocked !== undefined) {
-              mdmLocked = result.parsedData.mdmLocked;
-            }
-          }
-        }
-      }
-      if (mainOrder.object && mainOrder.object.mdmStatus !== undefined) {
-        mdmStatus = mainOrder.object.mdmStatus;
-      }
-      if (mainOrder.object && mainOrder.object.mdmLocked !== undefined) {
-        mdmLocked = mainOrder.object.mdmLocked;
-      }
-      
-      let mdm = null;
-      if (mdmStatus !== null || mdmLocked !== null) {
-        mdm = formatMDMStatus(mdmStatus, mdmLocked);
-      }
-      
-      const lostMode = null; // Not applicable for Huawei
-      const networkLock = formatNetworkLockStatus(false, ''); // Default to unlocked for Huawei
-      
-      // Warranty info - use warranty start date and end date from Huawei data
-      // For Huawei, warranty is 2 years from start date
-      let warranty = null;
-      if (huaweiParsedData.warrantyStartDate || huaweiParsedData.warrantyEndDate) {
-        // Use formatWarrantyInfo with start date, but also check end date
-        warranty = formatWarrantyInfo(
-          huaweiParsedData.warrantyStartDate, 
-          null, 
-          'huawei'
-        );
-        
-        // If we have end date, update warranty info
-        if (huaweiParsedData.warrantyEndDate) {
-          try {
-            const endDate = new Date(huaweiParsedData.warrantyEndDate);
-            const now = new Date();
-            const isExpired = endDate < now;
-            
-            if (isExpired) {
-              warranty.status = 'expired';
-              warranty.text = `Garanție expirată (până la ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate})`;
-            } else {
-              warranty.status = 'active';
-              warranty.text = `În garanție până la ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate}`;
-            }
-            warranty.hasInfo = true;
-            warranty.endDate = endDate;
-          } catch (e) {
-            // If date parsing fails, use warranty status from API
-            if (huaweiParsedData.warrantyStatus) {
-              warranty.hasInfo = true;
-              warranty.status = huaweiParsedData.warrantyStatus.toLowerCase().includes('out') ? 'expired' : 'active';
-              warranty.text = huaweiParsedData.warrantyStatus;
-            }
-          }
-        } else if (huaweiParsedData.warrantyStatus) {
-          warranty.hasInfo = true;
-          warranty.status = huaweiParsedData.warrantyStatus.toLowerCase().includes('out') ? 'expired' : 'active';
-          warranty.text = huaweiParsedData.warrantyStatus;
-        }
-      } else {
-        warranty = formatWarrantyInfo(null, null, 'huawei');
-      }
-      
-      // Origin info - Huawei doesn't have origin info in API response
-      const origin = formatOriginInfo(null, null, null);
-      
-      // Calculate risk score
-      const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
-      const riskScore = calculateRiskScore(criticalInfo);
-      
-      // Determine risk text and color
-      let riskText = 'Telefon sigur';
-      let scoreColor = '#22c55e';
-      let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-      
-      if (riskScore <= 2) {
-        riskText = 'Dispozitiv PERICULOS';
-        scoreColor = '#ef4444';
-        summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-      } else if (riskScore <= 4) {
-        riskText = 'Dispozitiv cu RISC RIDICAT';
-        scoreColor = '#f97316';
-        summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-      } else if (riskScore <= 6) {
-        riskText = 'Dispozitiv cu RISC MODERAT';
-        scoreColor = '#f59e0b';
-        summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-      }
-      
-      return res.render('verify/result-huawei', {
-        title: 'Rezultat verificare IMEI',
-        order: mainOrder,
-        user: req.user || null,
-        huaweiParsedData: huaweiParsedData,
-        additionalResults: parsedResults.additionalResults,
-        // Pass formatted critical information
-        iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        knox: knox || null,
-        mdm: mdm || null,
-        lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
-        riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.',
-        csrfToken: renderCsrfToken,
-        formatDate: formatDate || ((date) => date || 'Data necunoscută')
-      });
-    }
-    
-    // Extract MDM status from additional results if available
-    let mdmStatus = null;
-    let mdmLocked = null;
-    if (parsedResults.additionalResults && parsedResults.additionalResults.length > 0) {
-      for (const result of parsedResults.additionalResults) {
-        if (result.parsedData) {
-          if (result.parsedData.mdmStatus !== undefined) {
-            mdmStatus = result.parsedData.mdmStatus;
-          }
-          if (result.parsedData.mdmLocked !== undefined) {
-            mdmLocked = result.parsedData.mdmLocked;
-          }
-        }
-      }
-    }
-    
-    // Also check main order object for MDM
-    if (mainOrder.object && mainOrder.object.mdmStatus !== undefined) {
-      mdmStatus = mainOrder.object.mdmStatus;
-    }
-    if (mainOrder.object && mainOrder.object.mdmLocked !== undefined) {
-      mdmLocked = mainOrder.object.mdmLocked;
-    }
-    
-    // Format critical information using helper functions
-    const reportData = mainOrder.object || {};
-    const isApple = brand === 'apple' || brand === 'iphone';
-    
-    const iCloud = formatiCloudStatus(reportData.fmiOn, reportData.fmiON);
-    const blacklist = formatBlacklistStatus(
-      reportData.gsmaBlacklisted, 
-      reportData.blacklistStatus,
-      reportData.blacklistRecords,
-      reportData.blacklistData
-    );
-    const knox = (brand === 'samsung') ? formatKnoxStatus(reportData.knoxRegistered) : null;
-    const warranty = formatWarrantyInfo(reportData.estPurchaseDate, reportData.activationDate, brand);
-    
-    let mdm = null;
-    if (mdmStatus !== null || mdmLocked !== null) {
-      mdm = formatMDMStatus(mdmStatus, mdmLocked);
-    }
-    
-    const lostMode = isApple ? formatLostModeStatus(reportData.lostMode) : null;
-    const networkLock = formatNetworkLockStatus(reportData.simlock, reportData.carrier);
-    const origin = formatOriginInfo(reportData.country, reportData.soldBy, reportData.soldByCountry);
-    
-    // Calculate risk score
-    const info = {
-      iCloud,
-      blacklist,
-      knox,
-      mdm,
-      lostMode,
-      networkLock
-    };
-    
-    const riskScore = calculateRiskScore(info);
-    
-    // Determine risk text and color
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-    
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
-    
-    // Default to Apple/generic template if brand is not Samsung, Honor, Motorola, or Xiaomi
-    res.render('verify/result', {
-      title: 'Rezultat verificare IMEI',
-      order: mainOrder,
+
+    const lang = normalizeLang(res.locals.currentLang || DEFAULT_LANGUAGE);
+    const { templateName, templateData } = await generateResultHTML(order, {
+      includeLayout: false,
+      lang
+    });
+
+    res.render(templateName, {
+      ...templateData,
+      title: res.locals.t ? res.locals.t('verify.result.pageTitle') : 'Rezultat verificare IMEI',
       user: req.user || null,
-      brand: brand || 'apple',
-      additionalResults: parsedResults.additionalResults,
-      // Pass formatted critical information
-      iCloud,
-      blacklist,
-      knox,
-      mdm,
-      lostMode,
-      networkLock,
-      warranty,
-      origin,
-      riskScore,
-      riskText,
-      scoreColor,
-      summaryText,
-      // Helper functions
-      formatDate,
-      csrfToken: renderCsrfToken
+      csrfToken: renderCsrfToken,
+      isEmail: false
     });
   } catch (error) {
-    console.error('Result error:', error);
+    console.error('[VerifyResult] Error rendering result:', error);
     res.status(500).render('error', {
-      error: 'Eroare la încărcarea rezultatului',
+      error: 'A apărut o eroare la afișarea rezultatului.',
       user: req.user || null
     });
+  }
+});
+
+// POST endpoint for Apple MDM status check (service 47)
+router.post('/apple-mdm/:orderId', requireAuth, async (req, res) => {
+  const servicePrice = 5;
+  try {
+    const orderId = req.params.orderId;
+    const userId = req.session.userId;
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Verificare negăsită' });
+    }
+
+    if (order.userId && order.userId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: 'Nu ai acces la această verificare' });
+    }
+
+    if (order.status !== 'success') {
+      return res.status(400).json({ error: 'Verificarea nu este finalizată' });
+    }
+
+    const brand = (order.brand || '').toLowerCase();
+    if (brand !== 'apple') {
+      return res.status(400).json({ error: 'Funcția MDM este disponibilă doar pentru dispozitive Apple' });
+    }
+
+    if (order.object && typeof order.object === 'object' && order.object.appleMdmCheck) {
+      return res.status(400).json({ error: 'Statusul MDM a fost deja verificat' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Utilizator negăsit' });
+    }
+
+    if (user.credits < servicePrice) {
+      return res.status(400).json({ error: `Credit insuficient. Ai nevoie de ${servicePrice} credite.` });
+    }
+
+    user.credits -= servicePrice;
+    await user.save();
+
+    await CreditTransaction.create({
+      userId,
+      type: 'usage',
+      amount: servicePrice,
+      description: `Verificare MDM Lock pentru IMEI ${order.imei}`,
+      orderId: orderId
+    });
+
+    console.log('[AppleMDM] Calling service 47 for IMEI:', order.imei);
+    const mdmResult = await imeiService.callIMEIAPI(imeiService.SERVICES.APPLE_MDM_STATUS, order.imei);
+    console.log('[AppleMDM] Raw result:', JSON.stringify(mdmResult, null, 2));
+
+    if (!mdmResult || mdmResult.status !== 'success') {
+      user.credits += servicePrice;
+      await user.save();
+
+      await CreditTransaction.create({
+        userId,
+        type: 'refund',
+        amount: servicePrice,
+        description: `Rambursare - eroare verificare MDM pentru IMEI ${order.imei}`,
+        orderId: orderId
+      });
+
+      return res.status(500).json({ error: 'Eroare la verificarea statusului MDM' });
+    }
+
+    const parsed = parseAppleMdmHTML(mdmResult.result || '');
+
+    if (!order.additionalServices) {
+      order.additionalServices = [];
+    }
+    if (!order.additionalServices.includes(947)) {
+      order.additionalServices.push(947);
+    }
+
+    const separator = '<br><br><hr><br>';
+    order.result = (order.result || '') + separator + (mdmResult.result || '');
+
+    if (!order.object || typeof order.object !== 'object') {
+      if (typeof order.object === 'string') {
+        try {
+          order.object = JSON.parse(order.object);
+        } catch (parseErr) {
+          order.object = {};
+        }
+      } else {
+        order.object = {};
+      }
+    }
+
+    order.object.appleMdmCheck = {
+      rawHtml: mdmResult.result || '',
+      fields: parsed.fields,
+      mdmLock: parsed.mdmLock,
+      serviceOrderId: mdmResult.orderId || null,
+      duration: mdmResult.duration || null,
+      fetchedAt: new Date().toISOString()
+    };
+    order.markModified('object');
+
+    await order.save();
+
+    res.json({
+      success: true,
+      data: order.object.appleMdmCheck
+    });
+  } catch (error) {
+    console.error('[AppleMDM] Error:', error);
+    res.status(500).json({ error: 'Eroare la verificarea statusului MDM' });
   }
 });
 
@@ -1452,6 +840,7 @@ router.get('/payment/success', async (req, res) => {
       
       // Start verification now that payment is confirmed
       const additionalServiceIds = order.additionalServices || [];
+      const jobLanguage = normalizeLang(order.language || DEFAULT_LANGUAGE);
       try {
         await addVerificationJob({
           orderId: order._id,
@@ -1459,7 +848,8 @@ router.get('/payment/success', async (req, res) => {
           userId: null,
           email: order.email,
           detectedBrand: order.brand || null,
-          additionalServiceIds
+          additionalServiceIds,
+          language: jobLanguage
         });
       } catch (queueError) {
         if (queueError?.message && queueError.message.includes('already exists')) {
@@ -1552,6 +942,7 @@ webhookRouter.post('/', async (req, res) => {
         
         // Start verification now that payment is confirmed
         const additionalServiceIds = order.additionalServices || [];
+        const jobLanguage = normalizeLang(order.language || DEFAULT_LANGUAGE);
         try {
           await addVerificationJob({
             orderId: order._id,
@@ -1559,7 +950,8 @@ webhookRouter.post('/', async (req, res) => {
             userId: null,
             email: order.email,
             detectedBrand: order.brand || null,
-            additionalServiceIds
+            additionalServiceIds,
+            language: jobLanguage
           });
         } catch (queueError) {
           if (queueError?.message && queueError.message.includes('already exists')) {

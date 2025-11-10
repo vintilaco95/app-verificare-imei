@@ -1,56 +1,84 @@
-<%- include('../partials/header', { title: 'Politica GDPR', user: user }) %>
+<%
+  const tt = (typeof t === 'function')
+    ? t
+    : (typeof locals !== 'undefined' && typeof locals.t === 'function' ? locals.t : (key) => key);
+  const currentLangValue = typeof currentLang !== 'undefined'
+    ? currentLang
+    : (typeof locals !== 'undefined' && typeof locals.currentLang !== 'undefined' ? locals.currentLang : 'ro');
+  const currentLangLabelValue = typeof currentLangLabel !== 'undefined'
+    ? currentLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.currentLangLabel !== 'undefined' ? locals.currentLangLabel : currentLangValue);
+  const switchLangValue = typeof switchLang !== 'undefined'
+    ? switchLang
+    : (typeof locals !== 'undefined' && typeof locals.switchLang !== 'undefined' ? locals.switchLang : (currentLangValue === 'ro' ? 'en' : 'ro'));
+  const switchLangLabelValue = typeof switchLangLabel !== 'undefined'
+    ? switchLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined' ? locals.switchLangLabel : currentLangLabelValue);
+  const csrfValue = typeof csrfToken !== 'undefined'
+    ? csrfToken
+    : (typeof locals !== 'undefined' && typeof locals.csrfToken !== 'undefined' ? locals.csrfToken : '');
+  const headerProps = {
+    title: tt('legal.gdpr.pageTitle'),
+    user: typeof user !== 'undefined' ? user : (typeof locals !== 'undefined' && typeof locals.user !== 'undefined' ? locals.user : null),
+    csrfToken: csrfValue,
+    t: typeof t === 'function' ? t : null,
+    currentLang: currentLangValue,
+    currentLangLabel: currentLangLabelValue,
+    switchLang: switchLangValue,
+    switchLangLabel: switchLangLabelValue
+  };
+  const locale = currentLangValue === 'en' ? 'en-GB' : 'ro-RO';
+  const lastUpdated = tt('legal.gdpr.lastUpdated').replace('{date}', new Date().toLocaleDateString(locale));
+  const emailLink = `<a href="mailto:telefoane@zengsm.ro">${tt('footer.contact.email')}</a>`;
+  const controllerParagraph = tt('legal.gdpr.sections.1.body').replace('{emailLink}', emailLink);
+%>
+<%- include('../partials/header', headerProps) %>
 
 <section class="legal-page">
   <header class="legal-hero">
-    <h1>Politica GDPR</h1>
-    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+    <h1><%= tt('legal.gdpr.pageTitle') %></h1>
+    <p><%= lastUpdated %></p>
   </header>
 
   <article class="legal-content">
     <section class="legal-section">
-      <h2>1. Operator de date</h2>
-      <p>
-        Operatorul de date este IMEI Check, cu sediul în București, România. Pentru orice solicitare legată de protecția datelor,
-        ne poți contacta la <a href="mailto:telefoane@zengsm.ro">telefoane@zengsm.ro</a>.
-      </p>
+      <h2><%= tt('legal.gdpr.sections.1.title') %></h2>
+      <p><%- controllerParagraph %></p>
     </section>
 
     <section class="legal-section">
-      <h2>2. Temeiul legal</h2>
-      <p>Prelucrăm datele cu caracter personal în baza unuia dintre următoarele temeiuri:</p>
+      <h2><%= tt('legal.gdpr.sections.2.title') %></h2>
+      <p><%= tt('legal.gdpr.sections.2.intro') %></p>
       <ul>
-        <li>Executarea contractului de furnizare a serviciilor IMEI Check.</li>
-        <li>Obligații legale (emitere facturi, evidențe contabile).</li>
-        <li>Interes legitim (securitate, prevenirea fraudelor).</li>
-        <li>Consimțământ explicit pentru comunicări opționale.</li>
+        <li><%= tt('legal.gdpr.sections.2.items.1') %></li>
+        <li><%= tt('legal.gdpr.sections.2.items.2') %></li>
+        <li><%= tt('legal.gdpr.sections.2.items.3') %></li>
+        <li><%= tt('legal.gdpr.sections.2.items.4') %></li>
       </ul>
     </section>
 
     <section class="legal-section">
-      <h2>3. Perioada de stocare</h2>
-      <p>
-        Datele sunt păstrate atât timp cât este necesar pentru furnizarea serviciului și respectarea obligațiilor legale.
-        Rezultatele verificărilor pot fi anonimizate după 12 luni pentru rapoarte statistice.
-      </p>
+      <h2><%= tt('legal.gdpr.sections.3.title') %></h2>
+      <p><%= tt('legal.gdpr.sections.3.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>4. Transferuri internaționale</h2>
-      <p>
-        Dacă un partener din afara UE este implicat în procesare, ne asigurăm că există garanții adecvate (Clauze Contractuale
-        Standard) conform GDPR.
-      </p>
+      <h2><%= tt('legal.gdpr.sections.4.title') %></h2>
+      <p><%= tt('legal.gdpr.sections.4.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>5. Securitate și audit</h2>
-      <p>
-        Revizuim periodic procedurile de securitate, efectuăm teste de penetrare și audituri interne pentru a proteja datele
-        personale împotriva accesului neautorizat sau a dezvăluirii accidentale.
-      </p>
+      <h2><%= tt('legal.gdpr.sections.5.title') %></h2>
+      <p><%= tt('legal.gdpr.sections.5.body') %></p>
     </section>
   </article>
 </section>
 
-<%- include('../partials/footer') %>
+<%- include('../partials/footer', {
+  t: typeof t === 'function' ? t : null,
+  currentLang: currentLangValue,
+  currentLangLabel: currentLangLabelValue,
+  switchLang: switchLangValue,
+  switchLangLabel: switchLangLabelValue
+}) %>
 

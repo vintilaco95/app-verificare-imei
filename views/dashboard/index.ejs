@@ -1,28 +1,28 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('dashboard.overview.pageTitle'), user: user }) %>
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1>Dashboard</h1>
-    <p>Bun venit, <%= user.email %>!</p>
-    <a href="/dashboard/credits/topup" class="btn btn-primary">Adaugă credite</a>
+    <h1><%= t('dashboard.overview.heading') %></h1>
+    <p><%= t('dashboard.overview.welcome') %>, <%= user.email %>!</p>
+    <a href="/dashboard/credits/topup" class="btn btn-primary"><%= t('dashboard.overview.actions.topup') %></a>
   </div>
 
   <div class="dashboard-stats">
     <div class="stat-card">
       <div class="stat-icon">📱</div>
       <div class="stat-content">
-        <h3>Verificări totale</h3>
+        <h3><%= t('dashboard.overview.stats.totalChecks') %></h3>
         <p class="stat-value"><%= typeof totalOrders !== 'undefined' ? totalOrders : orders.length %></p>
-        <a href="/dashboard/orders" class="stat-link">Vezi toate →</a>
+        <a href="/dashboard/orders" class="stat-link"><%= t('dashboard.overview.stats.totalChecksLink') %> →</a>
       </div>
     </div>
     
     <div class="stat-card">
       <div class="stat-icon">💰</div>
       <div class="stat-content">
-        <h3>Credite disponibile</h3>
+        <h3><%= t('dashboard.overview.stats.creditsAvailable') %></h3>
         <p class="stat-value"><%= user.credits.toFixed(2) %></p>
-        <a href="/dashboard/credits" class="stat-link">Vezi istoric →</a>
+        <a href="/dashboard/credits" class="stat-link"><%= t('dashboard.overview.stats.creditsLink') %> →</a>
       </div>
     </div>
   </div>
@@ -30,8 +30,8 @@
   <div class="dashboard-sections">
     <div class="dashboard-section">
       <div class="section-header">
-        <h2>Verificări recente</h2>
-        <span class="section-subtitle">Ultimele 4 verificări</span>
+        <h2><%= t('dashboard.overview.recentChecks.title') %></h2>
+        <span class="section-subtitle"><%= t('dashboard.overview.recentChecks.subtitle') %></span>
       </div>
       <% if (orders.length > 0) { %>
         <div class="orders-list">
@@ -39,27 +39,17 @@
             <div class="order-item">
               <div class="order-info">
                 <p class="order-imei"><strong>IMEI:</strong> <%= order.imei %></p>
-                <p class="order-model"><%= order.model || 'Unknown' %></p>
-                <p class="order-date"><%= new Date(order.createdAt).toLocaleDateString('ro-RO') %></p>
+                <p class="order-model"><%= order.model || t('common.labels.unknown') %></p>
+                <p class="order-date"><%= new Date(order.createdAt).toLocaleDateString(currentLang === 'en' ? 'en-US' : 'ro-RO') %></p>
               </div>
               <div class="order-status">
                 <span class="status-badge status-<%= order.status %>">
-                  <% if (order.status === 'pending') { %>
-                    În proces
-                  <% } else if (order.status === 'success') { %>
-                    Finalizat
-                  <% } else if (order.status === 'failed') { %>
-                    Eșuat
-                  <% } else if (order.status === 'error') { %>
-                    Eroare
-                  <% } else { %>
-                    <%= order.status %>
-                  <% } %>
+                  <%= t(`status.${order.status}`) %>
                 </span>
                 <% if (order.status === 'success' || order.status === 'failed') { %>
-                  <a href="/verify/result/<%= order._id %>" class="btn btn-sm">Vezi rezultat</a>
+                  <a href="/verify/result/<%= order._id %>" class="btn btn-sm"><%= t('dashboard.overview.recentChecks.actions.viewResult') %></a>
                 <% } else if (order.status === 'pending') { %>
-                  <a href="/verify/processing/<%= order._id %>" class="btn btn-sm">Vezi status</a>
+                  <a href="/verify/processing/<%= order._id %>" class="btn btn-sm"><%= t('dashboard.overview.recentChecks.actions.viewStatus') %></a>
                 <% } else { %>
                   <span class="btn btn-sm" style="opacity: 0.5; cursor: not-allowed;">N/A</span>
                 <% } %>
@@ -67,17 +57,17 @@
             </div>
           <% }); %>
         </div>
-        <a href="/dashboard/orders" class="btn btn-secondary">Vezi toate verificările</a>
+        <a href="/dashboard/orders" class="btn btn-secondary"><%= t('dashboard.overview.recentChecks.actions.viewAll') %></a>
       <% } else { %>
-        <p class="empty-state">Nu ai făcut încă nicio verificare.</p>
-        <a href="/verify/imei" class="btn btn-primary">Verifică primul IMEI</a>
+        <p class="empty-state"><%= t('dashboard.overview.recentChecks.empty') %></p>
+        <a href="/verify/imei" class="btn btn-primary"><%= t('dashboard.overview.recentChecks.actions.checkFirst') %></a>
       <% } %>
     </div>
 
     <div class="dashboard-section">
       <div class="section-header">
-        <h2>Tranzacții recente</h2>
-        <span class="section-subtitle">Ultimele 4 tranzacții</span>
+        <h2><%= t('dashboard.overview.recentTransactions.title') %></h2>
+        <span class="section-subtitle"><%= t('dashboard.overview.recentTransactions.subtitle') %></span>
       </div>
       <% if (transactions.length > 0) { %>
         <div class="transactions-list">
@@ -92,10 +82,10 @@
               <% } %>
                   <div class="transaction-info">
                     <p class="transaction-desc"><%= transaction.description %></p>
-                    <p class="transaction-date"><%= new Date(transaction.createdAt).toLocaleString('ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %></p>
+                    <p class="transaction-date"><%= new Date(transaction.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'ro-RO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) %></p>
                   </div>
                   <div class="transaction-amount <%= transaction.type === 'purchase' || transaction.type === 'refund' ? 'positive' : 'negative' %>">
-                    <%= (transaction.type === 'purchase' || transaction.type === 'refund') ? '+' : '' %><%= transaction.amount.toFixed(2) %> credite
+                    <%= (transaction.type === 'purchase' || transaction.type === 'refund') ? '+' : '' %><%= transaction.amount.toFixed(2) %> <%= t('common.labels.credits') %>
                   </div>
               <% if (transactionLink) { %>
                 </a>
@@ -105,9 +95,9 @@
             </div>
           <% }); %>
         </div>
-        <a href="/dashboard/credits" class="btn btn-secondary">Vezi toate tranzacțiile</a>
+        <a href="/dashboard/credits" class="btn btn-secondary"><%= t('dashboard.overview.recentTransactions.actions.viewAll') %></a>
       <% } else { %>
-        <p class="empty-state">Nu ai tranzacții încă.</p>
+        <p class="empty-state"><%= t('dashboard.overview.recentTransactions.empty') %></p>
       <% } %>
     </div>
   </div>

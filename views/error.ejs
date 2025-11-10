@@ -1,11 +1,11 @@
-<%- include('partials/header', { title: 'Eroare', user: user }) %>
+<%- include('partials/header', { title: t('error.generic.pageTitle'), user: user }) %>
 
 <div class="error-container">
   <div class="error-content">
     <h1 class="error-code">⚠️</h1>
-    <h2 class="error-title">Eroare</h2>
-    <p class="error-message"><%= typeof error !== 'undefined' ? error : 'A apărut o eroare' %></p>
-    <a href="/" class="btn btn-primary">Înapoi la pagina principală</a>
+    <h2 class="error-title"><%= t('error.generic.heading') %></h2>
+    <p class="error-message"><%= typeof error !== 'undefined' ? error : t('error.generic.defaultMessage') %></p>
+    <a href="/" class="btn btn-primary"><%= t('common.buttons.backHome') %></a>
   </div>
 </div>
 

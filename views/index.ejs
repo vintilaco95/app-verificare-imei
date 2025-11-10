@@ -3,21 +3,21 @@
 <div class="hero-section">
   <div class="hero-content">
     <h1 class="hero-title">
-      <span class="gradient-text">Verifică IMEI-ul</span><br>
-      telefonului înainte de cumpărare
+      <span class="gradient-text"><%= t('home.hero.title.line1') %></span><br>
+      <%= t('home.hero.title.line2') %>
     </h1>
     <p class="hero-subtitle">
-      Află dacă telefonul este blocat, furat sau are probleme legate de iCloud sau demo unit
+      <%= t('home.hero.subtitle') %>
     </p>
     <div class="hero-buttons">
       <a href="/verify/imei" class="btn btn-primary btn-large">
-        <span>Verifică acum</span>
+        <span><%= t('home.hero.cta.primary') %></span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M5 12h14M12 5l7 7-7 7"></path>
         </svg>
       </a>
       <% if (!user) { %>
-        <a href="/auth/register" class="btn btn-secondary btn-large">Creează cont</a>
+        <a href="/auth/register" class="btn btn-secondary btn-large"><%= t('home.hero.cta.secondary') %></a>
       <% } %>
     </div>
   </div>
@@ -25,23 +25,23 @@
   <div class="hero-features">
     <div class="feature-card">
       <div class="feature-icon">🔒</div>
-      <h3>Verificare ICloud</h3>
-      <p>Verifică dacă Find My iPhone este activ</p>
+      <h3><%= t('home.feature.icloud.title') %></h3>
+      <p><%= t('home.feature.icloud.text') %></p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🚫</div>
-      <h3>Blacklist Check</h3>
-      <p>Află dacă telefonul este blocat sau furat</p>
+      <h3><%= t('home.feature.blacklist.title') %></h3>
+      <p><%= t('home.feature.blacklist.text') %></p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📱</div>
-      <h3>Informații Complete</h3>
-      <p>Model, garanție, operator și multe altele</p>
+      <h3><%= t('home.feature.info.title') %></h3>
+      <p><%= t('home.feature.info.text') %></p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📧</div>
-      <h3>Rezultate pe Email</h3>
-      <p>Primește rezultatul pe email automat</p>
+      <h3><%= t('home.feature.email.title') %></h3>
+      <p><%= t('home.feature.email.text') %></p>
     </div>
   </div>
 </div>
@@ -49,56 +49,56 @@
 <!-- Pricing Section -->
 <div class="pricing-section">
   <div class="container">
-    <h2 class="section-title">Prețuri verificare</h2>
-    <p class="section-subtitle">Verificări rapide și accesibile pentru toate brandurile</p>
+    <h2 class="section-title"><%= t('home.pricing.title') %></h2>
+    <p class="section-subtitle"><%= t('home.pricing.subtitle') %></p>
     
     <div class="pricing-grid">
       <div class="pricing-card">
         <div class="pricing-brand">🍎 Apple</div>
-        <div class="pricing-price"><%= pricing.apple.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Verificare completă iPhone</p>
+        <div class="pricing-price"><%= pricing.apple.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.apple.desc') %></p>
       </div>
       
       <div class="pricing-card">
         <div class="pricing-brand">📱 Samsung</div>
-        <div class="pricing-price"><%= pricing.samsung.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Verificare + KNOX Status</p>
+        <div class="pricing-price"><%= pricing.samsung.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.samsung.desc') %></p>
       </div>
       
       <div class="pricing-card">
         <div class="pricing-brand">🏆 Honor</div>
-        <div class="pricing-price"><%= pricing.honor.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Informații complete</p>
+        <div class="pricing-price"><%= pricing.honor.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.honor.desc') %></p>
       </div>
       
       <div class="pricing-card">
         <div class="pricing-brand">🇨🇳 Huawei</div>
-        <div class="pricing-price"><%= pricing.huawei.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Verificare IMEI</p>
+        <div class="pricing-price"><%= pricing.huawei.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.huawei.desc') %></p>
       </div>
       
       <div class="pricing-card">
         <div class="pricing-brand">📲 Xiaomi</div>
-        <div class="pricing-price"><%= pricing.xiaomi.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">MI Lock & Info</p>
+        <div class="pricing-price"><%= pricing.xiaomi.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.xiaomi.desc') %></p>
       </div>
       
       <div class="pricing-card">
         <div class="pricing-brand">⚡ OnePlus</div>
-        <div class="pricing-price"><%= pricing.oneplus.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Verificare IMEI</p>
+        <div class="pricing-price"><%= pricing.oneplus.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.oneplus.desc') %></p>
       </div>
       
       <div class="pricing-card">
         <div class="pricing-brand">📶 Motorola</div>
-        <div class="pricing-price"><%= pricing.motorola.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Informații complete</p>
+        <div class="pricing-price"><%= pricing.motorola.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.motorola.desc') %></p>
       </div>
       
       <div class="pricing-card">
-        <div class="pricing-brand">📱 Altele</div>
-        <div class="pricing-price"><%= pricing.default.toFixed(2) %> <span class="pricing-currency">credite</span></div>
-        <p class="pricing-description">Verificare standard</p>
+        <div class="pricing-brand">📱 <%= t('home.pricing.default.title') %></div>
+        <div class="pricing-price"><%= pricing.default.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+        <p class="pricing-description"><%= t('home.pricing.default.desc') %></p>
       </div>
     </div>
   </div>

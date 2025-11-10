@@ -1,18 +1,22 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('dashboard.topupSuccess.pageTitle'), user: user }) %>
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1>Plată reușită</h1>
-    <a href="/dashboard/credits" class="btn btn-primary">Vezi creditele</a>
+    <h1><%= t('dashboard.topupSuccess.heading') %></h1>
+    <a href="/dashboard/credits" class="btn btn-primary"><%= t('dashboard.topupSuccess.actions.viewCredits') %></a>
   </div>
 
   <div class="success-card">
     <div class="success-icon">✅</div>
-    <h2>Plata a fost procesată cu succes!</h2>
-    <p>Ai plătit <strong><%= chargedAmount.toFixed(2) %> RON</strong>. <%= transactionRecorded ? 'Creditele au fost deja adăugate în contul tău.' : 'Creditele vor apărea în câteva secunde după confirmarea plății.' %></p>
+    <h2><%= t('dashboard.topupSuccess.subheading') %></h2>
+    <p>
+      <%= t('dashboard.topupSuccess.summary')
+        .replace('{amount}', chargedAmount.toFixed(2)) %>
+      <%= t(transactionRecorded ? 'dashboard.topupSuccess.status.recorded' : 'dashboard.topupSuccess.status.pending') %>
+    </p>
     <div class="success-actions">
-      <a href="/dashboard/credits" class="btn btn-primary">Vezi creditele</a>
-      <a href="/verify/imei" class="btn btn-secondary">Începe o verificare IMEI</a>
+      <a href="/dashboard/credits" class="btn btn-primary"><%= t('dashboard.topupSuccess.actions.viewCredits') %></a>
+      <a href="/verify/imei" class="btn btn-secondary"><%= t('dashboard.topupSuccess.actions.startCheck') %></a>
     </div>
   </div>
 </div>

@@ -1,62 +1,85 @@
-<%- include('../partials/header', { title: 'Termeni și Condiții', user: user }) %>
+<%
+  const tt = (typeof t === 'function')
+    ? t
+    : (typeof locals !== 'undefined' && typeof locals.t === 'function' ? locals.t : (key) => key);
+  const currentLangValue = typeof currentLang !== 'undefined'
+    ? currentLang
+    : (typeof locals !== 'undefined' && typeof locals.currentLang !== 'undefined' ? locals.currentLang : 'ro');
+  const currentLangLabelValue = typeof currentLangLabel !== 'undefined'
+    ? currentLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.currentLangLabel !== 'undefined' ? locals.currentLangLabel : currentLangValue);
+  const switchLangValue = typeof switchLang !== 'undefined'
+    ? switchLang
+    : (typeof locals !== 'undefined' && typeof locals.switchLang !== 'undefined' ? locals.switchLang : (currentLangValue === 'ro' ? 'en' : 'ro'));
+  const switchLangLabelValue = typeof switchLangLabel !== 'undefined'
+    ? switchLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined' ? locals.switchLangLabel : currentLangLabelValue);
+  const csrfValue = typeof csrfToken !== 'undefined'
+    ? csrfToken
+    : (typeof locals !== 'undefined' && typeof locals.csrfToken !== 'undefined' ? locals.csrfToken : '');
+  const headerProps = {
+    title: tt('legal.terms.pageTitle'),
+    user: typeof user !== 'undefined' ? user : (typeof locals !== 'undefined' && typeof locals.user !== 'undefined' ? locals.user : null),
+    csrfToken: csrfValue,
+    t: typeof t === 'function' ? t : null,
+    currentLang: currentLangValue,
+    currentLangLabel: currentLangLabelValue,
+    switchLang: switchLangValue,
+    switchLangLabel: switchLangLabelValue
+  };
+  const locale = currentLangValue === 'en' ? 'en-GB' : 'ro-RO';
+  const lastUpdated = tt('legal.terms.lastUpdated').replace('{date}', new Date().toLocaleDateString(locale));
+%>
+<%- include('../partials/header', headerProps) %>
 
 <section class="legal-page">
   <header class="legal-hero">
-    <h1>Termeni și Condiții</h1>
-    <p>Ultima actualizare: <%= new Date().toLocaleDateString('ro-RO') %></p>
+    <h1><%= tt('legal.terms.pageTitle') %></h1>
+    <p><%= lastUpdated %></p>
   </header>
 
   <article class="legal-content">
     <section class="legal-section">
-      <h2>1. Introducere</h2>
-      <p>
-        Platforma IMEI Check oferă servicii de verificare a istoricului dispozitivelor mobile. Prin accesarea și utilizarea
-        site-ului confirmi că ai citit, înțeles și ești de acord cu acești Termeni și Condiții.
-      </p>
+      <h2><%= tt('legal.terms.sections.1.title') %></h2>
+      <p><%= tt('legal.terms.sections.1.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>2. Condiții de utilizare</h2>
+      <h2><%= tt('legal.terms.sections.2.title') %></h2>
       <ul>
-        <li>Serviciile sunt destinate exclusiv verificării legitime a dispozitivelor mobile.</li>
-        <li>Este interzisă utilizarea platformei în scopuri frauduloase sau pentru accesarea unor date fără drept.</li>
-        <li>Ne rezervăm dreptul de a suspenda sau închide conturile care încalcă acești termeni.</li>
+        <li><%= tt('legal.terms.sections.2.items.1') %></li>
+        <li><%= tt('legal.terms.sections.2.items.2') %></li>
+        <li><%= tt('legal.terms.sections.2.items.3') %></li>
       </ul>
     </section>
 
     <section class="legal-section">
-      <h2>3. Conturi și plăți</h2>
-      <p>
-        Utilizatorii autentificați pot achiziționa credite pentru verificări multiple. Vizitatorii neautentificați pot efectua
-        verificări prin plata unică cu cardul. Toate plățile sunt procesate securizat prin Stripe.
-      </p>
+      <h2><%= tt('legal.terms.sections.3.title') %></h2>
+      <p><%= tt('legal.terms.sections.3.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>4. Politica de rambursare</h2>
-      <p>
-        Pentru interogările finalizate cu succes, sumele achitate nu pot fi rambursate. Dacă o verificare nu poate fi procesată
-        din motive tehnice, creditul sau suma achitată va fi returnată automat în contul tău.
-      </p>
+      <h2><%= tt('legal.terms.sections.4.title') %></h2>
+      <p><%= tt('legal.terms.sections.4.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>5. Limitarea răspunderii</h2>
-      <p>
-        Informațiile furnizate sunt preluate din surse externe, iar acuratețea lor poate depinde de actualizările partenerilor.
-        Nu ne asumăm răspunderea pentru deciziile luate exclusiv în baza rapoartelor generate.
-      </p>
+      <h2><%= tt('legal.terms.sections.5.title') %></h2>
+      <p><%= tt('legal.terms.sections.5.body') %></p>
     </section>
 
     <section class="legal-section">
-      <h2>6. Modificări</h2>
-      <p>
-        Ne rezervăm dreptul de a actualiza acești Termeni și Condiții. Versiunea actualizată va fi disponibilă pe această pagină,
-        iar utilizarea continuă a platformei reprezintă acceptarea modificărilor.
-      </p>
+      <h2><%= tt('legal.terms.sections.6.title') %></h2>
+      <p><%= tt('legal.terms.sections.6.body') %></p>
     </section>
   </article>
 </section>
 
-<%- include('../partials/footer') %>
+<%- include('../partials/footer', {
+  t: typeof t === 'function' ? t : null,
+  currentLang: currentLangValue,
+  currentLangLabel: currentLangLabelValue,
+  switchLang: switchLangValue,
+  switchLangLabel: switchLangLabelValue
+}) %>
 

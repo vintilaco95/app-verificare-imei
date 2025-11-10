@@ -1,11 +1,11 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('dashboard.orders.pageTitle'), user: user }) %>
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1>Istoric verificări</h1>
+    <h1><%= t('dashboard.orders.heading') %></h1>
     <div class="dashboard-actions">
-      <a href="/dashboard/credits/topup" class="btn btn-secondary">Adaugă credite</a>
-      <a href="/verify/imei" class="btn btn-primary">Verifică nou IMEI</a>
+      <a href="/dashboard/credits/topup" class="btn btn-secondary"><%= t('dashboard.orders.actions.topup') %></a>
+      <a href="/verify/imei" class="btn btn-primary"><%= t('dashboard.orders.actions.newCheck') %></a>
     </div>
   </div>
 
@@ -17,10 +17,10 @@
             <div class="imei-group-info">
               <h3>
                 <span class="imei-code"><%= group.imei %></span>
-                <span class="imei-count">(<%= group.count %> verificări)</span>
+                <span class="imei-count">(<%= group.count %> <%= t('dashboard.orders.group.count') %>)</span>
               </h3>
               <p class="imei-model"><%= group.model %> - <%= group.brand %></p>
-              <p class="imei-last-checked">Ultima verificare: <%= new Date(group.lastChecked).toLocaleString('ro-RO') %></p>
+              <p class="imei-last-checked"><%= t('dashboard.orders.group.lastCheck') %>: <%= new Date(group.lastChecked).toLocaleString(currentLang === 'en' ? 'en-US' : 'ro-RO') %></p>
             </div>
             <div class="imei-group-toggle">
               <svg class="toggle-icon" id="icon-<%= group.imei %>" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -33,34 +33,24 @@
             <% group.orders.forEach(order => { %>
               <div class="order-item">
                 <div class="order-info">
-                  <p class="order-date"><strong>Data:</strong> <%= new Date(order.createdAt).toLocaleString('ro-RO') %></p>
-                  <p class="order-model"><%= order.model || 'Unknown' %></p>
-                  <p class="order-cost">Cost: <%= order.price.toFixed(2) %> credite</p>
+                  <p class="order-date"><strong><%= t('dashboard.orders.labels.date') %>:</strong> <%= new Date(order.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'ro-RO') %></p>
+                  <p class="order-model"><%= order.model || t('common.labels.unknown') %></p>
+                  <p class="order-cost"><%= t('dashboard.orders.labels.cost') %>: <%= order.price.toFixed(2) %> <%= t('common.labels.credits') %></p>
                   <% if (order.additionalServices && order.additionalServices.length > 0) { %>
                     <p class="order-additional">
-                      <strong>Verificări suplimentare:</strong> 
-                      <span class="additional-badge"><%= order.additionalServices.length %> verificări</span>
+                      <strong><%= t('dashboard.orders.labels.additionalChecks') %>:</strong> 
+                      <span class="additional-badge"><%= order.additionalServices.length %> <%= t('dashboard.orders.labels.checksCount') %></span>
                     </p>
                   <% } %>
                 </div>
                 <div class="order-actions">
                   <span class="status-badge status-<%= order.status %>">
-                    <% if (order.status === 'pending') { %>
-                      În proces
-                    <% } else if (order.status === 'success') { %>
-                      Finalizat
-                    <% } else if (order.status === 'failed') { %>
-                      Eșuat
-                    <% } else if (order.status === 'error') { %>
-                      Eroare
-                    <% } else { %>
-                      <%= order.status %>
-                    <% } %>
+                    <%= t(`status.${order.status}`) %>
                   </span>
                   <% if (order.status === 'success' || order.status === 'failed') { %>
-                    <a href="/verify/result/<%= order._id %>" class="btn btn-sm">Vezi rezultat</a>
+                    <a href="/verify/result/<%= order._id %>" class="btn btn-sm"><%= t('dashboard.orders.actions.viewResult') %></a>
                   <% } else if (order.status === 'pending') { %>
-                    <a href="/verify/processing/<%= order._id %>" class="btn btn-sm">Vezi status</a>
+                    <a href="/verify/processing/<%= order._id %>" class="btn btn-sm"><%= t('dashboard.orders.actions.viewStatus') %></a>
                   <% } else { %>
                     <span class="btn btn-sm" style="opacity: 0.5; cursor: not-allowed;">N/A</span>
                   <% } %>
@@ -77,35 +67,25 @@
         <div class="order-item">
           <div class="order-info">
             <p class="order-imei"><strong>IMEI:</strong> <%= order.imei %></p>
-            <p class="order-model"><%= order.model || 'Unknown' %></p>
+            <p class="order-model"><%= order.model || t('common.labels.unknown') %></p>
             <p class="order-brand"><%= order.brand || 'N/A' %></p>
-            <p class="order-date"><%= new Date(order.createdAt).toLocaleString('ro-RO') %></p>
-            <p class="order-cost">Cost: <%= order.price.toFixed(2) %> credite</p>
+            <p class="order-date"><%= new Date(order.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'ro-RO') %></p>
+            <p class="order-cost"><%= t('dashboard.orders.labels.cost') %>: <%= order.price.toFixed(2) %> <%= t('common.labels.credits') %></p>
             <% if (order.additionalServices && order.additionalServices.length > 0) { %>
               <p class="order-additional">
-                <strong>Verificări suplimentare:</strong> 
-                <span class="additional-badge"><%= order.additionalServices.length %> verificări</span>
+                <strong><%= t('dashboard.orders.labels.additionalChecks') %>:</strong> 
+                <span class="additional-badge"><%= order.additionalServices.length %> <%= t('dashboard.orders.labels.checksCount') %></span>
               </p>
             <% } %>
           </div>
           <div class="order-actions">
             <span class="status-badge status-<%= order.status %>">
-              <% if (order.status === 'pending') { %>
-                În proces
-              <% } else if (order.status === 'success') { %>
-                Finalizat
-              <% } else if (order.status === 'failed') { %>
-                Eșuat
-              <% } else if (order.status === 'error') { %>
-                Eroare
-              <% } else { %>
-                <%= order.status %>
-              <% } %>
+              <%= t(`status.${order.status}`) %>
             </span>
             <% if (order.status === 'success' || order.status === 'failed') { %>
-              <a href="/verify/result/<%= order._id %>" class="btn btn-sm">Vezi rezultat</a>
+              <a href="/verify/result/<%= order._id %>" class="btn btn-sm"><%= t('dashboard.orders.actions.viewResult') %></a>
             <% } else if (order.status === 'pending') { %>
-              <a href="/verify/processing/<%= order._id %>" class="btn btn-sm">Vezi status</a>
+              <a href="/verify/processing/<%= order._id %>" class="btn btn-sm"><%= t('dashboard.orders.actions.viewStatus') %></a>
             <% } else { %>
               <span class="btn btn-sm" style="opacity: 0.5; cursor: not-allowed;">N/A</span>
             <% } %>
@@ -115,8 +95,8 @@
     </div>
   <% } else { %>
     <div class="empty-state">
-      <p>Nu ai făcut încă nicio verificare.</p>
-      <a href="/verify/imei" class="btn btn-primary">Verifică primul IMEI</a>
+      <p><%= t('dashboard.orders.empty') %></p>
+      <a href="/verify/imei" class="btn btn-primary"><%= t('dashboard.orders.actions.checkFirst') %></a>
     </div>
   <% } %>
 </div>

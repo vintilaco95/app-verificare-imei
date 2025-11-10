@@ -1,6 +1,17 @@
 <% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
-<% if (!isEmailView) { %>
-  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<% if (!isEmailView) { 
+  const headerProps = {
+    title: title,
+    user: user,
+    csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '',
+    t: typeof t === 'function' ? t : null,
+    currentLang: typeof currentLang !== 'undefined' ? currentLang : null,
+    currentLangLabel: typeof currentLangLabel !== 'undefined' ? currentLangLabel : null,
+    switchLang: typeof switchLang !== 'undefined' ? switchLang : null,
+    switchLangLabel: typeof switchLangLabel !== 'undefined' ? switchLangLabel : null
+  };
+%>
+  <%- include('../partials/header', headerProps) %>
 <% } %>
 
 <% 
@@ -32,6 +43,9 @@
   const riskTextValue = typeof riskText !== 'undefined' ? riskText : 'Status necunoscut';
   const scoreColorValue = typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e';
   const summaryTextValue = typeof summaryText !== 'undefined' ? summaryText : '';
+  const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
+    ? riskScoreMax
+    : (typeof templateData !== 'undefined' && typeof templateData.riskScoreMax !== 'undefined' ? templateData.riskScoreMax : 10);
   
   // Format dates
   function normalizeDateInput(value) {
@@ -79,7 +93,7 @@
       <!-- SCOR RISC -->
       <div class="score-box">
         <p class="score-label">Scor siguranță</p>
-        <p class="score-value" style="color: <%= scoreColorValue %>;"><%= riskScoreValue %> / 10</p>
+        <p class="score-value" style="color: <%= scoreColorValue %>;"><%= riskScoreValue %> / <%= riskScoreMaxValue %></p>
         <p class="score-text" style="color: <%= scoreColorValue %>;"><%= riskTextValue %></p>
       </div>
     </div>

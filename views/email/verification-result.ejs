@@ -61,7 +61,7 @@
                 <tr>
                   <td style="padding:26px 26px 18px;">
                     <div style="font-size:14px; text-transform:uppercase; letter-spacing:0.1em; color:#2563eb; font-weight:600;">Scor siguranță</div>
-                    <div style="font-size:38px; font-weight:800; margin-top:6px; color:<%= scoreColor %>;"><%= riskScore %> / 10</div>
+                    <div style="font-size:38px; font-weight:800; margin-top:6px; color:<%= scoreColor %>;"><%= riskScore %> / <%= typeof riskScoreMax !== 'undefined' ? riskScoreMax : 10 %></div>
                     <div style="font-size:16px; font-weight:600; color:<%= scoreColor %>;"><%= riskText %></div>
                     <% if (summaryText) { %>
                       <p style="margin:16px 0 0; color:#1f2937; font-size:16px; line-height:1.6;">

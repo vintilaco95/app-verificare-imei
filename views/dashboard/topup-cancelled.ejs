@@ -1,18 +1,18 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('dashboard.topupCancelled.pageTitle'), user: user }) %>
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1>Plată anulată</h1>
-    <a href="/dashboard/credits/topup" class="btn btn-primary">Înapoi la alimentare</a>
+    <h1><%= t('dashboard.topupCancelled.heading') %></h1>
+    <a href="/dashboard/credits/topup" class="btn btn-primary"><%= t('dashboard.topupCancelled.actions.tryAgain') %></a>
   </div>
 
   <div class="cancel-card">
     <div class="cancel-icon">⚠️</div>
-    <h2>Ai anulat plata</h2>
-    <p>Nu s-a efectuat nicio tranzacție și nu s-au adăugat credite. Poți încerca din nou oricând.</p>
+    <h2><%= t('dashboard.topupCancelled.subheading') %></h2>
+    <p><%= t('dashboard.topupCancelled.message') %></p>
     <div class="success-actions">
-      <a href="/dashboard/credits/topup" class="btn btn-primary">Reîncearcă plata</a>
-      <a href="/dashboard/credits" class="btn btn-secondary">Înapoi la credite</a>
+      <a href="/dashboard/credits/topup" class="btn btn-primary"><%= t('dashboard.topupCancelled.actions.retry') %></a>
+      <a href="/dashboard/credits" class="btn btn-secondary"><%= t('dashboard.topupCancelled.actions.backToCredits') %></a>
     </div>
   </div>
 </div>

@@ -1,36 +1,36 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('verify.processing.pageTitle'), user: user }) %>
 
 <div class="processing-container">
   <div class="processing-card">
     <div class="processing-icon">
       <div class="spinner"></div>
     </div>
-    <h1 class="processing-title">Verificare în proces</h1>
-    <p class="processing-subtitle">Verificarea IMEI-ului <strong><%= order.imei %></strong> a început.</p>
+    <h1 class="processing-title"><%= t('verify.processing.heading') %></h1>
+    <p class="processing-subtitle"><%- t('verify.processing.subtitle').replace('{imei}', `<strong>${order.imei}</strong>`) %></p>
     
     <div class="processing-status">
       <div class="status-indicator">
         <div class="status-dot active"></div>
-        <span>Verificare inițiată</span>
+        <span><%= t('verify.processing.status.started') %></span>
       </div>
       <div class="status-indicator" id="status-processing">
         <div class="status-dot"></div>
-        <span>Procesare...</span>
+        <span><%= t('verify.processing.status.processing') %></span>
       </div>
       <div class="status-indicator" id="status-completed">
         <div class="status-dot"></div>
-        <span>Finalizat</span>
+        <span><%= t('verify.processing.status.completed') %></span>
       </div>
     </div>
     
     <div class="processing-info">
-      <p>Poți verifica statusul verificării în <a href="/dashboard/orders">Dashboard</a> sau poți aștepta aici.</p>
-      <p class="info-hint">Rezultatul va fi disponibil automat când verificarea este finalizată.</p>
+      <p><%- t('verify.processing.info.dashboard').replace('{link}', '<a href="/dashboard/orders">Dashboard</a>') %></p>
+      <p class="info-hint"><%= t('verify.processing.info.hint') %></p>
     </div>
     
     <div class="processing-actions">
-      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
-      <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+      <a href="/dashboard/orders" class="btn btn-primary"><%= t('verify.processing.actions.viewAll') %></a>
+      <a href="/verify/imei" class="btn btn-secondary"><%= t('verify.processing.actions.newCheck') %></a>
     </div>
   </div>
 </div>
@@ -40,6 +40,10 @@
   let checkInterval;
   let checkCount = 0;
   const maxChecks = 60; // Max 60 checks (2 minutes with 2s interval)
+  const processingLabels = {
+    timeout: '<%= t('verify.processing.status.timeout') %>',
+    error: '<%= t('verify.processing.status.error') %>'
+  };
   
   function checkStatus() {
     checkCount++;
@@ -47,7 +51,7 @@
     if (checkCount > maxChecks) {
       clearInterval(checkInterval);
       document.getElementById('status-processing').querySelector('.status-dot').classList.add('error');
-      document.getElementById('status-processing').querySelector('span').textContent = 'Timeout - Verifică în Dashboard';
+      document.getElementById('status-processing').querySelector('span').textContent = processingLabels.timeout;
       return;
     }
     
@@ -69,7 +73,7 @@
           } else {
             // Show error or redirect
             document.getElementById('status-completed').querySelector('.status-dot').classList.add('error');
-            document.getElementById('status-completed').querySelector('span').textContent = 'Eroare';
+            document.getElementById('status-completed').querySelector('span').textContent = processingLabels.error;
             
             setTimeout(() => {
               if (data.resultUrl) {

@@ -30,6 +30,14 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  currencyAmount: {
+    type: Number,
+    default: 0
+  },
+  currency: {
+    type: String,
+    default: 'RON'
+  },
   status: {
     type: String,
     enum: ['pending', 'success', 'failed', 'error'],
@@ -58,6 +66,11 @@ const orderSchema = new mongoose.Schema({
   additionalServices: {
     type: [Number], // Array of additional service IDs
     default: []
+  },
+  language: {
+    type: String,
+    enum: ['ro', 'en'],
+    default: 'ro'
   },
   // Payment fields for Stripe
   paymentStatus: {

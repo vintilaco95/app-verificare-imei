@@ -1,27 +1,62 @@
-<%- include('../partials/header', { title: 'Întrebări Frecvente', user: user }) %>
+<%
+  const tt = (typeof t === 'function')
+    ? t
+    : (typeof locals !== 'undefined' && typeof locals.t === 'function' ? locals.t : (key) => key);
+  const currentLangValue = typeof currentLang !== 'undefined'
+    ? currentLang
+    : (typeof locals !== 'undefined' && typeof locals.currentLang !== 'undefined' ? locals.currentLang : 'ro');
+  const currentLangLabelValue = typeof currentLangLabel !== 'undefined'
+    ? currentLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.currentLangLabel !== 'undefined' ? locals.currentLangLabel : currentLangValue);
+  const switchLangValue = typeof switchLang !== 'undefined'
+    ? switchLang
+    : (typeof locals !== 'undefined' && typeof locals.switchLang !== 'undefined' ? locals.switchLang : (currentLangValue === 'ro' ? 'en' : 'ro'));
+  const switchLangLabelValue = typeof switchLangLabel !== 'undefined'
+    ? switchLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined' ? locals.switchLangLabel : currentLangLabelValue);
+  const csrfValue = typeof csrfToken !== 'undefined'
+    ? csrfToken
+    : (typeof locals !== 'undefined' && typeof locals.csrfToken !== 'undefined' ? locals.csrfToken : '');
+  const headerProps = {
+    title: tt('legal.faq.pageTitle'),
+    user: typeof user !== 'undefined' ? user : (typeof locals !== 'undefined' && typeof locals.user !== 'undefined' ? locals.user : null),
+    csrfToken: csrfValue,
+    t: typeof t === 'function' ? t : null,
+    currentLang: currentLangValue,
+    currentLangLabel: currentLangLabelValue,
+    switchLang: switchLangValue,
+    switchLangLabel: switchLangLabelValue
+  };
+  const faqItems = Array.isArray(faqs) ? faqs : [];
+%>
+<%- include('../partials/header', headerProps) %>
 
 <section class="legal-page">
   <header class="legal-hero">
-    <h1>Întrebări Frecvente</h1>
-    <p>Găsește rapid răspunsuri la cele mai comune întrebări despre IMEI Check.</p>
+    <h1><%= tt('legal.faq.pageTitle') %></h1>
+    <p><%= tt('legal.faq.subtitle') %></p>
   </header>
 
   <article class="legal-content faq-list">
-    <% if (Array.isArray(faqs)) { %>
-      <% faqs.forEach(function(item, index) { %>
-        <section class="legal-section faq-item">
-          <button class="faq-toggle" aria-expanded="false" aria-controls="faq-answer-<%= index %>">
-            <span><%= item.question %></span>
-            <span class="faq-icon">+</span>
-          </button>
-          <div class="faq-answer" id="faq-answer-<%= index %>" hidden>
-            <p><%= item.answer %></p>
-          </div>
-        </section>
-      <% }) %>
-    <% } %>
+    <% faqItems.forEach(function(item, index) { %>
+      <section class="legal-section faq-item">
+        <button class="faq-toggle" aria-expanded="false" aria-controls="faq-answer-<%= index %>">
+          <span><%= tt(item.questionKey) %></span>
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-answer" id="faq-answer-<%= index %>" hidden>
+          <p><%= tt(item.answerKey) %></p>
+        </div>
+      </section>
+    <% }) %>
   </article>
 </section>
 
-<%- include('../partials/footer') %>
+<%- include('../partials/footer', {
+  t: typeof t === 'function' ? t : null,
+  currentLang: currentLangValue,
+  currentLangLabel: currentLangLabelValue,
+  switchLang: switchLangValue,
+  switchLangLabel: switchLangLabelValue
+}) %>
 

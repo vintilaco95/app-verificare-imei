@@ -3,7 +3,9 @@ const User = require('../models/User');
 const CreditTransaction = require('../models/CreditTransaction');
 const imeiService = require('./imeiService');
 const emailService = require('./emailService');
-const { calculateTotalPrice } = require('../config/pricing');
+const { PRICING, calculateTotalPrice } = require('../config/pricing');
+const { DEFAULT_LANGUAGE, normalizeLang } = require('./emailFormatter');
+const { CREDIT_VALUE, BASE_CURRENCY, GUEST_VERIFICATION_CREDITS } = require('../config/currency');
 
 async function processOrder(jobData) {
   const {
@@ -12,7 +14,8 @@ async function processOrder(jobData) {
     userId = null,
     email = null,
     detectedBrand = null,
-    additionalServiceIds = []
+    additionalServiceIds = [],
+    language: jobLanguage = null
   } = jobData;
 
   try {
@@ -30,6 +33,9 @@ async function processOrder(jobData) {
       return;
     }
 
+    const lang = normalizeLang((order && order.language) || jobLanguage || DEFAULT_LANGUAGE);
+    order.language = lang;
+
     const result = await imeiService.verifyIMEI(
       imei,
       userId,
@@ -45,12 +51,21 @@ async function processOrder(jobData) {
 
     const initialPrice = order.price || 0;
     const effectiveBrandForPricing = (result.brand || order.brand || 'default');
-    const finalCost = calculateTotalPrice(effectiveBrandForPricing, additionalServiceIds);
-    let priceDifference = 0;
+    const baseCalculatedCost = calculateTotalPrice(effectiveBrandForPricing, additionalServiceIds);
+    let computedPrice = baseCalculatedCost;
 
-    if (Math.abs(finalCost - initialPrice) > 0.0001) {
-      priceDifference = parseFloat((finalCost - initialPrice).toFixed(2));
-      order.price = finalCost;
+    if (!userId) {
+      const baseCredits = PRICING.base[effectiveBrandForPricing] || PRICING.base.default || 1;
+      const additionalCredits = Math.max(0, parseFloat((baseCalculatedCost - baseCredits).toFixed(2)));
+      computedPrice = parseFloat((GUEST_VERIFICATION_CREDITS + additionalCredits).toFixed(2));
+    }
+
+    let priceDifference = 0;
+    if (Math.abs(computedPrice - initialPrice) > 0.0001) {
+      priceDifference = parseFloat((computedPrice - initialPrice).toFixed(2));
+      order.price = computedPrice;
+    } else if (order.price !== computedPrice) {
+      order.price = computedPrice;
     }
 
     order.orderId = result.data.orderId || order.orderId;
@@ -61,6 +76,11 @@ async function processOrder(jobData) {
     order.object = result.data.object || null;
     order.brand = result.brand || order.brand;
     order.model = result.model || order.model;
+
+    if (!userId) {
+      order.currency = BASE_CURRENCY;
+      order.currencyAmount = parseFloat((order.price * CREDIT_VALUE).toFixed(2));
+    }
 
     await order.save();
 
@@ -73,7 +93,7 @@ async function processOrder(jobData) {
     }
 
     if (result.data && result.data.status === 'success') {
-      await sendEmailResult(userId, email, order, result.data);
+      await sendEmailResult(userId, email, order, result.data, lang);
     }
   } catch (error) {
     console.error('[OrderProcessor] Error while processing order:', error);
@@ -139,9 +159,9 @@ async function refundUser(userId, order, description) {
   });
 }
 
-async function sendEmailResult(userId, email, order, resultData) {
+async function sendEmailResult(userId, email, order, resultData, lang) {
   const { generateResultHTML } = require('./generateResultHTML');
-  const { emailHTML, fullHTML } = await generateResultHTML(order);
+  const { emailHTML, fullHTML } = await generateResultHTML(order, { lang });
 
   let targetEmail = email;
   if (!targetEmail && userId) {
@@ -157,6 +177,8 @@ async function sendEmailResult(userId, email, order, resultData) {
   await emailService.sendVerificationResult(targetEmail, order, resultData, {
     emailHTML,
     fullHTML
+  }, {
+    lang
   });
   order.emailSent = true;
   await order.save();

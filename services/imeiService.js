@@ -16,6 +16,7 @@ const SERVICES = {
   APPLE_FULL: 19, // Apple FULL INFO [+Carrier] B
   APPLE_FULL_A: 39, // Apple FULL INFO [+Carrier] A
   APPLE_BASIC: 22, // Apple BASIC INFO (PRO)
+  APPLE_MDM_STATUS: 47, // Apple extra MDM / activation details
   SAMSUNG_INFO: 8, // Samsung Info (S1)
   SAMSUNG_KNOX: 21, // Samsung Info & KNOX STATUS (S2)
   SAMSUNG_KNOX_STATUS: 37, // Samsung Info & KNOX STATUS (S1) - recommended

@@ -1,13 +1,13 @@
-<%- include('../partials/header', { title: title, user: user }) %>
+<%- include('../partials/header', { title: t('dashboard.topup.pageTitle'), user: user }) %>
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1>Încarcă credite</h1>
-    <a href="/dashboard/credits" class="btn btn-secondary">Înapoi la credite</a>
+    <h1><%= t('dashboard.topup.heading') %></h1>
+    <a href="/dashboard/credits" class="btn btn-secondary"><%= t('dashboard.topup.actions.backToCredits') %></a>
   </div>
 
   <div class="topup-info">
-    <p class="topup-subtitle">Alege una dintre opțiunile recomandate sau introduce o sumă personalizată. Plata se face rapid și securizat cu cardul.</p>
+    <p class="topup-subtitle"><%= t('dashboard.topup.subtitle') %></p>
   </div>
 
   <% if (errors && errors.length > 0) { %>
@@ -21,18 +21,18 @@
   <% } %>
 
   <div class="topup-packages">
-    <h2>Pachete recomandate</h2>
+    <h2><%= t('dashboard.topup.packages.title') %></h2>
     <div class="package-grid">
       <% packages.forEach(pkg => { %>
         <div class="package-card">
           <h3><%= pkg.label %></h3>
-          <p class="package-credits"><%= pkg.credits %> credite</p>
+          <p class="package-credits"><%= pkg.credits %> <%= t('common.labels.credits') %></p>
           <p class="package-description"><%= pkg.description %></p>
           <p class="package-price"><%= pkg.price.toFixed(2) %> RON</p>
           <form action="/dashboard/credits/topup" method="POST">
             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
             <input type="hidden" name="packageId" value="<%= pkg.id %>">
-            <button type="submit" class="btn btn-primary btn-block">Plătește cu cardul</button>
+            <button type="submit" class="btn btn-primary btn-block"><%= t('dashboard.topup.actions.payCard') %></button>
           </form>
         </div>
       <% }); %>
@@ -40,16 +40,16 @@
   </div>
 
   <div class="custom-topup-card">
-    <h2>Sumă personalizată</h2>
-    <p>Alege exact câte credite dorești să adaugi. Suma minimă este <strong><%= minAmount %> credite</strong>.</p>
+    <h2><%= t('dashboard.topup.custom.title') %></h2>
+    <p><%= t('dashboard.topup.custom.description').replace('{min}', minAmount) %></p>
     <form action="/dashboard/credits/topup" method="POST" class="custom-topup-form">
       <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
       <input type="hidden" name="packageId" value="custom">
       <div class="form-group">
-        <label for="custom-amount">Suma (credite / RON)</label>
+        <label for="custom-amount"><%= t('dashboard.topup.custom.amountLabel') %></label>
         <input type="number" id="custom-amount" name="customAmount" min="<%= minAmount %>" step="1" placeholder="<%= minAmount %>" required>
       </div>
-      <button type="submit" class="btn btn-primary btn-large">Continua la plată</button>
+      <button type="submit" class="btn btn-primary btn-large"><%= t('dashboard.topup.custom.submit') %></button>
     </form>
   </div>
 
@@ -57,8 +57,8 @@
     <div class="security-card">
       <div class="security-icon">🔐</div>
       <div>
-        <h3>Plată securizată Stripe</h3>
-        <p>Toate plățile sunt procesate prin Stripe, lider global în plăți online. Datele tale de card nu ajung niciodată pe serverele noastre.</p>
+        <h3><%= t('dashboard.topup.security.title') %></h3>
+        <p><%= t('dashboard.topup.security.description') %></p>
       </div>
     </div>
   </div>

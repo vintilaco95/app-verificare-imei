@@ -23,55 +23,48 @@ router.get('/', (req, res) => {
 });
 
 router.get('/legal/terms', (req, res) => {
+  const t = typeof res.locals.t === 'function' ? res.locals.t : (key) => key;
   res.render('legal/terms', {
-    title: 'Termeni și Condiții',
+    title: t('legal.terms.pageTitle'),
     user: req.user || null
   });
 });
 
 router.get('/legal/privacy', (req, res) => {
+  const t = typeof res.locals.t === 'function' ? res.locals.t : (key) => key;
   res.render('legal/privacy', {
-    title: 'Politica de Confidențialitate',
+    title: t('legal.privacy.pageTitle'),
     user: req.user || null
   });
 });
 
 router.get('/legal/gdpr', (req, res) => {
+  const t = typeof res.locals.t === 'function' ? res.locals.t : (key) => key;
   res.render('legal/gdpr', {
-    title: 'Politica GDPR',
+    title: t('legal.gdpr.pageTitle'),
     user: req.user || null
   });
 });
 
 router.get('/legal/cookies', (req, res) => {
+  const t = typeof res.locals.t === 'function' ? res.locals.t : (key) => key;
   res.render('legal/cookies', {
-    title: 'Politica de Cookies',
+    title: t('legal.cookies.pageTitle'),
     user: req.user || null
   });
 });
 
 router.get('/faq', (req, res) => {
+  const t = typeof res.locals.t === 'function' ? res.locals.t : (key) => key;
   const faqs = [
-    {
-      question: 'Cum funcționează verificarea IMEI?',
-      answer: 'Introduci codul IMEI, selectezi brandul dispozitivului și plătești verificarea. Sistemul nostru accesează surse oficiale și furnizează un raport complet despre statusul telefonului.'
-    },
-    {
-      question: 'Ce metode de plată acceptați?',
-      answer: 'Pentru utilizatorii neautentificați oferim plata unică prin card cu Stripe. Utilizatorii autentificați pot încărca credite și achita direct din cont.'
-    },
-    {
-      question: 'Cât durează procesarea verificării?',
-      answer: 'Majoritatea verificărilor sunt finalizate în câteva minute. În caz de aglomerare sau interogări suplimentare, poate dura mai mult, iar vei fi notificat prin email.'
-    },
-    {
-      question: 'Datele mele sunt în siguranță?',
-      answer: 'Respectăm normele GDPR, folosim conexiuni securizate și nu stocăm datele cardului tău. Poți afla mai multe în politica de confidențialitate și în politica GDPR.'
-    }
+    { questionKey: 'legal.faq.items.1.question', answerKey: 'legal.faq.items.1.answer' },
+    { questionKey: 'legal.faq.items.2.question', answerKey: 'legal.faq.items.2.answer' },
+    { questionKey: 'legal.faq.items.3.question', answerKey: 'legal.faq.items.3.answer' },
+    { questionKey: 'legal.faq.items.4.question', answerKey: 'legal.faq.items.4.answer' }
   ];
 
   res.render('legal/faq', {
-    title: 'Întrebări Frecvente',
+    title: t('legal.faq.pageTitle'),
     user: req.user || null,
     faqs
   });

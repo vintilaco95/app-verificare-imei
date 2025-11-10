@@ -1,5 +1,7 @@
 const ejs = require('ejs');
 const path = require('path');
+const { getTranslation } = require('../config/translations');
+const riskWeights = require('../config/riskWeights');
 const {
   formatWarrantyInfo,
   formatDate: formatDateHelper,
@@ -11,8 +13,53 @@ const {
   formatNetworkLockStatus,
   formatOriginInfo,
   formatMiLockStatus,
-  calculateRiskScore
+  calculateRiskScore,
+  getRiskDetails,
+  DEFAULT_LANGUAGE,
+  normalizeLang
 } = require('./emailFormatter');
+const APPLE_MDM_FIELD_KEYS = [
+  'activationStatus',
+  'warrantyStatus',
+  'estPurchaseDate',
+  'coverageEndDate',
+  'telephoneSupport',
+  'repairCoverage',
+  'appleCareEligible',
+  'validPurchaseDate',
+  'registeredDevice',
+  'replacedByApple',
+  'replacementDevice',
+  'refurbished',
+  'demoUnit',
+  'loanerDevice',
+  'findMyIphone',
+  'icloudStatus',
+  'usBlockStatus',
+  'carrier',
+  'nextTetherPolicy',
+  'simLock',
+  'mdmLock',
+  'blacklistStatus',
+  'generalListStatus',
+  'blacklistRecords'
+];
+
+function translateWithReplacements(lang, key, replacements = {}) {
+  let value = getTranslation(lang, key);
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  if (replacements && typeof replacements === 'object') {
+    for (const [placeholder, replacement] of Object.entries(replacements)) {
+      const regex = new RegExp(`\{${placeholder}\}`, 'g');
+      value = value.replace(regex, replacement);
+    }
+  }
+
+  return value;
+}
 
 function toPlainObject(doc) {
   if (!doc) {
@@ -100,41 +147,55 @@ function addCriticalInfo(criticalInfo, label, info, options = {}) {
   });
 }
 
-function buildAlerts(data) {
+function buildAlerts(data, translate) {
+  const t = typeof translate === 'function' ? translate : (key) => key;
   const alerts = [];
+
+  const localized = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
 
   if (data.iCloud && data.iCloud.status === 'on') {
     alerts.push({
-      title: 'iCloud (Find My iPhone) este activ',
-      text: 'Dispozitivul este legat de un cont iCloud. Nu achiziționa fără a-l dezactiva în fața ta.'
+      title: localized('verify.result.alerts.icloud.title', 'iCloud (Find My iPhone) este activ'),
+      text: localized('verify.result.alerts.icloud.message', 'Dispozitivul este legat de un cont iCloud. Nu achiziționa fără a-l dezactiva în fața ta.')
     });
   }
 
   if (data.lostMode && data.lostMode.status === 'active') {
     alerts.push({
-      title: 'Dispozitiv în mod pierdut',
-      text: 'Dispozitivul este raportat ca pierdut/furat. Nu recomandăm achiziția.'
+      title: localized('verify.result.alerts.lostMode.title', 'Dispozitiv în mod pierdut'),
+      text: localized('verify.result.alerts.lostMode.message', 'Dispozitivul este raportat ca pierdut/furat. Nu recomandăm achiziția.')
     });
   }
 
   if (data.blacklist && data.blacklist.status === 'blacklisted') {
     alerts.push({
-      title: 'Dispozitiv blocat/furat',
-      text: 'IMEI-ul apare în bazele de date blacklist. Evită achiziția.'
+      title: localized('verify.result.alerts.blacklist.title', 'Dispozitiv blocat/furat'),
+      text: localized('verify.result.alerts.blacklist.message', 'IMEI-ul apare în bazele de date blacklist. Evită achiziția.')
     });
   }
 
   if (data.mdm && data.mdm.status === 'locked') {
     alerts.push({
-      title: 'MDM Lock activ',
-      text: 'Dispozitivul este gestionat de o companie (Mobile Device Management). Poate fi re-blocat ulterior.'
+      title: localized('verify.result.alerts.mdm.title', 'MDM Lock activ'),
+      text: localized('verify.result.alerts.mdm.message', 'Dispozitivul este gestionat de o companie (Mobile Device Management). Poate fi re-blocat ulterior.')
+    });
+  }
+
+  const miAccountData = data.miAccountInfo || data.miAccount;
+  if (miAccountData && (miAccountData.warning || miAccountData.status === 'on')) {
+    alerts.push({
+      title: localized('verify.result.alerts.miLock.title', 'MI Activation Lock este activ'),
+      text: localized('verify.result.alerts.miLock.message', 'Dispozitivul este legat de un cont Mi Account. Nu achiziționa fără dezactivare.')
     });
   }
 
   if (data.networkLock && data.networkLock.status === 'locked') {
     alerts.push({
-      title: 'Blocare de rețea',
-      text: data.networkLock.text || 'Dispozitivul este blocat pe o anumită rețea.'
+      title: localized('verify.result.alerts.network.title', 'Blocare de rețea'),
+      text: data.networkLock.text || localized('verify.result.alerts.network.message', 'Dispozitivul este blocat pe o anumită rețea.')
     });
   }
 
@@ -173,28 +234,36 @@ function mapAdditionalResults(additionalResults) {
   });
 }
 
-function buildEmailData(templateName, templateData) {
+function buildEmailData(templateName, templateData, translate) {
   const order = templateData.order || {};
   const device = getDeviceInfo(templateName, templateData);
   const criticalInfo = [];
+  const t = typeof translate === 'function'
+    ? translate
+    : (templateData && typeof templateData.t === 'function' ? templateData.t : (key) => key);
+
+  const label = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : (fallback || key);
+  };
 
   if (templateData.miAccount) {
-    addCriticalInfo(criticalInfo, 'Mi Account (Mi Activation Lock)', templateData.miAccount);
+    addCriticalInfo(criticalInfo, label('verify.result.labels.miAccount', 'Mi Account (Mi Activation Lock)'), templateData.miAccount);
     if (templateData.iCloud && templateData.iCloud !== templateData.miAccount) {
-      addCriticalInfo(criticalInfo, 'iCloud (Find My iPhone)', templateData.iCloud);
+      addCriticalInfo(criticalInfo, label('verify.result.labels.icloud', 'iCloud (Find My iPhone)'), templateData.iCloud);
     }
   } else {
-    addCriticalInfo(criticalInfo, 'iCloud (Find My iPhone)', templateData.iCloud);
+    addCriticalInfo(criticalInfo, label('verify.result.labels.icloud', 'iCloud (Find My iPhone)'), templateData.iCloud);
   }
-  addCriticalInfo(criticalInfo, 'Status blacklist', templateData.blacklist);
-  addCriticalInfo(criticalInfo, 'Knox Guard', templateData.knox);
-  addCriticalInfo(criticalInfo, 'MDM Lock', templateData.mdm);
-  addCriticalInfo(criticalInfo, 'Mod pierdut', templateData.lostMode);
-  addCriticalInfo(criticalInfo, 'Blocare rețea', templateData.networkLock);
-  addCriticalInfo(criticalInfo, 'Garanție', templateData.warranty);
+  addCriticalInfo(criticalInfo, label('verify.result.labels.blacklist', 'Status blacklist'), templateData.blacklist);
+  addCriticalInfo(criticalInfo, label('verify.result.labels.knox', 'Knox Guard'), templateData.knox);
+  addCriticalInfo(criticalInfo, label('verify.result.labels.mdm', 'MDM Lock'), templateData.mdm);
+  addCriticalInfo(criticalInfo, label('verify.result.labels.lostMode', 'Mod pierdut'), templateData.lostMode);
+  addCriticalInfo(criticalInfo, label('verify.result.labels.networkLock', 'Blocare rețea'), templateData.networkLock);
+  addCriticalInfo(criticalInfo, label('verify.result.labels.warranty', 'Garanție'), templateData.warranty);
 
   if (templateData.origin && templateData.origin.text) {
-    addCriticalInfo(criticalInfo, 'Proveniență', {
+    addCriticalInfo(criticalInfo, label('verify.result.labels.origin', 'Proveniență'), {
       text: templateData.origin.text,
       status: templateData.origin.hasInfo ? 'info' : 'unknown'
     });
@@ -208,21 +277,27 @@ function buildEmailData(templateName, templateData) {
   const generatedAt = formatDateFn(generatedAtSource);
 
   return {
-    title: 'Rezultat verificare IMEI',
+    title: templateData.title || t('verify.result.pageTitle'),
     brand: device.brand,
     device,
     riskScore: templateData.riskScore || 0,
     riskText: templateData.riskText || 'Status necunoscut',
+    riskScoreMax: templateData.riskScoreMax || riskWeights.baseScore || 10,
     scoreColor: templateData.scoreColor || '#22c55e',
     summaryText: templateData.summaryText || '',
     criticalInfo,
-    alerts: buildAlerts(templateData),
+    alerts: buildAlerts(templateData, t),
     additionalResults: mapAdditionalResults(templateData.additionalResults),
     order: {
       id: order._id ? order._id.toString() : '',
       imei: device.imei,
       createdAt: generatedAt
-    }
+    },
+    t,
+    currentLang: templateData.currentLang,
+    currentLangLabel: templateData.currentLangLabel,
+    switchLang: templateData.switchLang,
+    switchLangLabel: templateData.switchLangLabel
   };
 }
 
@@ -233,6 +308,11 @@ function buildEmailData(templateName, templateData) {
 async function generateResultHTML(order, options = {}) {
   const viewsPath = path.join(__dirname, '../views');
   const includeLayout = options.includeLayout !== undefined ? options.includeLayout : true;
+  const lang = normalizeLang(options.lang || (order && order.language) || DEFAULT_LANGUAGE);
+  const translate = (key, replacements) => translateWithReplacements(lang, key, replacements);
+  const switchLang = lang === 'ro' ? 'en' : 'ro';
+  const currentLangLabel = translateWithReplacements(lang, 'nav.language.current');
+  const switchLangLabel = translateWithReplacements(switchLang, 'nav.language.current');
   
   // Use the same logic as routes/verify.js
   const brand = (order.brand || '').toLowerCase().trim();
@@ -278,12 +358,17 @@ async function generateResultHTML(order, options = {}) {
   // Determine which template to use and prepare data
   let templateName = 'verify/result';
   let templateData = {
-    title: 'Rezultat verificare IMEI',
+    title: translate('verify.result.pageTitle'),
     order: mainOrder,
     user: null, // No user in email context
     brand: brand, // Add brand to template data
     additionalResults: parsedResults.additionalResults,
-    formatDate: formatDateHelper || ((date) => date || 'Data necunoscută')
+    formatDate: (date) => formatDateHelper ? formatDateHelper(date, lang) : date || 'Data necunoscută',
+    currentLang: lang,
+    t: translate,
+    currentLangLabel,
+    switchLang,
+    switchLangLabel
   };
   
   // Prepare data based on brand (same logic as routes/verify.js)
@@ -334,7 +419,8 @@ async function generateResultHTML(order, options = {}) {
       reportData.gsmaBlacklisted, 
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
     
     let knoxValue = null;
@@ -345,67 +431,55 @@ async function generateResultHTML(order, options = {}) {
     } else if (reportData && reportData.knoxRegistered !== undefined) {
       knoxValue = reportData.knoxRegistered;
     }
-    const knox = knoxValue !== null ? formatKnoxStatus(knoxValue) : formatKnoxStatus(null);
+    const knox = knoxValue !== null ? formatKnoxStatus(knoxValue, lang) : formatKnoxStatus(null, lang);
     
     const warranty = formatWarrantyInfo(
       samsungParsedData.purchaseDate || samsungParsedData.productionDate || reportData.estPurchaseDate, 
       null, 
-      'samsung'
+      'samsung',
+      lang
     );
     
     let mdm = null;
     if (mdmStatus !== null || mdmLocked !== null) {
-      mdm = formatMDMStatus(mdmStatus, mdmLocked);
+      mdm = formatMDMStatus(mdmStatus, mdmLocked, lang);
     }
     
     const lostMode = null;
     const carrierText = samsungParsedData.carrier || reportData.carrier || '';
     const isUnlocked = carrierText.toLowerCase() === 'open' || carrierText.toLowerCase().includes('unlock');
-    const networkLock = formatNetworkLockStatus(!isUnlocked, carrierText);
+    const networkLock = formatNetworkLockStatus(!isUnlocked, carrierText, lang);
     const origin = formatOriginInfo(
       samsungParsedData.soldByCountry || samsungParsedData.shipToCountry || reportData.country, 
       samsungParsedData.salesBuyerName || reportData.soldBy, 
-      samsungParsedData.soldByCountry || reportData.soldByCountry
+      samsungParsedData.soldByCountry || reportData.soldByCountry,
+      lang
     );
     
     // Calculate risk score
     const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
     const riskScore = calculateRiskScore(criticalInfo);
     
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-    
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
+    const riskDetails = getRiskDetails(riskScore, lang);
     
       templateData = {
         ...templateData,
         brand: brand, // Ensure brand is included
         samsungParsedData: samsungParsedData,
         iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        knox: knox || null,
-        mdm: mdm || null,
+        blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
+        knox: knox || formatKnoxStatus(null, lang),
+        mdm: mdm || formatMDMStatus(null, null, lang),
         lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
+        networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+        warranty: warranty || formatWarrantyInfo(null, null, brand, lang),
+        origin: origin || formatOriginInfo(null, null, null, lang),
         riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.'
+        riskText: riskDetails.riskText,
+        riskTexts: riskDetails.riskTexts,
+        scoreColor: riskDetails.scoreColor,
+        summaryText: riskDetails.summaryText,
+        summaryTexts: riskDetails.summaryTexts
       };
   } else if (isHonor) {
     templateName = 'verify/result-honor';
@@ -419,7 +493,8 @@ async function generateResultHTML(order, options = {}) {
       reportData.gsmaBlacklisted, 
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
     const knox = null; // Not applicable for Honor
     
@@ -447,60 +522,48 @@ async function generateResultHTML(order, options = {}) {
     
     let mdm = null;
     if (mdmStatus !== null || mdmLocked !== null) {
-      mdm = formatMDMStatus(mdmStatus, mdmLocked);
+      mdm = formatMDMStatus(mdmStatus, mdmLocked, lang);
     }
     
     const lostMode = null; // Not applicable for Honor
-    const networkLock = formatNetworkLockStatus(false, ''); // Default to unlocked for Honor
+    const networkLock = formatNetworkLockStatus(false, '', lang); // Default to unlocked for Honor
     const warranty = formatWarrantyInfo(
       honorParsedData.warrantyStartDate || honorParsedData.bindDate, 
       null, 
-      'honor'
+      'honor',
+      lang
     );
     const origin = formatOriginInfo(
       honorParsedData.countryName || '', 
       honorParsedData.companyName || '', 
-      honorParsedData.countryName || ''
+      honorParsedData.countryName || '',
+      lang
     );
     
     // Calculate risk score
     const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
     const riskScore = calculateRiskScore(criticalInfo);
     
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-    
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
+    const riskDetails = getRiskDetails(riskScore, lang);
     
     templateData = {
       ...templateData,
       brand: brand, // Ensure brand is included
       honorParsedData: honorParsedData,
-      iCloud: iCloud || null,
-      blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-      knox: knox || null,
-      mdm: mdm || null,
-      lostMode: lostMode || null,
-      networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-      warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-      origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
+        iCloud: iCloud || null,
+        blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
+        knox: knox || null,
+        mdm: mdm || formatMDMStatus(null, null, lang),
+        lostMode: lostMode || null,
+        networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+        warranty: warranty || formatWarrantyInfo(null, null, brand, lang),
+        origin: origin || formatOriginInfo(null, null, null, lang),
       riskScore: riskScore || 9,
-      riskText: riskText || 'Telefon sigur',
-      scoreColor: scoreColor || '#22c55e',
-      summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.'
+        riskText: riskDetails.riskText,
+        riskTexts: riskDetails.riskTexts,
+        scoreColor: riskDetails.scoreColor,
+        summaryText: riskDetails.summaryText,
+        summaryTexts: riskDetails.summaryTexts
     };
   } else if (isMotorola) {
     templateName = 'verify/result-motorola';
@@ -514,7 +577,8 @@ async function generateResultHTML(order, options = {}) {
       reportData.gsmaBlacklisted, 
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
     const knox = null; // Not applicable for Motorola
     
@@ -542,62 +606,50 @@ async function generateResultHTML(order, options = {}) {
     
     let mdm = null;
     if (mdmStatus !== null || mdmLocked !== null) {
-      mdm = formatMDMStatus(mdmStatus, mdmLocked);
+      mdm = formatMDMStatus(mdmStatus, mdmLocked, lang);
     }
     
     const lostMode = null; // Not applicable for Motorola
     const carrierText = motorolaParsedData.carrier || '';
     const isUnlocked = carrierText.toLowerCase().includes('world comm') || carrierText.toLowerCase().includes('unlock');
-    const networkLock = formatNetworkLockStatus(!isUnlocked, carrierText);
+    const networkLock = formatNetworkLockStatus(!isUnlocked, carrierText, lang);
     const warranty = formatWarrantyInfo(
       motorolaParsedData.warrantyStartDate || motorolaParsedData.activationDate, 
       motorolaParsedData.activationDate, 
-      'motorola'
+      'motorola',
+      lang
     );
     const origin = formatOriginInfo(
       motorolaParsedData.shipToCountry || motorolaParsedData.soldByCountry || motorolaParsedData.country, 
       motorolaParsedData.soldToCustomerName || '', 
-      motorolaParsedData.soldByCountry || ''
+      motorolaParsedData.soldByCountry || '',
+      lang
     );
     
     // Calculate risk score
     const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
     const riskScore = calculateRiskScore(criticalInfo);
     
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-    
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
+    const riskDetails = getRiskDetails(riskScore, lang);
     
     templateData = {
       ...templateData,
       brand: brand, // Ensure brand is included
       motorolaParsedData: motorolaParsedData,
       iCloud: iCloud || null,
-      blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
+      blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
       knox: knox || null,
-      mdm: mdm || null,
+      mdm: mdm || formatMDMStatus(null, null, lang),
       lostMode: lostMode || null,
-      networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-      warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-      origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
+      networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+      warranty: warranty || formatWarrantyInfo(null, null, brand, lang),
+      origin: origin || formatOriginInfo(null, null, null, lang),
       riskScore: riskScore || 9,
-      riskText: riskText || 'Telefon sigur',
-      scoreColor: scoreColor || '#22c55e',
-      summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.'
+      riskText: riskDetails.riskText,
+      riskTexts: riskDetails.riskTexts,
+      scoreColor: riskDetails.scoreColor,
+      summaryText: riskDetails.summaryText,
+      summaryTexts: riskDetails.summaryTexts
     };
   } else if (isXiaomi) {
     templateName = 'verify/result-xiaomi';
@@ -606,26 +658,30 @@ async function generateResultHTML(order, options = {}) {
 
     const reportData = mainOrder.object || {};
     const miLockRaw = reportData.miActivationLock || reportData.miLockStatus || xiaomiParsedData.miLockStatus || null;
-    const miAccount = formatMiLockStatus(miLockRaw);
+    const miAccount = formatMiLockStatus(miLockRaw, lang);
     const blacklist = formatBlacklistStatus(
       reportData.gsmaBlacklisted,
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
     const warranty = formatWarrantyInfo(
       xiaomiParsedData.warrantyStartDate || reportData.warrantyStartDate,
       xiaomiParsedData.activationDate || reportData.activationDate,
-      'xiaomi'
+      'xiaomi',
+      lang
     );
     const origin = formatOriginInfo(
       xiaomiParsedData.purchaseCountry || reportData.purchaseCountry,
       null,
-      xiaomiParsedData.activationCountry || reportData.activationCountry
+      xiaomiParsedData.activationCountry || reportData.activationCountry,
+      lang
     );
     const networkLock = formatNetworkLockStatus(
       reportData.simlock || reportData.lockStatus || null,
-      reportData.carrier || ''
+      reportData.carrier || '',
+      lang
     );
 
     const criticalInfo = {
@@ -638,23 +694,7 @@ async function generateResultHTML(order, options = {}) {
     };
     const riskScore = calculateRiskScore(criticalInfo);
 
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — verifică atent Mi Activation Lock și istoricul.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Există unele atenționări — verifică documentele și statusul contului Mi.';
-    }
+    const riskDetails = getRiskDetails(riskScore, lang);
 
     templateData = {
       ...templateData,
@@ -662,17 +702,19 @@ async function generateResultHTML(order, options = {}) {
       xiaomiParsedData,
       miAccount,
       iCloud: miAccount, // for compatibility with calculateRiskScore consumers
-      blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
+      blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
       mdm: null,
       knox: null,
       lostMode: null,
-      networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-      warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-      origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
+      networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+      warranty: warranty || formatWarrantyInfo(null, null, brand, lang),
+      origin: origin || formatOriginInfo(null, null, null, lang),
       riskScore: riskScore || 9,
-      riskText: riskText,
-      scoreColor: scoreColor,
-      summaryText: summaryText
+      riskText: riskDetails.riskText,
+      riskTexts: riskDetails.riskTexts,
+      scoreColor: riskDetails.scoreColor,
+      summaryText: riskDetails.summaryText,
+      summaryTexts: riskDetails.summaryTexts
     };
   } else if (isPixel) {
     templateName = 'verify/result-pixel';
@@ -686,7 +728,8 @@ async function generateResultHTML(order, options = {}) {
       reportData.gsmaBlacklisted, 
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
     const knox = null; // Not applicable for Pixel
     
@@ -714,13 +757,13 @@ async function generateResultHTML(order, options = {}) {
     
     let mdm = null;
     if (mdmStatus !== null || mdmLocked !== null) {
-      mdm = formatMDMStatus(mdmStatus, mdmLocked);
+      mdm = formatMDMStatus(mdmStatus, mdmLocked, lang);
     }
     
     const lostMode = null; // Not applicable for Pixel
     const modelText = pixelParsedData.model || '';
     const isUnlocked = modelText.toLowerCase().includes('(unlocked)') || modelText.toLowerCase().includes('unlocked');
-    const networkLock = formatNetworkLockStatus(!isUnlocked, isUnlocked ? 'Unlocked' : '');
+    const networkLock = formatNetworkLockStatus(!isUnlocked, isUnlocked ? 'Unlocked' : '', lang);
     // For Pixel, warranty is typically 2 years from activation
     // If warranty expired, calculate start date by subtracting 2 years from end date
     let warrantyStartDate = null;
@@ -756,48 +799,35 @@ async function generateResultHTML(order, options = {}) {
     const warranty = formatWarrantyInfo(
       warrantyStartDate, 
       pixelParsedData.activationStatus === 'Activated' ? warrantyStartDate : null, 
-      'pixel'
+      'pixel',
+      lang
     );
-    const origin = formatOriginInfo(null, null, null);
+    const origin = formatOriginInfo(null, null, null, lang);
     
     // Calculate risk score
     const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
     const riskScore = calculateRiskScore(criticalInfo);
     
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-    
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
+    const riskDetails = getRiskDetails(riskScore, lang);
     
     templateData = {
       ...templateData,
       brand: brand, // Ensure brand is included
       pixelParsedData: pixelParsedData,
       iCloud: iCloud || null,
-      blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
+      blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
       knox: knox || null,
-      mdm: mdm || null,
+      mdm: mdm || formatMDMStatus(null, null, lang),
       lostMode: lostMode || null,
-      networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-      warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-      origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
+      networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+      warranty: warranty || formatWarrantyInfo(null, null, brand, lang),
+      origin: origin || formatOriginInfo(null, null, null, lang),
       riskScore: riskScore || 9,
-      riskText: riskText || 'Telefon sigur',
-      scoreColor: scoreColor || '#22c55e',
-      summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.'
+      riskText: riskDetails.riskText,
+      riskTexts: riskDetails.riskTexts,
+      scoreColor: riskDetails.scoreColor,
+      summaryText: riskDetails.summaryText,
+      summaryTexts: riskDetails.summaryTexts
     };
   } else if (isHuawei) {
     templateName = 'verify/result-huawei';
@@ -811,7 +841,8 @@ async function generateResultHTML(order, options = {}) {
       reportData.gsmaBlacklisted, 
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
     const knox = null; // Not applicable for Huawei
     
@@ -839,11 +870,11 @@ async function generateResultHTML(order, options = {}) {
     
     let mdm = null;
     if (mdmStatus !== null || mdmLocked !== null) {
-      mdm = formatMDMStatus(mdmStatus, mdmLocked);
+      mdm = formatMDMStatus(mdmStatus, mdmLocked, lang);
     }
     
     const lostMode = null; // Not applicable for Huawei
-    const networkLock = formatNetworkLockStatus(false, ''); // Default to unlocked for Huawei
+    const networkLock = formatNetworkLockStatus(false, '', lang); // Default to unlocked for Huawei
     
     // Warranty info - use warranty start date and end date from Huawei data
     let warranty = null;
@@ -851,7 +882,8 @@ async function generateResultHTML(order, options = {}) {
       warranty = formatWarrantyInfo(
         huaweiParsedData.warrantyStartDate, 
         null, 
-        'huawei'
+        'huawei',
+        lang
       );
       
       // If we have end date, update warranty info
@@ -863,10 +895,16 @@ async function generateResultHTML(order, options = {}) {
           
           if (isExpired) {
             warranty.status = 'expired';
-            warranty.text = `Garanție expirată (până la ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate})`;
+            const roExpired = `Garanție expirată (până la ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate})`;
+            const enExpired = `Warranty expired (until ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate})`;
+            warranty.texts = { ro: roExpired, en: enExpired };
+            warranty.text = warranty.texts[lang];
           } else {
             warranty.status = 'active';
-            warranty.text = `În garanție până la ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate}`;
+            const roActive = `În garanție până la ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate}`;
+            const enActive = `In warranty until ${huaweiParsedData.warrantyEndDateOriginal || huaweiParsedData.warrantyEndDate}`;
+            warranty.texts = { ro: roActive, en: enActive };
+            warranty.text = warranty.texts[lang];
           }
           warranty.hasInfo = true;
           warranty.endDate = endDate;
@@ -875,125 +913,162 @@ async function generateResultHTML(order, options = {}) {
           if (huaweiParsedData.warrantyStatus) {
             warranty.hasInfo = true;
             warranty.status = huaweiParsedData.warrantyStatus.toLowerCase().includes('out') ? 'expired' : 'active';
-            warranty.text = huaweiParsedData.warrantyStatus;
+            warranty.texts = { ro: huaweiParsedData.warrantyStatus, en: huaweiParsedData.warrantyStatus };
+            warranty.text = warranty.texts[lang];
           }
         }
       } else if (huaweiParsedData.warrantyStatus) {
         warranty.hasInfo = true;
         warranty.status = huaweiParsedData.warrantyStatus.toLowerCase().includes('out') ? 'expired' : 'active';
-        warranty.text = huaweiParsedData.warrantyStatus;
+        warranty.texts = { ro: huaweiParsedData.warrantyStatus, en: huaweiParsedData.warrantyStatus };
+        warranty.text = warranty.texts[lang];
       }
     } else {
-      warranty = formatWarrantyInfo(null, null, 'huawei');
+      warranty = formatWarrantyInfo(null, null, 'huawei', lang);
     }
-    const origin = formatOriginInfo(null, null, null);
+    const origin = formatOriginInfo(null, null, null, lang);
     
     // Calculate risk score
     const criticalInfo = { iCloud, blacklist, knox, mdm, lostMode, networkLock };
     const riskScore = calculateRiskScore(criticalInfo);
     
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
-    
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
+    const riskDetails = getRiskDetails(riskScore, lang);
     
     templateData = {
       ...templateData,
       brand: brand, // Ensure brand is included
       huaweiParsedData: huaweiParsedData,
       iCloud: iCloud || null,
-      blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
+      blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
       knox: knox || null,
-      mdm: mdm || null,
+      mdm: mdm || formatMDMStatus(null, null, lang),
       lostMode: lostMode || null,
-      networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-      warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-      origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
+      networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+      warranty: warranty || formatWarrantyInfo(null, null, 'huawei', lang),
+      origin: origin || formatOriginInfo(null, null, null, lang),
       riskScore: riskScore || 9,
-      riskText: riskText || 'Telefon sigur',
-      scoreColor: scoreColor || '#22c55e',
-      summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.'
+      riskText: riskDetails.riskText,
+      riskTexts: riskDetails.riskTexts,
+      scoreColor: riskDetails.scoreColor,
+      summaryText: riskDetails.summaryText,
+      summaryTexts: riskDetails.summaryTexts
     };
   } else {
     // Generic/Apple template
     templateName = 'verify/result';
     const reportData = mainOrder.object || {};
     const isApple = brand === 'apple' || brand === 'iphone';
+    let appleMdmCheck = reportData.appleMdmCheck || null;
+    if (appleMdmCheck && typeof appleMdmCheck === 'string') {
+      try {
+        appleMdmCheck = JSON.parse(appleMdmCheck);
+      } catch (err) {
+        appleMdmCheck = null;
+      }
+    }
+
+    const appleMdmFields = appleMdmCheck && appleMdmCheck.fields ? appleMdmCheck.fields : {};
+    const appleMdmEntries = APPLE_MDM_FIELD_KEYS.map((key) => {
+      if (!appleMdmFields || !(key in appleMdmFields)) {
+        return null;
+      }
+      const value = appleMdmFields[key];
+      if (value === null || value === undefined || value === '') {
+        return null;
+      }
+      if (typeof value === 'object' && value !== null) {
+        const raw = value.raw !== undefined ? value.raw : '';
+        const normalized = value.normalized !== undefined ? value.normalized : null;
+        return {
+          key,
+          raw: (raw || normalized || '').toString(),
+          normalized,
+          isPositive: value.isPositive ?? (normalized === 'on'),
+          isNegative: value.isNegative ?? (normalized === 'off')
+        };
+      }
+      return {
+        key,
+        raw: value,
+        normalized: null,
+        isPositive: null,
+        isNegative: null
+      };
+    }).filter(Boolean);
+    const appleMdmHasData = appleMdmEntries.length > 0;
     
-    const iCloud = isApple ? formatiCloudStatus(reportData.fmiOn, reportData.fmiON) : null;
+    const iCloud = isApple ? formatiCloudStatus(reportData.fmiOn, reportData.fmiON, lang) : null;
     const blacklist = formatBlacklistStatus(
       reportData.gsmaBlacklisted, 
       reportData.blacklistStatus,
       reportData.blacklistRecords,
-      reportData.blacklistData
+      reportData.blacklistData,
+      lang
     );
-    const warranty = formatWarrantyInfo(reportData.estPurchaseDate, reportData.activationDate, brand);
+    const warranty = formatWarrantyInfo(reportData.estPurchaseDate, reportData.activationDate, brand, lang);
     
     let mdm = null;
-    if (reportData.mdmStatus !== undefined || reportData.mdmLocked !== undefined) {
-      mdm = formatMDMStatus(reportData.mdmStatus, reportData.mdmLocked);
+    if (appleMdmCheck && appleMdmCheck.mdmLock && appleMdmCheck.mdmLock.normalized) {
+      const normalized = appleMdmCheck.mdmLock.normalized;
+      mdm = formatMDMStatus(normalized, normalized, lang);
+    } else if (reportData.mdmStatus !== undefined || reportData.mdmLocked !== undefined) {
+      mdm = formatMDMStatus(reportData.mdmStatus, reportData.mdmLocked, lang);
     }
     
-    const lostMode = isApple ? formatLostModeStatus(reportData.lostMode) : null;
-    const networkLock = formatNetworkLockStatus(reportData.simlock, reportData.carrier);
-    const origin = formatOriginInfo(reportData.country, reportData.soldBy, reportData.soldByCountry);
+    const lostMode = isApple ? formatLostModeStatus(reportData.lostMode, lang) : null;
+    const networkLock = formatNetworkLockStatus(reportData.simlock, reportData.carrier, lang);
+    const origin = formatOriginInfo(reportData.country, reportData.soldBy, reportData.soldByCountry, lang);
     
     const criticalInfo = { iCloud, blacklist, mdm, lostMode, networkLock };
     const riskScore = calculateRiskScore(criticalInfo);
     
-    let riskText = 'Telefon sigur';
-    let scoreColor = '#22c55e';
-    let summaryText = 'Dispozitivul este în regulă pentru achiziție.';
+    const riskDetails = getRiskDetails(riskScore, lang);
     
-    if (riskScore <= 2) {
-      riskText = 'Dispozitiv PERICULOS';
-      scoreColor = '#ef4444';
-      summaryText = 'Dispozitivul are probleme critice — NU CUMPĂRA.';
-    } else if (riskScore <= 4) {
-      riskText = 'Dispozitiv cu RISC RIDICAT';
-      scoreColor = '#f97316';
-      summaryText = 'Dispozitivul are probleme importante — amână achiziția.';
-    } else if (riskScore <= 6) {
-      riskText = 'Dispozitiv cu RISC MODERAT';
-      scoreColor = '#f59e0b';
-      summaryText = 'Dispozitivul are probleme minore — verifică înainte de cumpărare.';
-    }
-    
-      templateData = {
-        ...templateData,
-        brand: brand, // Ensure brand is included
-        isApple: isApple,
-        iCloud: iCloud || null,
-        blacklist: blacklist || { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' },
-        mdm: mdm || null,
-        lostMode: lostMode || null,
-        networkLock: networkLock || { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' },
-        warranty: warranty || { hasInfo: false, text: 'Nu avem informații despre garanție' },
-        origin: origin || { hasInfo: false, text: 'Nu avem informații despre proveniență' },
-        riskScore: riskScore || 9,
-        riskText: riskText || 'Telefon sigur',
-        scoreColor: scoreColor || '#22c55e',
-        summaryText: summaryText || 'Dispozitivul este în regulă pentru achiziție.'
-      };
+    templateData = {
+      ...templateData,
+      brand: brand, // Ensure brand is included
+      isApple: isApple,
+      iCloud: iCloud || null,
+      blacklist: blacklist || formatBlacklistStatus(undefined, undefined, null, null, lang),
+      mdm: mdm || formatMDMStatus(null, null, lang),
+      lostMode: lostMode || null,
+      networkLock: networkLock || formatNetworkLockStatus(null, null, lang),
+      warranty: warranty || formatWarrantyInfo(null, null, brand, lang),
+      origin: origin || formatOriginInfo(null, null, null, lang),
+      riskScore: riskScore || 9,
+      riskText: riskDetails.riskText,
+      riskTexts: riskDetails.riskTexts,
+      scoreColor: riskDetails.scoreColor,
+      summaryText: riskDetails.summaryText,
+      summaryTexts: riskDetails.summaryTexts,
+      appleMdm: {
+        hasData: appleMdmHasData,
+        entries: appleMdmEntries,
+        mdmLock: appleMdmCheck ? appleMdmCheck.mdmLock : null,
+        rawHtml: appleMdmCheck ? appleMdmCheck.rawHtml : '',
+        fetchedAt: appleMdmCheck ? appleMdmCheck.fetchedAt : null
+      },
+      showAppleMdmButton: isApple,
+      appleMdmButtonDisabled: appleMdmHasData
+    };
+  }
+
+  const riskScoreMax = riskWeights.baseScore || 10;
+  templateData.riskScoreMax = riskScoreMax;
+  if (!templateData.appleMdm) {
+    templateData.appleMdm = { hasData: false, entries: [] };
+  }
+  if (typeof templateData.showAppleMdmButton === 'undefined') {
+    templateData.showAppleMdmButton = false;
+  }
+  if (typeof templateData.appleMdmButtonDisabled === 'undefined') {
+    templateData.appleMdmButtonDisabled = false;
   }
   
   const templatePath = path.join(viewsPath, `${templateName}.ejs`);
   const emailTemplatePath = path.join(viewsPath, 'email/verification-result.ejs');
 
-  const emailData = buildEmailData(templateName, templateData);
+  const emailData = buildEmailData(templateName, templateData, translate);
   const emailHTML = await ejs.renderFile(emailTemplatePath, emailData, {
     root: viewsPath,
     views: viewsPath
@@ -1022,7 +1097,9 @@ async function generateResultHTML(order, options = {}) {
   
   return {
     emailHTML,
-    fullHTML
+    fullHTML,
+    templateName,
+    templateData
   };
 }
 

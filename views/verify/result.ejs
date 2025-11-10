@@ -1,6 +1,41 @@
 <% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
-<% if (!isEmailView) { %>
-  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<%
+  const lang = typeof currentLang !== 'undefined' ? currentLang : (typeof templateData !== 'undefined' && templateData.currentLang ? templateData.currentLang : 'ro');
+  const tt = (key) => typeof t === 'function' ? t(key) : key;
+  const localizedText = (entry) => {
+    if (!entry) return '';
+    if (entry.texts && entry.texts[lang]) return entry.texts[lang];
+    return entry.text || '';
+  };
+  const textByLang = (roText, enText) => (lang === 'en' ? enText : roText);
+  const riskLabel = (typeof riskTexts !== 'undefined' && riskTexts && riskTexts[lang]) ? riskTexts[lang] : (riskText || '');
+  const summaryLabel = (typeof summaryTexts !== 'undefined' && summaryTexts && summaryTexts[lang]) ? summaryTexts[lang] : (summaryText || '');
+  const appleMdmData = typeof appleMdm !== 'undefined'
+    ? appleMdm
+    : (typeof templateData !== 'undefined' && typeof templateData.appleMdm !== 'undefined' ? templateData.appleMdm : null);
+  const showAppleMdmButtonFlag = typeof showAppleMdmButton !== 'undefined'
+    ? showAppleMdmButton
+    : (typeof templateData !== 'undefined' && typeof templateData.showAppleMdmButton !== 'undefined' ? templateData.showAppleMdmButton : false);
+  const appleMdmButtonDisabledFlag = typeof appleMdmButtonDisabled !== 'undefined'
+    ? appleMdmButtonDisabled
+    : (typeof templateData !== 'undefined' && typeof templateData.appleMdmButtonDisabled !== 'undefined' ? templateData.appleMdmButtonDisabled : false);
+  const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
+    ? riskScoreMax
+    : (typeof templateData !== 'undefined' && typeof templateData.riskScoreMax !== 'undefined' ? templateData.riskScoreMax : 10);
+%>
+<% if (!isEmailView) { 
+  const headerProps = {
+    title: title,
+    user: user,
+    csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '',
+    t: typeof t === 'function' ? t : null,
+    currentLang: typeof currentLang !== 'undefined' ? currentLang : null,
+    currentLangLabel: typeof currentLangLabel !== 'undefined' ? currentLangLabel : null,
+    switchLang: typeof switchLang !== 'undefined' ? switchLang : null,
+    switchLangLabel: typeof switchLangLabel !== 'undefined' ? switchLangLabel : null
+  };
+%>
+  <%- include('../partials/header', headerProps) %>
 <% } %>
 
 <% 
@@ -29,50 +64,50 @@
     <!-- HEADER -->
     <div class="report-header">
       <div class="header-content">
-        <p class="report-label">Rezultat verificare IMEI</p>
+        <p class="report-label"><%= tt('verify.result.reportLabel') %></p>
         <h2 class="report-model"><%= model %></h2>
         <% if (modelDesc) { %>
-          <p class="report-desc">Descriere furnizor: <strong><%= modelDesc %></strong></p>
+          <p class="report-desc"><%= tt('verify.result.device.providerDescription') %> <strong><%= modelDesc %></strong></p>
         <% } %>
       </div>
       <!-- SCOR RISC -->
       <div class="score-box">
-        <p class="score-label">Scor siguranță</p>
-        <p class="score-value" style="color: <%= scoreColor %>;"><%= riskScore %> / 10</p>
-        <p class="score-text" style="color: <%= scoreColor %>;"><%= riskText %></p>
+        <p class="score-label"><%= tt('verify.result.scoreLabel') %></p>
+        <p class="score-value" style="color: <%= scoreColor %>;"><%= riskScore %> / <%= riskScoreMaxValue %></p>
+        <p class="score-text" style="color: <%= scoreColor %>;"><%= riskLabel %></p>
       </div>
     </div>
 
     <!-- INFORMATII CRITICE DE SECURITATE -->
     <div class="critical-info-section">
       <div class="critical-info-card">
-        <h3 class="critical-info-title">🔒 Informații Critice de Securitate</h3>
+        <h3 class="critical-info-title">🔒 <%= tt('verify.result.sections.securityTitle') %></h3>
         
         <div class="critical-info-grid">
           <!-- 1. iCloud Status (iPhone only) -->
           <% if (isApple && iCloud) { %>
           <div class="critical-info-item">
-            <div class="critical-info-label">iCloud (Find My iPhone):</div>
+            <div class="critical-info-label"><%= tt('verify.result.labels.icloud') %>:</div>
             <div class="critical-info-value status-<%= iCloud.status === 'on' ? 'danger' : iCloud.status === 'off' ? 'safe' : 'unknown' %>">
-              <%= iCloud.text %>
+              <%= localizedText(iCloud) %>
             </div>
           </div>
           <% } %>
           
           <!-- 2. Blacklist Status -->
           <div class="critical-info-item">
-            <div class="critical-info-label">Status Blacklist:</div>
+            <div class="critical-info-label"><%= tt('verify.result.labels.blacklist') %>:</div>
             <div class="critical-info-value status-<%= blacklist.status === 'blacklisted' ? 'danger' : blacklist.status === 'clean' ? 'safe' : 'unknown' %>">
-              <%= blacklist.text %>
+              <%= localizedText(blacklist) %>
             </div>
           </div>
           
           <!-- 3. Knox Guard (Samsung only) -->
           <% if (isSamsung && knox) { %>
           <div class="critical-info-item">
-            <div class="critical-info-label">Knox Guard:</div>
+            <div class="critical-info-label"><%= tt('verify.result.labels.knox') %>:</div>
             <div class="critical-info-value status-<%= knox.status === 'active' ? 'warning' : knox.status === 'inactive' ? 'safe' : 'unknown' %>">
-              <%= knox.text %>
+              <%= localizedText(knox) %>
             </div>
           </div>
           <% } %>
@@ -80,9 +115,9 @@
           <!-- 4. MDM Lock -->
           <% if (mdm) { %>
           <div class="critical-info-item">
-            <div class="critical-info-label">MDM Lock:</div>
+            <div class="critical-info-label"><%= tt('verify.result.labels.mdm') %>:</div>
             <div class="critical-info-value status-<%= mdm.status === 'locked' ? 'warning' : mdm.status === 'unlocked' ? 'safe' : 'unknown' %>">
-              <%= mdm.text %>
+              <%= localizedText(mdm) %>
             </div>
           </div>
           <% } %>
@@ -90,34 +125,34 @@
           <!-- 5. Lost Mode (iPhone only) -->
           <% if (isApple && lostMode) { %>
           <div class="critical-info-item">
-            <div class="critical-info-label">Mod Pierdut:</div>
+            <div class="critical-info-label"><%= tt('verify.result.labels.lostMode') %>:</div>
             <div class="critical-info-value status-<%= lostMode.status === 'active' ? 'danger' : lostMode.status === 'inactive' ? 'safe' : 'unknown' %>">
-              <%= lostMode.text %>
+              <%= localizedText(lostMode) %>
             </div>
           </div>
           <% } %>
           
           <!-- 6. Network Lock -->
           <div class="critical-info-item">
-            <div class="critical-info-label">Blocare Rețea:</div>
+            <div class="critical-info-label"><%= tt('verify.result.labels.networkLock') %>:</div>
             <div class="critical-info-value status-<%= networkLock.status === 'locked' ? 'danger' : networkLock.status === 'locked_orange' ? 'warning' : networkLock.status === 'unlocked' ? 'safe' : 'unknown' %>">
-              <%= networkLock.text %>
+              <%= localizedText(networkLock) %>
             </div>
           </div>
           
           <!-- 7. Warranty Info -->
           <div class="critical-info-item">
-            <div class="critical-info-label">Garanție:</div>
-            <div class="critical-info-value status-<%= warranty.hasInfo ? (warranty.status === 'active' ? 'safe' : warranty.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
-              <%= warranty.text %>
+            <div class="critical-info-label"><%= tt('verify.result.labels.warranty') %>:</div>
+            <div class="critical-info-value status-<%= warranty && warranty.hasInfo ? (warranty.status === 'active' ? 'safe' : warranty.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
+              <%= localizedText(warranty) %>
             </div>
           </div>
           
           <!-- 8. Origin Info -->
           <div class="critical-info-item">
-            <div class="critical-info-label">Proveniență:</div>
-            <div class="critical-info-value <%= origin.hasInfo ? '' : 'status-unknown' %>">
-              <%= origin.text %>
+            <div class="critical-info-label"><%= tt('verify.result.labels.origin') %>:</div>
+            <div class="critical-info-value <%= origin && origin.hasInfo ? '' : 'status-unknown' %>">
+              <%= localizedText(origin) %>
             </div>
           </div>
         </div>
@@ -129,8 +164,8 @@
       <div class="alert-box">
         <div class="alert-icon">⚠️</div>
         <div class="alert-content">
-          <p><strong>iCloud (Find My iPhone) este ACTIV.</strong></p>
-          <p>Telefonul este legat de un cont iCloud. <strong>Nu cumpăra</strong> până nu este dezactivat în fața ta.</p>
+          <p><strong><%= tt('verify.result.alerts.icloud.title') %></strong></p>
+          <p><%= tt('verify.result.alerts.icloud.message') %></p>
         </div>
       </div>
     <% } %>
@@ -139,8 +174,8 @@
       <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
         <div class="alert-icon">🚨</div>
         <div class="alert-content">
-          <p><strong>Dispozitiv în Mod Pierdut</strong></p>
-          <p>Dispozitivul este marcat ca pierdut. <strong>NU CUMPĂRA</strong> acest dispozitiv.</p>
+          <p><strong><%= tt('verify.result.alerts.lostMode.title') %></strong></p>
+          <p><%= tt('verify.result.alerts.lostMode.message') %></p>
         </div>
       </div>
     <% } %>
@@ -149,8 +184,8 @@
       <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
         <div class="alert-icon">🚫</div>
         <div class="alert-content">
-          <p><strong>Dispozitiv Blocat/Furat</strong></p>
-          <p>Dispozitivul este înregistrat în baza de date ca blocat sau furat. <strong>NU CUMPĂRA</strong> acest dispozitiv.</p>
+          <p><strong><%= tt('verify.result.alerts.blacklist.title') %></strong></p>
+          <p><%= tt('verify.result.alerts.blacklist.message') %></p>
         </div>
       </div>
     <% } %>
@@ -159,48 +194,46 @@
     <div class="report-grid">
       <!-- IDENTIFICARE -->
       <div class="report-card">
-        <h3>Identificare dispozitiv</h3>
-        <p>Model: <strong><%= model %></strong></p>
+        <h3><%= tt('verify.result.device.title') %></h3>
+        <p><%= tt('verify.result.device.modelLabel') %> <strong><%= model %></strong></p>
         <% if (modelDesc) { %>
-          <p>Descriere: <strong><%= modelDesc %></strong></p>
+          <p><%= tt('verify.result.device.descriptionLabel') %> <strong><%= modelDesc %></strong></p>
         <% } %>
-        <p>IMEI: <strong><%= imei %></strong></p>
+        <p><%= tt('verify.result.device.imeiLabel') %> <strong><%= imei %></strong></p>
         <% if (imei2) { %>
-          <p>IMEI secundar: <strong><%= imei2 %></strong></p>
+          <p><%= tt('verify.result.device.imei2Label') %> <strong><%= imei2 %></strong></p>
         <% } %>
         <% if (serial) { %>
-          <p>Serial Number: <strong><%= serial %></strong></p>
+          <p><%= tt('verify.result.device.serialLabel') %> <strong><%= serial %></strong></p>
         <% } %>
         <% if (eid) { %>
-          <p>EID (eSIM): <code><%= eid %></code></p>
+          <p><%= tt('verify.result.device.eidLabel') %> <code><%= eid %></code></p>
         <% } %>
       </div>
     </div>
 
     <!-- SFATURI -->
     <div class="report-tips">
-      <h3>Sfaturi pentru cumpărător</h3>
+      <h3><%= tt('verify.result.tips.title') %></h3>
       <ol>
+        <% const tipsList = []; %>
         <% if (isApple) { %>
-          <li>Cere vânzătorului să dezactiveze iCloud (Find My iPhone).</li>
-          <li>Resetează complet dispozitivul și verifică dacă nu mai cere cont vechi.</li>
+          <% tipsList.push('verify.result.tips.apple.deactivateIcloud', 'verify.result.tips.apple.resetDevice'); %>
         <% } else { %>
-          <li>Verifică dacă dispozitivul nu este blocat (blacklist).</li>
-          <li>Resetează complet dispozitivul și verifică funcționalitatea.</li>
+          <% tipsList.push('verify.result.tips.generic.checkBlacklist', 'verify.result.tips.generic.reset'); %>
         <% } %>
-        <li>Verifică factura și proveniența.</li>
-        <li>Testează toate funcțiile hardware (camera, microfon, difuzor).</li>
-        <li>Verifică starea bateriei în setări.</li>
-        <% if (!isApple) { %>
-          <li>Asigură-te că toate actualizările software sunt instalate.</li>
-        <% } %>
+        <% tipsList.push('verify.result.tips.common.verifyInvoice', 'verify.result.tips.common.testHardware', 'verify.result.tips.common.checkBattery'); %>
+        <% if (!isApple) { tipsList.push('verify.result.tips.common.installUpdates'); } %>
+        <% tipsList.forEach(key => { %>
+          <li><%= tt(key) %></li>
+        <% }); %>
       </ol>
     </div>
 
     <!-- CONCLUZIE -->
     <div class="report-conclusion">
       <div class="conclusion-box">
-        <p><strong>Concluzie:</strong> <%= summaryText %></p>
+        <p><strong><%= tt('verify.result.conclusion.label') %></strong> <%= summaryLabel %></p>
       </div>
     </div>
 
@@ -226,192 +259,180 @@
       <% const service9 = service9Data; %>
       <div class="service9-section" style="margin-top: 30px; padding: 20px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; border-left: 4px solid #3b82f6;">
         <h2 class="section-title" style="color: #3b82f6; margin-bottom: 20px;">
-          📋 Informații Detaliate Proveniență și Riscul de Blocare (GSX)
+          <%= tt('verify.result.service9.title') %>
         </h2>
         
         <div class="report-grid">
-          <!-- IDENTIFICARE DISPOZITIV -->
           <div class="report-card">
-            <h3>📱 Identificare Dispozitiv</h3>
+            <h3><%= tt('verify.result.service9.deviceTitle') %></h3>
             <% if (service9.modelDescription) { %>
-              <p><strong>Model:</strong> <%= service9.modelDescription %></p>
+              <p><strong><%= tt('verify.result.service9.labels.model') %></strong> <%= service9.modelDescription %></p>
             <% } %>
             <% if (service9.model) { %>
-              <p><strong>Model complet:</strong> <%= service9.model %></p>
+              <p><strong><%= tt('verify.result.service9.labels.modelFull') %></strong> <%= service9.model %></p>
             <% } %>
             <% if (service9.mpn) { %>
-              <p><strong>MPN (Model Part Number):</strong> <%= service9.mpn %></p>
+              <p><strong><%= tt('verify.result.service9.labels.mpn') %></strong> <%= service9.mpn %></p>
             <% } %>
             <% if (service9.imei) { %>
-              <p><strong>IMEI:</strong> <%= service9.imei %></p>
+              <p><strong><%= tt('verify.result.service9.labels.imei') %></strong> <%= service9.imei %></p>
             <% } %>
             <% if (service9.imei2) { %>
-              <p><strong>IMEI 2:</strong> <%= service9.imei2 %></p>
+              <p><strong><%= tt('verify.result.service9.labels.imei2') %></strong> <%= service9.imei2 %></p>
             <% } %>
             <% if (service9.serial) { %>
-              <p><strong>Serial Number:</strong> <%= service9.serial %></p>
+              <p><strong><%= tt('verify.result.service9.labels.serial') %></strong> <%= service9.serial %></p>
             <% } %>
             <% if (service9.productVersion) { %>
-              <p><strong>Versiune iOS:</strong> <%= service9.productVersion %></p>
+              <p><strong><%= tt('verify.result.service9.labels.iosVersion') %></strong> <%= service9.productVersion %></p>
             <% } %>
           </div>
           
-          <!-- PROVENIENȚĂ ȘI ACHIZIȚIE -->
           <div class="report-card">
-            <h3>📍 Proveniență și Achiziție</h3>
+            <h3><%= tt('verify.result.service9.originTitle') %></h3>
             <% if (service9.soldToName) { %>
-              <p><strong>Vândut de:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.soldToName %></span></p>
+              <p><strong><%= tt('verify.result.service9.labels.soldBy') %></strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.soldToName %></span></p>
             <% } %>
             <% if (service9.purchaseCountry) { %>
-              <p><strong>Țara de achiziție:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.purchaseCountry %></span></p>
+              <p><strong><%= tt('verify.result.service9.labels.purchaseCountry') %></strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.purchaseCountry %></span></p>
             <% } %>
             <% if (service9.purchaseDate) { %>
               <% 
                 const purchaseDate = new Date(service9.purchaseDate);
-                const isValidDate = purchaseDate.getFullYear() > 2000; // Filter out invalid dates like 1978
+                const isValidDate = purchaseDate.getFullYear() > 2000;
               %>
               <% if (isValidDate) { %>
-                <p><strong>Data achiziției:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.purchaseDate) : purchaseDate.toLocaleDateString('ro-RO') %></p>
+                <p><strong><%= tt('verify.result.service9.labels.purchaseDate') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.purchaseDate) : purchaseDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
               <% } else { %>
-                <p><strong>Data achiziției:</strong> <span style="color: #64748b;">Nu este disponibilă</span></p>
+                <p><strong><%= tt('verify.result.service9.labels.purchaseDate') %></strong> <span style="color: #64748b;"><%= tt('verify.result.common.notAvailable') %></span></p>
               <% } %>
             <% } %>
             <% if (service9.firstActivationDate) { %>
-              <p><strong>Prima activare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.firstActivationDate) : new Date(service9.firstActivationDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.firstActivation') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.firstActivationDate) : new Date(service9.firstActivationDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
             <% if (service9.carrier) { %>
-              <p><strong>Operator SIM:</strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.carrier %></span></p>
+              <p><strong><%= tt('verify.result.service9.labels.carrier') %></strong> <span style="color: #3b82f6; font-weight: bold;"><%= service9.carrier %></span></p>
             <% } %>
             <% if (service9.registrationDate) { %>
-              <p><strong>Data înregistrării:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.registrationDate) : new Date(service9.registrationDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.registrationDate') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.registrationDate) : new Date(service9.registrationDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
           </div>
           
-          <!-- STATUS GSX ȘI BLO CARE -->
           <div class="report-card">
-            <h3>🔓 Status GSX și Blocare</h3>
+            <h3><%= tt('verify.result.service9.gsxTitle') %></h3>
             <% if (service9.gsxUnlocked !== undefined) { %>
-              <p><strong>GSX Unlocked:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.gsxUnlocked') %></strong>
                 <span style="color: <%= service9.gsxUnlocked ? '#22c55e' : '#ef4444' %>; font-weight: bold;">
-                  <%= service9.gsxUnlocked ? 'DA - Deblocat' : 'NU - Blocat' %>
+                  <%= service9.gsxUnlocked ? textByLang('DA - Deblocat', 'YES - Unlocked') : textByLang('NU - Blocat', 'NO - Locked') %>
                 </span>
               </p>
             <% } %>
             <% if (service9.unlockDate) { %>
-              <p><strong>Data deblocare GSX:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.unlockDate) : new Date(service9.unlockDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.gsxUnlockDate') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.unlockDate) : new Date(service9.unlockDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
             <% if (service9.mdmStatus !== undefined) { %>
-              <p><strong>MDM Lock:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.mdmLock') %></strong>
                 <span style="color: <%= service9.mdmStatus ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
-                  <%= service9.mdmStatus ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                  <%= service9.mdmStatus ? textByLang('ACTIV ⚠️', 'ACTIVE ⚠️') : textByLang('DEZACTIVAT ✓', 'DISABLED ✓') %>
                 </span>
               </p>
             <% } %>
             <% if (service9.isFMiPActive !== undefined) { %>
-              <p><strong>Find My iPhone:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.findMyIphone') %></strong>
                 <span style="color: <%= service9.isFMiPActive ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
-                  <%= service9.isFMiPActive ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                  <%= service9.isFMiPActive ? textByLang('ACTIV ⚠️', 'ACTIVE ⚠️') : textByLang('DEZACTIVAT ✓', 'DISABLED ✓') %>
                 </span>
               </p>
             <% } %>
             <% if (service9.isLostModeOn !== undefined) { %>
-              <p><strong>Lost Mode:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.lostMode') %></strong>
                 <span style="color: <%= service9.isLostModeOn ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
-                  <%= service9.isLostModeOn ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
+                  <%= service9.isLostModeOn ? textByLang('ACTIV ⚠️', 'ACTIVE ⚠️') : textByLang('DEZACTIVAT ✓', 'DISABLED ✓') %>
                 </span>
               </p>
             <% } %>
           </div>
           
-          <!-- ISTORIC ȘI STATUS GARANȚIE -->
           <div class="report-card">
-            <h3>📜 Istoric și Garanție</h3>
+            <h3><%= tt('verify.result.service9.historyTitle') %></h3>
             <% if (service9.gsxCaseHistory !== undefined) { %>
-              <p><strong>Istoric cazuri GSX:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.gsxCaseHistory') %></strong>
                 <span style="color: <%= service9.gsxCaseHistory > 0 ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
                   <%= service9.gsxCaseHistory %> <%= service9.gsxCaseHistory > 0 ? '⚠️' : '✓' %>
                 </span>
               </p>
               <% if (service9.gsxCaseHistory > 0) { %>
-                <p style="color: #f97316; font-size: 0.9em; margin-top: 5px;">⚠️ Dispozitivul are <%= service9.gsxCaseHistory %> caz(uri) în istoricul GSX</p>
+                <p style="color: #f97316; font-size: 0.9em; margin-top: 5px;">⚠️ <%= tt('verify.result.service9.warnings.caseHistory') %> <%= service9.gsxCaseHistory %></p>
               <% } %>
             <% } %>
             <% if (service9.gsxReplacementHistory !== undefined) { %>
-              <p><strong>Istoric înlocuiri:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.gsxReplacementHistory') %></strong>
                 <span style="color: <%= service9.gsxReplacementHistory > 0 ? '#f97316' : '#22c55e' %>; font-weight: bold;">
                   <%= service9.gsxReplacementHistory %> <%= service9.gsxReplacementHistory > 0 ? '⚠️' : '✓' %>
                 </span>
               </p>
             <% } %>
             <% if (service9.replaced !== undefined) { %>
-              <p><strong>Înlocuit de Apple:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.replaced') %></strong>
                 <span style="color: <%= service9.replaced ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
-                  <%= service9.replaced ? 'DA ⚠️' : 'NU ✓' %>
+                  <%= service9.replaced ? textByLang('DA ⚠️', 'YES ⚠️') : textByLang('NU ✓', 'NO ✓') %>
                 </span>
               </p>
             <% } %>
             <% if (service9.loaner !== undefined) { %>
-              <p><strong>Dispozitiv de înlocuire (Loaner):</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.loaner') %></strong>
                 <span style="color: <%= service9.loaner ? '#f97316' : '#22c55e' %>; font-weight: bold;">
-                  <%= service9.loaner ? 'DA ⚠️' : 'NU ✓' %>
+                  <%= service9.loaner ? textByLang('DA ⚠️', 'YES ⚠️') : textByLang('NU ✓', 'NO ✓') %>
                 </span>
               </p>
             <% } %>
             <% if (service9.warrantyStatusDescription) { %>
-              <p><strong>Status garanție:</strong> 
+              <p><strong><%= tt('verify.result.service9.labels.warrantyStatus') %></strong>
                 <span style="color: <%= service9.warrantyStatusDescription.toLowerCase().includes('out') || service9.warrantyStatusDescription.toLowerCase().includes('no coverage') ? '#f97316' : '#22c55e' %>; font-weight: bold;">
                   <%= service9.warrantyStatusDescription %>
                 </span>
               </p>
             <% } %>
             <% if (service9.warrantyStatusCode) { %>
-              <p><strong>Cod status garanție:</strong> <%= service9.warrantyStatusCode %></p>
+              <p><strong><%= tt('verify.result.service9.labels.warrantyCode') %></strong> <%= service9.warrantyStatusCode %></p>
             <% } %>
             <% if (service9.coverageStartDate) { %>
-              <p><strong>Garanție început:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageStartDate) : new Date(service9.coverageStartDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.coverageStart') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageStartDate) : new Date(service9.coverageStartDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
             <% if (service9.coverageEndDate) { %>
-              <p><strong>Garanție expirare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageEndDate) : new Date(service9.coverageEndDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.coverageEnd') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.coverageEndDate) : new Date(service9.coverageEndDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
             <% if (service9.contractCoverageStartDate) { %>
-              <p><strong>Contract început:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageStartDate) : new Date(service9.contractCoverageStartDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.contractStart') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageStartDate) : new Date(service9.contractCoverageStartDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
             <% if (service9.contractCoverageEndDate) { %>
-              <p><strong>Contract expirare:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageEndDate) : new Date(service9.contractCoverageEndDate).toLocaleDateString('ro-RO') %></p>
+              <p><strong><%= tt('verify.result.service9.labels.contractEnd') %></strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.contractCoverageEndDate) : new Date(service9.contractCoverageEndDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'ro-RO') %></p>
             <% } %>
           </div>
           
-          <!-- POLITICI DE ACTIVARE -->
           <div class="report-card">
-            <h3>⚙️ Politici de Activare</h3>
+            <h3><%= tt('verify.result.service9.policiesTitle') %></h3>
             <% if (service9.initialActivationPolicyDetails) { %>
-              <p><strong>Politică inițială:</strong> 
-                <span style="color: <%= service9.initialActivationPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
-                  <%= service9.initialActivationPolicyDetails %>
-                </span>
+              <p><strong><%= tt('verify.result.service9.labels.initialPolicy') %></strong>
+                <span style="color: <%= service9.initialActivationPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;"><%= service9.initialActivationPolicyDetails %></span>
               </p>
             <% } %>
             <% if (service9.appliedActivationDetails) { %>
-              <p><strong>Politică aplicată:</strong> 
-                <span style="color: <%= service9.appliedActivationDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
-                  <%= service9.appliedActivationDetails %>
-                </span>
+              <p><strong><%= tt('verify.result.service9.labels.appliedPolicy') %></strong>
+                <span style="color: <%= service9.appliedActivationDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;"><%= service9.appliedActivationDetails %></span>
               </p>
             <% } %>
             <% if (service9.nextTetherPolicyDetails) { %>
-              <p><strong>Următoarea politică:</strong> 
-                <span style="color: <%= service9.nextTetherPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;">
-                  <%= service9.nextTetherPolicyDetails %>
-                </span>
+              <p><strong><%= tt('verify.result.service9.labels.nextPolicy') %></strong>
+                <span style="color: <%= service9.nextTetherPolicyDetails.toLowerCase().includes('unlock') ? '#22c55e' : '#f97316' %>;"><%= service9.nextTetherPolicyDetails %></span>
               </p>
             <% } %>
             <% if (service9.ctoConfiguration) { %>
-              <p><strong>Configurare CTO:</strong> <%= service9.ctoConfiguration %></p>
+              <p><strong><%= tt('verify.result.service9.labels.ctoConfiguration') %></strong> <%= service9.ctoConfiguration %></p>
             <% } %>
           </div>
         </div>
         
-        <!-- ALERTE IMPORTANTE -->
         <% 
           const hasWarnings = 
             (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) ||
@@ -423,25 +444,25 @@
         %>
         <% if (hasWarnings) { %>
           <div style="margin-top: 20px; padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid #ef4444;">
-            <h4 style="color: #ef4444; margin-bottom: 10px;">⚠️ Atenție - Probleme Identificate</h4>
+            <h4 style="color: #ef4444; margin-bottom: 10px;">⚠️ <%= tt('verify.result.service9.warnings.title') %></h4>
             <ul style="margin-left: 20px; color: #dc2626;">
               <% if (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) { %>
-                <li>Dispozitivul are <%= service9.gsxCaseHistory %> caz(uri) în istoricul GSX - poate indica probleme anterioare</li>
+                <li><%= tt('verify.result.service9.warnings.caseHistoryDetail').replace('{count}', service9.gsxCaseHistory) %></li>
               <% } %>
               <% if (service9.replaced === true) { %>
-                <li>Dispozitivul a fost înlocuit de Apple - verifică legitimitatea</li>
+                <li><%= tt('verify.result.service9.warnings.replaced') %></li>
               <% } %>
               <% if (service9.loaner === true) { %>
-                <li>Dispozitivul este un dispozitiv de înlocuire (loaner) - nu este dispozitivul original</li>
+                <li><%= tt('verify.result.service9.warnings.loaner') %></li>
               <% } %>
               <% if (service9.isFMiPActive === true) { %>
-                <li>Find My iPhone este ACTIV - dispozitivul poate fi blocat de proprietar</li>
+                <li><%= tt('verify.result.service9.warnings.findMyIphone') %></li>
               <% } %>
               <% if (service9.isLostModeOn === true) { %>
-                <li>Lost Mode este ACTIV - dispozitivul este marcat ca pierdut/furat</li>
+                <li><%= tt('verify.result.service9.warnings.lostMode') %></li>
               <% } %>
               <% if (service9.mdmStatus === true) { %>
-                <li>MDM Lock este ACTIV - dispozitivul este gestionat de o companie</li>
+                <li><%= tt('verify.result.service9.warnings.mdm') %></li>
               <% } %>
             </ul>
           </div>
@@ -452,8 +473,8 @@
     <!-- VERIFICĂRI SUPLIMENTARE -->
     <% if (typeof additionalResults !== 'undefined' && additionalResults && additionalResults.length > 0) { %>
       <div class="additional-results-section">
-        <h2 class="section-title">Verificări suplimentare</h2>
-        <p class="section-subtitle">Rezultatele verificărilor suplimentare pe care le-ai solicitat</p>
+        <h2 class="section-title"><%= tt('verify.result.additional.title') %></h2>
+        <p class="section-subtitle"><%= tt('verify.result.additional.subtitle') %></p>
         
         <% additionalResults.forEach((item, index) => { %>
           <div class="additional-result-card">
@@ -464,7 +485,7 @@
                 </span>
                 <%= item.service.displayName || item.service.name %>
               </h3>
-              <span class="result-category"><%= item.service.category || 'Verificare' %></span>
+              <span class="result-category"><%= item.service.category || tt('verify.result.additional.defaultCategory') %></span>
             </div>
             
             <div class="additional-result-description">
@@ -483,27 +504,27 @@
                   <% const data = item.parsedData; %>
                   <% if (data.soldBy || data.soldByCountry) { %>
                     <div class="result-field">
-                      <strong>Sursă de achiziție:</strong>
+                      <strong><%= tt('verify.result.additional.labels.sourceOfPurchase') %></strong>
                       <span><%= data.soldBy || data.soldByCountry || 'N/A' %></span>
                     </div>
                   <% } %>
                   <% if (data.mdmStatus !== undefined) { %>
                     <div class="result-field">
-                      <strong>Status MDM:</strong>
+                      <strong><%= tt('verify.result.additional.labels.mdmStatus') %></strong>
                       <span class="<%= data.mdmStatus ? 'status-active' : 'status-inactive' %>">
-                        <%= data.mdmStatus ? 'ACTIV' : 'INACTIV' %>
+                        <%= data.mdmStatus ? textByLang('ACTIV', 'ACTIVE') : textByLang('INACTIV', 'INACTIVE') %>
                       </span>
                     </div>
                   <% } %>
                   <% if (data.gsmaStatus) { %>
                     <div class="result-field">
-                      <strong>Status GSMA Blacklist:</strong>
+                      <strong><%= tt('verify.result.additional.labels.gsmaStatus') %></strong>
                       <span><%= data.gsmaStatus %></span>
                     </div>
                   <% } %>
                   <% if (data.fmiStatus) { %>
                     <div class="result-field">
-                      <strong>Status Find My iPhone:</strong>
+                      <strong><%= tt('verify.result.additional.labels.fmiStatus') %></strong>
                       <span class="<%= data.fmiStatus === 'ON' ? 'status-active' : 'status-inactive' %>">
                         <%= data.fmiStatus %>
                       </span>
@@ -532,15 +553,49 @@
     <% } %>
   </div>
 
+  <% if (appleMdmData && appleMdmData.hasData) { %>
+    <section class="apple-mdm-section">
+      <div class="apple-mdm-header">
+        <h2><%= tt('verify.result.appleMdm.title') %></h2>
+        <% if (appleMdmData.fetchedAt) { %>
+          <span class="apple-mdm-date">
+            <%= typeof formatDate !== 'undefined' ? formatDate(appleMdmData.fetchedAt) : new Date(appleMdmData.fetchedAt).toLocaleString(lang === 'en' ? 'en-US' : 'ro-RO') %>
+          </span>
+        <% } %>
+      </div>
+      <p class="apple-mdm-subtitle"><%= tt('verify.result.appleMdm.subtitle') %></p>
+      <div class="apple-mdm-grid">
+        <% appleMdmData.entries.forEach(function(item) { 
+             const labelKey = 'verify.result.appleMdm.labels.' + item.key;
+             const valueClass = item.isPositive === true ? 'status-positive' : item.isNegative === true ? 'status-negative' : 'status-neutral';
+         %>
+          <div class="apple-mdm-card">
+            <span class="apple-mdm-label"><%= tt(labelKey) %></span>
+            <span class="apple-mdm-value <%= valueClass %>"><%= item.raw %></span>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+  <% } else if (!isEmailView && user && isApple && showAppleMdmButtonFlag && !appleMdmButtonDisabledFlag) { %>
+    <section class="apple-mdm-section apple-mdm-empty">
+      <p><%= tt('verify.result.appleMdm.noData') %></p>
+    </section>
+  <% } %>
+
   <div class="result-actions">
-    <% if (user && isApple && (!order.additionalServices || !order.additionalServices.includes(900))) { %>
-      <button id="enhance-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
-        📋 Completează datele cu proveniența și riscul de blocare (5 credite)
+    <% if (user && isApple && showAppleMdmButtonFlag && !appleMdmButtonDisabledFlag) { %>
+      <button id="mdm-check-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
+        <%= tt('verify.result.actions.mdmCheck') %>
       </button>
     <% } %>
-    <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+    <% if (user && isApple && (!order.additionalServices || !order.additionalServices.includes(900))) { %>
+      <button id="enhance-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
+        <%= tt('verify.result.actions.enhance') %>
+      </button>
+    <% } %>
+    <a href="/verify/imei" class="btn btn-secondary"><%= tt('verify.result.actions.checkAnother') %></a>
     <% if (user) { %>
-      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
+      <a href="/dashboard/orders" class="btn btn-primary"><%= tt('verify.result.actions.viewAll') %></a>
     <% } %>
   </div>
   
@@ -548,20 +603,55 @@
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const enhanceBtn = document.getElementById('enhance-btn');
+      const mdmBtn = document.getElementById('mdm-check-btn');
       const csrfMeta = document.querySelector('meta[name="csrf-token"]');
       const csrfToken = (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
-      window.csrfToken = csrfToken; // ensure global fallback
+      window.csrfToken = csrfToken;
+
+      if (mdmBtn) {
+        mdmBtn.addEventListener('click', async function() {
+          if (!confirm(<%= JSON.stringify(tt('verify.result.actions.mdmCheckConfirm')) %>)) {
+            return;
+          }
+          const orderId = mdmBtn.getAttribute('data-order-id');
+          mdmBtn.disabled = true;
+          mdmBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.mdmCheckProcessing')) %>;
+          try {
+            const response = await fetch(`/verify/apple-mdm/${orderId}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+                'csrf-token': csrfToken
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ _csrf: csrfToken })
+            });
+            const data = await response.json();
+            if (response.ok && data.success) {
+              window.location.reload();
+            } else {
+              alert(data.error || <%= JSON.stringify(tt('verify.result.actions.mdmCheckError')) %>);
+              mdmBtn.disabled = false;
+              mdmBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.mdmCheck')) %>;
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert(<%= JSON.stringify(tt('verify.result.actions.mdmCheckError')) %>);
+            mdmBtn.disabled = false;
+            mdmBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.mdmCheck')) %>;
+          }
+        });
+      }
 
       if (enhanceBtn) {
         enhanceBtn.addEventListener('click', async function() {
-          if (!confirm('Ești sigur că vrei să completezi datele cu proveniența și riscul de blocare? Această operațiune costă 5 credite.')) {
+          if (!confirm(<%= JSON.stringify(tt('verify.result.actions.enhanceConfirm')) %>)) {
             return;
           }
-          
           const orderId = enhanceBtn.getAttribute('data-order-id');
           enhanceBtn.disabled = true;
-          enhanceBtn.textContent = 'Se procesează...';
-          
+          enhanceBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.enhanceProcessing')) %>;
           try {
             const response = await fetch(`/verify/enhance/${orderId}`, {
               method: 'POST',
@@ -573,22 +663,19 @@
               credentials: 'same-origin',
               body: JSON.stringify({ _csrf: csrfToken })
             });
-            
             const data = await response.json();
-            
             if (response.ok && data.success) {
-              // Reload page to show updated data
               window.location.reload();
             } else {
-              alert(data.error || 'Eroare la completarea datelor');
+              alert(data.error || <%= JSON.stringify(tt('verify.result.actions.enhanceError')) %>);
               enhanceBtn.disabled = false;
-              enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
+              enhanceBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.enhance')); %>;
             }
           } catch (error) {
             console.error('Error:', error);
-            alert('Eroare la completarea datelor');
+            alert(<%= JSON.stringify(tt('verify.result.actions.enhanceError')) %>);
             enhanceBtn.disabled = false;
-            enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
+            enhanceBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.enhance')); %>;
           }
         });
       }

@@ -3,6 +3,14 @@
  */
 
 const SERVER_BASE_PRICING = (typeof window !== 'undefined' && window.serverPricing) ? window.serverPricing : null;
+const parsedCreditValue = (typeof window !== 'undefined' && window.creditValue !== undefined)
+  ? parseFloat(window.creditValue)
+  : NaN;
+const CREDIT_VALUE = (!isNaN(parsedCreditValue) && parsedCreditValue > 0) ? parsedCreditValue : 1;
+const CURRENCY_CODE = (typeof window !== 'undefined' && window.currencyCode)
+  ? window.currencyCode
+  : 'RON';
+const CURRENCY_LABEL = (CURRENCY_CODE || 'RON').toUpperCase();
 
 const PRICING_CONFIG = {
   base: SERVER_BASE_PRICING || {
@@ -113,7 +121,11 @@ function updatePricingDisplay(brand, selectedServices = [], isGuest = false) {
   
   const costElement = isGuest ? document.getElementById('estimated-cost-guest') : document.getElementById('estimated-cost');
   if (costElement) {
-    costElement.textContent = `${totalPrice.toFixed(2)} credite`;
+    if (isGuest) {
+      costElement.textContent = `${(totalPrice * CREDIT_VALUE).toFixed(2)} ${CURRENCY_LABEL}`;
+    } else {
+      costElement.textContent = `${totalPrice.toFixed(2)} credite`;
+    }
   }
 }
 
@@ -140,13 +152,16 @@ function renderAdditionalServices(brand, isGuest = false) {
   additional.forEach(service => {
     const serviceDiv = document.createElement('div');
     serviceDiv.className = 'additional-service-item';
+    const priceText = isGuest
+      ? `+${(service.price * CREDIT_VALUE).toFixed(2)} ${CURRENCY_LABEL}`
+      : `+${service.price.toFixed(2)} credite`;
     serviceDiv.innerHTML = `
       <label class="service-checkbox">
         <input type="checkbox" name="additionalServices[]" value="${service.id}" data-price="${service.price}" class="service-checkbox-input">
         <div class="service-checkbox-content">
           <div class="service-header">
             <span class="service-name">${service.name}</span>
-            <span class="service-price">+${service.price.toFixed(2)} credite</span>
+            <span class="service-price">${priceText}</span>
           </div>
           <p class="service-description">${service.description}</p>
         </div>
@@ -162,8 +177,15 @@ function renderAdditionalServices(brand, isGuest = false) {
       const selectedServices = Array.from(container.querySelectorAll('.service-checkbox-input:checked'))
         .map(cb => parseInt(cb.value));
       updatePricingDisplay(brand, selectedServices, isGuest);
+      if (isGuest && typeof window.updateGuestPriceDisplay === 'function') {
+        window.updateGuestPriceDisplay();
+      }
     });
   });
+
+  if (isGuest && typeof window.updateGuestPriceDisplay === 'function') {
+    window.updateGuestPriceDisplay();
+  }
 }
 
 // Export for use in other scripts

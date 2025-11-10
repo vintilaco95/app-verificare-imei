@@ -1,12 +1,26 @@
 <% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
-<% if (!isEmailView) { %>
-  <%- include('../partials/header', { title: title, user: user, csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<% if (!isEmailView) { 
+  const headerProps = {
+    title: title,
+    user: user,
+    csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '',
+    t: typeof t === 'function' ? t : null,
+    currentLang: typeof currentLang !== 'undefined' ? currentLang : null,
+    currentLangLabel: typeof currentLangLabel !== 'undefined' ? currentLangLabel : null,
+    switchLang: typeof switchLang !== 'undefined' ? switchLang : null,
+    switchLangLabel: typeof switchLangLabel !== 'undefined' ? switchLangLabel : null
+  };
+%>
+  <%- include('../partials/header', headerProps) %>
 <% } %>
 
 <div class="result-container">
   <% 
     // Parse Motorola data from HTML result (data should be pre-parsed in route)
     const motorolaData = typeof motorolaParsedData !== 'undefined' ? motorolaParsedData : {};
+    const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
+      ? riskScoreMax
+      : (typeof templateData !== 'undefined' && typeof templateData.riskScoreMax !== 'undefined' ? templateData.riskScoreMax : 10);
     
     // Critical information is already formatted in route handler
     // Use passed variables: iCloud, blacklist, knox, mdm, lostMode, networkLock, warranty, origin
@@ -55,7 +69,7 @@
       <!-- SCOR RISC -->
       <div class="score-box">
         <p class="score-label">Scor siguranță</p>
-        <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / 10</p>
+        <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / <%= riskScoreMaxValue %></p>
         <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
       </div>
     </div>

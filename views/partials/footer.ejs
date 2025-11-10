@@ -1,72 +1,106 @@
+<%
+  const tFn = (typeof t === 'function')
+    ? t
+    : (typeof locals !== 'undefined' && typeof locals.t === 'function'
+      ? locals.t
+      : (key) => key);
+  const currentLangValue = typeof currentLang !== 'undefined'
+    ? currentLang
+    : (typeof locals !== 'undefined' && typeof locals.currentLang !== 'undefined'
+      ? locals.currentLang
+      : 'ro');
+  const currentLangLabelValue = typeof currentLangLabel !== 'undefined'
+    ? currentLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.currentLangLabel !== 'undefined'
+      ? locals.currentLangLabel
+      : currentLangValue);
+  const switchLangValue = typeof switchLang !== 'undefined'
+    ? switchLang
+    : (typeof locals !== 'undefined' && typeof locals.switchLang !== 'undefined'
+      ? locals.switchLang
+      : (currentLangValue === 'ro' ? 'en' : 'ro'));
+  const switchLangLabelValue = typeof switchLangLabel !== 'undefined'
+    ? switchLangLabel
+    : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined'
+      ? locals.switchLangLabel
+      : currentLangLabelValue);
+  const brandName = tFn('nav.brand');
+  const footerTagline = tFn('footer.brand.tagline');
+  const footerRights = tFn('footer.bottom.rights');
+  const footerYear = new Date().getFullYear();
+  const copyrightHtml = tFn('footer.bottom.copyright')
+    .replace('{year}', footerYear)
+    .replace('{brand}', brandName)
+    .replace('{rights}', footerRights);
+  const cookiesLinkHtml = `<a href="/legal/cookies">${tFn('footer.links.cookies')}</a>`;
+  const cookieDescriptionHtml = tFn('footer.cookie.description').replace('{cookiesLink}', cookiesLinkHtml);
+%>
 <footer class="footer">
   <div class="footer-container">
     <div class="footer-brand">
       <a href="/" class="footer-logo">
         <span class="footer-logo-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-          </svg>
+          <span class="logo-emoji" aria-hidden="true">🐶</span>
         </span>
-        <span class="footer-logo-text">IMEI Check</span>
+        <span class="footer-logo-text"><%= brandName %></span>
       </a>
       <p class="footer-description">
-        Soluția completă pentru verificarea istoricului dispozitivelor mobile, cu rezultate rapide și raportare transparentă.
+        <%= footerTagline %>
       </p>
     </div>
 
     <div class="footer-columns">
       <div class="footer-column">
-        <h4 class="footer-title">Legal</h4>
+        <h4 class="footer-title"><%= tFn('footer.columns.legal.title') %></h4>
         <ul class="footer-links">
-          <li><a href="/legal/terms">Termeni și Condiții</a></li>
-          <li><a href="/legal/privacy">Politica de Confidențialitate</a></li>
-          <li><a href="/legal/gdpr">Politica GDPR</a></li>
-          <li><a href="/legal/cookies">Politica de Cookies</a></li>
+          <li><a href="/legal/terms"><%= tFn('footer.links.terms') %></a></li>
+          <li><a href="/legal/privacy"><%= tFn('footer.links.privacy') %></a></li>
+          <li><a href="/legal/gdpr"><%= tFn('footer.links.gdpr') %></a></li>
+          <li><a href="/legal/cookies"><%= tFn('footer.links.cookies') %></a></li>
         </ul>
       </div>
       <div class="footer-column">
-        <h4 class="footer-title">Resurse</h4>
+        <h4 class="footer-title"><%= tFn('footer.columns.resources.title') %></h4>
         <ul class="footer-links">
-          <li><a href="/faq">Întrebări Frecvente</a></li>
-          <li><a href="/dashboard/credits/topup">Adaugă Credite</a></li>
-          <li><a href="/verify/imei">Verificare IMEI</a></li>
-          <li><a href="/">Planuri și prețuri</a></li>
+          <li><a href="/faq"><%= tFn('footer.links.faq') %></a></li>
+          <li><a href="/dashboard/credits/topup"><%= tFn('footer.links.topup') %></a></li>
+          <li><a href="/verify/imei"><%= tFn('footer.links.verify') %></a></li>
+          <li><a href="/"><%= tFn('footer.links.pricing') %></a></li>
         </ul>
       </div>
       <div class="footer-column">
-        <h4 class="footer-title">Contact</h4>
+        <h4 class="footer-title"><%= tFn('footer.columns.contact.title') %></h4>
         <ul class="footer-links">
-          <li><a href="mailto:telefoane@zengsm.ro">telefoane@zengsm.ro</a></li>
-          <li><a href="tel:+40700000000">+40 700 000 000</a></li>
-          <li><a href="mailto:telefoane@zengsm.ro?subject=Suport%20clienți">Suport clienți</a></li>
-          <li><a href="mailto:telefoane@zengsm.ro?subject=Raportare%20problemă">Raportează o problemă</a></li>
+          <li><a href="mailto:telefoane@zengsm.ro"><%= tFn('footer.contact.email') %></a></li>
+          <li><a href="tel:+40700000000"><%= tFn('footer.contact.phone') %></a></li>
+          <li><a href="mailto:telefoane@zengsm.ro?subject=Suport%20clienți"><%= tFn('footer.contact.support') %></a></li>
+          <li><a href="mailto:telefoane@zengsm.ro?subject=Raportare%20problemă"><%= tFn('footer.contact.report') %></a></li>
         </ul>
       </div>
     </div>
   </div>
   <div class="footer-bottom">
-    <span>&copy; <%= new Date().getFullYear() %> IMEI Check. Toate drepturile rezervate.</span>
+    <span><%- copyrightHtml %></span>
     <div class="footer-badges">
-      <span class="footer-badge">Stripe Secure</span>
-      <span class="footer-badge">GDPR Ready</span>
+      <span class="footer-badge"><%= tFn('footer.badges.stripe') %></span>
+      <span class="footer-badge"><%= tFn('footer.badges.gdpr') %></span>
     </div>
   </div>
 </footer>
 
- </main>
+</main>
 
-<div class="cookie-banner" id="cookie-banner" role="dialog" aria-live="polite" aria-label="Politica de cookies">
+<div class="cookie-banner" id="cookie-banner" role="dialog" aria-live="polite" aria-label="<%= tFn('footer.cookie.aria') %>">
   <div class="cookie-banner-content">
     <div class="cookie-text">
-      <h3>Folosim cookie-uri</h3>
+      <h3><%= tFn('footer.cookie.title') %></h3>
       <p>
-        Utilizăm cookie-uri pentru a personaliza experiența, a analiza traficul și a proteja utilizatorii.
-        Continuând navigarea ești de acord cu <a href="/legal/cookies">Politica de Cookies</a>.
+        <%- cookieDescriptionHtml %>
       </p>
     </div>
     <div class="cookie-actions">
-      <button type="button" class="btn btn-secondary" id="cookie-settings">Setări</button>
-      <button type="button" class="btn btn-primary" id="cookie-accept">Accept toate</button>
+      <button type="button" class="btn btn-secondary" id="cookie-settings"><%= tFn('footer.cookie.cta.settings') %></button>
+      <button type="button" class="btn btn-primary" id="cookie-accept"><%= tFn('footer.cookie.cta.accept') %></button>
     </div>
   </div>
 </div>
