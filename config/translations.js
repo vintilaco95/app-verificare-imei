@@ -360,8 +360,8 @@ const translations = {
     'footer.links.topup': 'Adaugă Credite',
     'footer.links.verify': 'Verificare IMEI',
     'footer.links.pricing': 'Planuri și prețuri',
-    'footer.contact.email': 'telefoane@zengsm.ro',
-    'footer.contact.phone': '+40 700 000 000',
+    'footer.contact.email': 'office@imeiguard.ro',
+    'footer.contact.phone': '+40 721 171 995',
     'footer.contact.support': 'Suport clienți',
     'footer.contact.report': 'Raportează o problemă',
     'footer.bottom.rights': 'Toate drepturile rezervate.',
@@ -449,6 +449,8 @@ const translations = {
     'legal.faq.items.3.answer': 'Majoritatea verificărilor sunt finalizate în câteva minute. În caz de aglomerare sau interogări suplimentare, poate dura mai mult, iar vei fi notificat prin email.',
     'legal.faq.items.4.question': 'Datele mele sunt în siguranță?',
     'legal.faq.items.4.answer': 'Respectăm normele GDPR, folosim conexiuni securizate și nu stocăm datele cardului tău. Poți afla mai multe în politica de confidențialitate și în politica GDPR.',
+    'footer.whatsapp.label': 'Suport WhatsApp',
+    'footer.whatsapp.tooltip': 'Scrie-ne pe WhatsApp',
   },
   en: {
     'nav.brand': 'IMEIguard.com',
@@ -811,8 +813,8 @@ const translations = {
     'footer.links.topup': 'Add credits',
     'footer.links.verify': 'IMEI check',
     'footer.links.pricing': 'Plans & pricing',
-    'footer.contact.email': 'telefoane@zengsm.ro',
-    'footer.contact.phone': '+40 700 000 000',
+    'footer.contact.email': 'office@imeiguard.com',
+    'footer.contact.phone': '+40 721 171 995',
     'footer.contact.support': 'Customer support',
     'footer.contact.report': 'Report an issue',
     'footer.bottom.rights': 'All rights reserved.',
@@ -900,6 +902,8 @@ const translations = {
     'legal.faq.items.3.answer': 'Most checks finish within a few minutes. During busy times or for additional lookups it may take longer, and you will be notified by email.',
     'legal.faq.items.4.question': 'Are my data safe?',
     'legal.faq.items.4.answer': 'We comply with GDPR, use secure connections, and never store your card data. You can learn more in the privacy policy and GDPR policy.',
+    'footer.whatsapp.label': 'WhatsApp Support',
+    'footer.whatsapp.tooltip': 'Message us on WhatsApp',
   }
 };
 
