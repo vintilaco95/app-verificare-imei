@@ -25,6 +25,37 @@
     g: '9'
   };
 
+  function calculateLuhnCheck(numberStr) {
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = numberStr.length - 1; i >= 0; i -= 1) {
+      let digit = parseInt(numberStr[i], 10);
+      if (Number.isNaN(digit)) return null;
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) {
+          digit -= 9;
+        }
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10;
+  }
+
+  function isValidIMEI(imei) {
+    if (!imei || imei.length !== 15) {
+      return false;
+    }
+    const body = imei.slice(0, 14);
+    const checkDigit = parseInt(imei[14], 10);
+    if (Number.isNaN(checkDigit)) return false;
+    const luhn = calculateLuhnCheck(body + '0');
+    if (luhn === null) return false;
+    const expectedDigit = (10 - (calculateLuhnCheck(body) || 0)) % 10;
+    return checkDigit === expectedDigit;
+  }
+
   function sanitizeText(raw) {
     if (!raw) return '';
     let result = '';
@@ -41,11 +72,14 @@
     return result.replace(/\s+/g, ' ');
   }
 
-  function extractIMEIFromText(text) {
+  function extractIMEICandidates(text) {
     const sanitized = sanitizeText(text);
     const digitsOnly = sanitized.replace(/[^0-9]/g, '');
-    const match = digitsOnly.match(/(\d{15})/);
-    return match ? match[1] : null;
+    const matches = [];
+    for (let i = 0; i + 15 <= digitsOnly.length; i += 1) {
+      matches.push(digitsOnly.slice(i, i + 15));
+    }
+    return matches;
   }
 
   function extractIMEI(data) {
@@ -76,13 +110,19 @@
     }
 
     for (let i = 0; i < candidates.length; i += 1) {
-      const imei = extractIMEIFromText(candidates[i]);
-      if (imei) {
-        return imei;
+      const group = extractIMEICandidates(candidates[i]);
+      for (let j = 0; j < group.length; j += 1) {
+        if (isValidIMEI(group[j])) {
+          return group[j];
+        }
       }
     }
 
-    return null;
+    const allCandidates = candidates
+      .map(extractIMEICandidates)
+      .reduce((acc, curr) => acc.concat(curr), []);
+    const nearValid = allCandidates.find((value) => value.length === 15 && /^\d+$/.test(value));
+    return nearValid || null;
   }
 
   function setFeedback(el, message, type = 'info') {
@@ -215,14 +255,14 @@
   async function processCanvas(canvas, texts, targetInput, feedbackEl) {
     setFeedback(feedbackEl, texts.loading);
 
-    const barcodeResult = await detectBarcode(canvas);
-    if (barcodeResult) {
-      targetInput.value = barcodeResult;
-      targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-      const successMessage = texts.success.replace('{imei}', barcodeResult);
-      setFeedback(feedbackEl, successMessage, 'success');
-      return;
-    }
+      const barcodeResult = await detectBarcode(canvas);
+      if (barcodeResult && isValidIMEI(barcodeResult)) {
+        targetInput.value = barcodeResult;
+        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+        const successMessage = texts.success.replace('{imei}', barcodeResult);
+        setFeedback(feedbackEl, successMessage, 'success');
+        return;
+      }
 
     const dataUrl = canvas.toDataURL('image/png');
     await recognizeWithTesseract(dataUrl, texts, targetInput, feedbackEl);
