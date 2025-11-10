@@ -72,6 +72,19 @@
     return result.replace(/\s+/g, ' ');
   }
 
+  function extractIMEIFromText(text) {
+    if (!text) return null;
+    const sanitized = sanitizeText(text);
+    const digitsOnly = sanitized.replace(/[^0-9]/g, '');
+    for (let i = 0; i + 15 <= digitsOnly.length; i += 1) {
+      const candidate = digitsOnly.slice(i, i + 15);
+      if (isValidIMEI(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   function extractSegments(data) {
     const segments = [];
 
@@ -127,25 +140,32 @@
     return matches;
   }
 
-  function extractIMEI(data) {
-    if (!data) return null;
-
+  function collectCandidatesFromData(data) {
+    if (!data) return [];
     const segments = extractSegments(data);
-
+    const unique = new Set();
     for (let i = 0; i < segments.length; i += 1) {
       const group = extractIMEICandidates(segments[i]);
       for (let j = 0; j < group.length; j += 1) {
-        if (isValidIMEI(group[j])) {
-          return group[j];
+        if (group[j] && group[j].length === 15) {
+          unique.add(group[j]);
         }
       }
     }
+    return Array.from(unique);
+  }
 
-    const allCandidates = segments
-      .map(extractIMEICandidates)
-      .reduce((acc, curr) => acc.concat(curr), []);
-    const nearValid = allCandidates.find((value) => value.length === 15 && /^\d+$/.test(value));
-    return nearValid || null;
+  function resolveIMEIResult(candidates) {
+    if (!Array.isArray(candidates)) {
+      return { imei: null, nearCandidate: null };
+    }
+    const unique = Array.from(new Set(candidates));
+    const valid = unique.find((value) => isValidIMEI(value));
+    const near = unique.find((value) => /^\d{15}$/.test(value));
+    return {
+      imei: valid || null,
+      nearCandidate: valid ? null : near || null
+    };
   }
 
   function setFeedback(el, message, type = 'info') {
@@ -217,36 +237,25 @@
     return null;
   }
 
-  async function recognizeWithTesseract(source, texts, targetInput, feedbackEl) {
+  async function runTesseractOnSources(sources, onProgress) {
     if (!window.Tesseract || typeof window.Tesseract.recognize !== 'function') {
-      setFeedback(feedbackEl, 'Tesseract.js failed to load.', 'error');
-      return;
+      throw new Error('Tesseract.js not available');
     }
 
-    setFeedback(feedbackEl, texts.loading);
-    let processed = null;
+    let nearCandidate = null;
 
-    try {
-      processed = await preprocessImage(source);
-    } catch (error) {
-      console.warn('[IMEI OCR] Preprocess error:', error);
-    }
-
-    const candidates = [];
-
-    if (processed) {
-      candidates.push(processed);
-    }
-
-    candidates.push(source);
-
-    for (let i = 0; i < candidates.length; i += 1) {
+    for (let i = 0; i < sources.length; i += 1) {
+      const src = sources[i];
       try {
-        setFeedback(feedbackEl, texts.scanning);
-        const { data } = await window.Tesseract.recognize(candidates[i], 'eng', {
+        const { data } = await window.Tesseract.recognize(src, 'eng', {
           logger: (m) => {
-            if (m && m.status === 'recognizing text' && typeof m.progress === 'number') {
-              setFeedback(feedbackEl, `${texts.scanning} ${Math.round(m.progress * 100)}%`);
+            if (
+              onProgress &&
+              m &&
+              typeof m.progress === 'number' &&
+              m.status === 'recognizing text'
+            ) {
+              onProgress(m.progress);
             }
           },
           tessedit_char_whitelist: '0123456789',
@@ -259,36 +268,88 @@
           tessedit_ocr_engine_mode: '1'
         });
 
-        const imei = extractIMEI(data);
+        const candidates = collectCandidatesFromData(data);
+        const { imei, nearCandidate: near } = resolveIMEIResult(candidates);
+
         if (imei) {
-          targetInput.value = imei;
-          targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-          const successMessage = texts.success.replace('{imei}', imei);
-          setFeedback(feedbackEl, successMessage, 'success');
-          return;
+          return { imei };
+        }
+        if (!nearCandidate && near) {
+          nearCandidate = near;
         }
       } catch (error) {
-        console.error('[IMEI OCR] Error:', error);
+        console.error('[IMEI OCR] Tesseract error:', error);
       }
     }
 
-    setFeedback(feedbackEl, texts.error, 'error');
+    return { imei: null, nearCandidate };
+  }
+
+  async function scanCanvasForIMEI(canvas, options = {}) {
+    const { onProgress, quick = false } = options;
+
+    const barcodeResult = await detectBarcode(canvas);
+    if (barcodeResult && isValidIMEI(barcodeResult)) {
+      return { imei: barcodeResult, method: 'barcode' };
+    }
+
+    const sources = [];
+    const original = canvas.toDataURL('image/png');
+
+    if (!quick) {
+      try {
+        const processed = await preprocessImage(original);
+        if (processed) {
+          sources.push(processed);
+        }
+      } catch (error) {
+        console.warn('[IMEI OCR] Preprocess error:', error);
+      }
+    }
+
+    sources.push(original);
+
+    const result = await runTesseractOnSources(sources, onProgress);
+    return result;
   }
 
   async function processCanvas(canvas, texts, targetInput, feedbackEl) {
     setFeedback(feedbackEl, texts.loading);
+    try {
+      const result = await scanCanvasForIMEI(canvas, {
+        onProgress: (progress) => {
+          if (typeof progress === 'number') {
+            setFeedback(
+              feedbackEl,
+              `${texts.scanning} ${Math.round(progress * 100)}%`
+            );
+          } else {
+            setFeedback(feedbackEl, texts.scanning);
+          }
+        }
+      });
 
-      const barcodeResult = await detectBarcode(canvas);
-      if (barcodeResult && isValidIMEI(barcodeResult)) {
-        targetInput.value = barcodeResult;
+      if (result.imei) {
+        targetInput.value = result.imei;
         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-        const successMessage = texts.success.replace('{imei}', barcodeResult);
+        const successMessage = texts.success.replace('{imei}', result.imei);
         setFeedback(feedbackEl, successMessage, 'success');
         return;
       }
 
-    const dataUrl = canvas.toDataURL('image/png');
-    await recognizeWithTesseract(dataUrl, texts, targetInput, feedbackEl);
+      if (result.nearCandidate) {
+        setFeedback(
+          feedbackEl,
+          `${texts.error} (${result.nearCandidate})`,
+          'error'
+        );
+      } else {
+        setFeedback(feedbackEl, texts.error, 'error');
+      }
+    } catch (error) {
+      console.error('[IMEI OCR] process error:', error);
+      setFeedback(feedbackEl, texts.error, 'error');
+    }
   }
 
   async function createCanvasFromImage(src) {
@@ -314,6 +375,37 @@
     });
   }
 
+  function captureFrameCanvas(video) {
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    if (!videoWidth || !videoHeight) {
+      return null;
+    }
+
+    const cropWidth = Math.floor(videoWidth * 0.8);
+    const cropHeight = Math.floor(videoHeight * 0.25);
+    const cropX = Math.floor((videoWidth - cropWidth) / 2);
+    const cropY = Math.floor((videoHeight - cropHeight) / 2);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(
+      video,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      cropWidth,
+      cropHeight
+    );
+
+    return canvas;
+  }
+
   function createOverlay(texts) {
     let overlay = document.getElementById(OVERLAY_ID);
     if (overlay) {
@@ -333,6 +425,10 @@
           <button type="button" class="btn btn-primary imei-ocr-capture">${texts.capture || 'Capture'}</button>
         </div>
         <div class="imei-ocr-status">${texts.loading}</div>
+        <div class="imei-ocr-preview">
+          <span class="imei-ocr-preview-label">${texts.previewLabel || 'Previzualizare'}</span>
+          <span class="imei-ocr-preview-value">—</span>
+        </div>
         <div class="imei-ocr-fallback">
           <button type="button" class="btn btn-outline imei-ocr-fallback-btn">${texts.gallery || 'Upload'}</button>
         </div>
@@ -359,7 +455,9 @@
       unsupported: button.dataset.textUnsupported || 'Camera not supported on this device.',
       capture: button.dataset.textCapture || 'Capture',
       close: button.dataset.textClose || 'Close',
-      gallery: button.dataset.textGallery || 'Upload'
+      gallery: button.dataset.textGallery || 'Upload',
+      previewLabel: button.dataset.textPreview || 'Live preview',
+      instructions: button.dataset.textInstructions || ''
     };
 
     async function openCamera() {
@@ -384,14 +482,39 @@
         overlay = createOverlay(texts);
         const video = overlay.querySelector('video');
         const statusEl = overlay.querySelector('.imei-ocr-status');
+        const previewValueEl = overlay.querySelector('.imei-ocr-preview-value');
         const closeBtn = overlay.querySelector('.imei-ocr-close');
         const captureBtn = overlay.querySelector('.imei-ocr-capture');
         const fallbackBtn = overlay.querySelector('.imei-ocr-fallback-btn');
 
         video.srcObject = stream;
 
+        let liveScanActive = true;
+        let liveScanBusy = false;
+        let liveScanTimer = null;
+        let lastValidIMEI = null;
+        let lastNearCandidate = null;
+
+        const updatePreview = (value, type) => {
+          if (!previewValueEl) return;
+          previewValueEl.classList.remove('success', 'near');
+          if (!value) {
+            previewValueEl.textContent = '—';
+            return;
+          }
+          previewValueEl.textContent = value;
+          if (type) {
+            previewValueEl.classList.add(type);
+          }
+        };
+
         const cleanup = () => {
           stopStream(stream);
+          liveScanActive = false;
+          if (liveScanTimer) {
+            clearTimeout(liveScanTimer);
+            liveScanTimer = null;
+          }
           if (overlay) {
             overlay.remove();
           }
@@ -406,61 +529,71 @@
           fileInput.click();
         });
 
+        const scheduleLiveScan = (delay = 1500) => {
+          if (!liveScanActive) return;
+          if (liveScanTimer) {
+            clearTimeout(liveScanTimer);
+          }
+          liveScanTimer = setTimeout(async () => {
+            if (!liveScanActive || liveScanBusy) {
+              scheduleLiveScan();
+              return;
+            }
+
+            const frameCanvas = captureFrameCanvas(video);
+            if (!frameCanvas) {
+              scheduleLiveScan();
+              return;
+            }
+
+            liveScanBusy = true;
+            try {
+              const result = await scanCanvasForIMEI(frameCanvas, { quick: true });
+              if (!liveScanActive) return;
+
+              if (result.imei) {
+                lastValidIMEI = result.imei;
+                updatePreview(result.imei, 'success');
+              } else if (result.nearCandidate) {
+                lastNearCandidate = result.nearCandidate;
+                updatePreview(`${result.nearCandidate} ✳`, 'near');
+              } else {
+                updatePreview('—');
+              }
+            } catch (error) {
+              console.error('[IMEI OCR] live scan error:', error);
+            } finally {
+              liveScanBusy = false;
+              scheduleLiveScan();
+            }
+          }, delay);
+        };
+
+        video.addEventListener('loadedmetadata', () => {
+          statusEl.textContent = texts.instructions || '';
+          updatePreview('—');
+          scheduleLiveScan(500);
+        });
+
         captureBtn.addEventListener('click', async () => {
           try {
-            if (video.readyState < 2) {
-              statusEl.textContent = texts.loading;
+            if (lastValidIMEI) {
+              cleanup();
+              targetInput.value = lastValidIMEI;
+              targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+              const successMessage = texts.success.replace('{imei}', lastValidIMEI);
+              setFeedback(feedbackEl, successMessage, 'success');
               return;
             }
 
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
-            if (!videoWidth || !videoHeight) {
+            const frameCanvas = captureFrameCanvas(video);
+            if (!frameCanvas) {
               statusEl.textContent = texts.loading;
               return;
             }
-
-            const cropWidth = Math.floor(videoWidth * 0.8);
-            const cropHeight = Math.floor(videoHeight * 0.25);
-            const cropX = Math.floor((videoWidth - cropWidth) / 2);
-            const cropY = Math.floor((videoHeight - cropHeight) / 2);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = cropWidth;
-            canvas.height = cropHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(
-              video,
-              cropX,
-              cropY,
-              cropWidth,
-              cropHeight,
-              0,
-              0,
-              cropWidth,
-              cropHeight
-            );
-
-            const resultCanvas = document.createElement('canvas');
-            const ctx2 = resultCanvas.getContext('2d');
-            const maxDim = 2000;
-            const scale = Math.min(1, maxDim / Math.max(cropWidth, cropHeight));
-            resultCanvas.width = Math.max(1, Math.round(cropWidth * scale));
-            resultCanvas.height = Math.max(1, Math.round(cropHeight * scale));
-            ctx2.drawImage(
-              canvas,
-              0,
-              0,
-              cropWidth,
-              cropHeight,
-              0,
-              0,
-              resultCanvas.width,
-              resultCanvas.height
-            );
 
             cleanup();
-            await processCanvas(resultCanvas, texts, targetInput, feedbackEl);
+            await processCanvas(frameCanvas, texts, targetInput, feedbackEl);
           } catch (error) {
             console.error('[IMEI OCR] capture error:', error);
             cleanup();

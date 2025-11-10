@@ -3101,6 +3101,36 @@ body {
   min-height: 1.6rem;
 }
 
+.imei-ocr-preview {
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.92);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.imei-ocr-preview-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.imei-ocr-preview-value {
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+}
+
+.imei-ocr-preview-value.success {
+  color: rgba(34, 197, 94, 0.95);
+}
+
+.imei-ocr-preview-value.near {
+  color: rgba(249, 115, 22, 0.9);
+}
+
 .imei-ocr-fallback {
   display: flex;
 }
