@@ -97,7 +97,7 @@
               data-text-instructions="<%= t('verify.form.ocr.instructions') %>"
             >
               <span class="imei-ocr-emoji" aria-hidden="true">📷</span>
-              <span class="sr-only"><%= t('verify.form.ocr.camera') %></span>
+              <span class="imei-ocr-label"><%= t('verify.form.ocr.camera') %></span>
             </button>
             <input type="file" accept="image/*" class="imei-ocr-file" data-target="#imei" hidden>
             <small class="imei-ocr-feedback" data-target="#imei"></small>
@@ -186,7 +186,7 @@
               data-text-instructions="<%= t('verify.form.ocr.instructions') %>"
             >
               <span class="imei-ocr-emoji" aria-hidden="true">📷</span>
-              <span class="sr-only"><%= t('verify.form.ocr.camera') %></span>
+              <span class="imei-ocr-label"><%= t('verify.form.ocr.camera') %></span>
             </button>
             <input type="file" accept="image/*" class="imei-ocr-file" data-target="#imei-guest" hidden>
             <small class="imei-ocr-feedback" data-target="#imei-guest"></small>
@@ -216,11 +216,6 @@
             <option value="default" <%= selectedBrand === 'default' ? 'selected' : '' %>><%= t('verify.form.fields.brand.otherOption') %></option>
           </select>
           <small class="form-hint"><%= t('verify.form.fields.brand.hint') %></small>
-        </div>
-        
-        <div class="guest-price-info" id="guest-price-info">
-          <span class="guest-price-label"><%= t('verify.form.guest.price.label') %></span>
-          <span class="guest-price-value" id="guest-price-value">—</span>
         </div>
         
         <!-- Additional Services (will be available after brand detection via API) -->
@@ -413,50 +408,13 @@
       const imeiValidGuest = document.getElementById('imei-valid-guest');
       const formGuest = document.getElementById('verify-form-guest');
       const brandSelect = document.getElementById('brand');
-      const guestPriceValue = document.getElementById('guest-price-value');
       
       initIMEIValidation('imei-guest');
 
-      function updateGuestPriceDisplay() {
-        if (!guestPriceValue) return;
-        const brand = brandSelect ? brandSelect.value : '';
-        if (!brand) {
-          guestPriceValue.textContent = '—';
-          return;
-        }
-
-        const serverConfiguredCredits = window.serverPricing && typeof window.serverPricing[brand] !== 'undefined'
-          ? Number(window.serverPricing[brand])
-          : NaN;
-        const baseCredits = (!isNaN(guestVerificationCredits) && guestVerificationCredits > 0)
-          ? guestVerificationCredits
-          : (!isNaN(serverConfiguredCredits) ? serverConfiguredCredits : guestVerificationCredits);
-
-        if (isNaN(baseCredits)) {
-          guestPriceValue.textContent = '—';
-          return;
-        }
-
-        let totalCredits = baseCredits;
-        const additionalList = document.getElementById('additional-services-list-guest');
-        if (additionalList) {
-          const extraCredits = Array.from(additionalList.querySelectorAll('.service-checkbox-input:checked'))
-            .reduce((sum, checkbox) => {
-              const price = parseFloat(checkbox.dataset.price || '0');
-              return isNaN(price) ? sum : sum + price;
-            }, 0);
-          totalCredits += extraCredits;
-        }
-
-        const totalCreditsFormatted = formatCreditDisplay(totalCredits);
-        const currencyAmount = (totalCredits * creditUnitValueGuest).toFixed(2);
-        guestPriceValue.textContent = `${currencyAmount} ${currencyLabel} (≈ ${totalCreditsFormatted} ${creditsLabel})`;
-      }
-      window.updateGuestPriceDisplay = updateGuestPriceDisplay;
+      function updateGuestPriceDisplay() {}
       
       if (brandSelect) {
         brandSelect.addEventListener('change', updateGuestPriceDisplay);
-        updateGuestPriceDisplay();
       }
       
       // IMEI input handler - only validate, don't detect brand
