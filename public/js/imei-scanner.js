@@ -25,35 +25,23 @@
     g: '9'
   };
 
-  function calculateLuhnCheck(numberStr) {
+  function isValidIMEI(imei) {
+    if (!/^\d{15}$/.test(imei)) {
+      return false;
+    }
     let sum = 0;
-    let shouldDouble = false;
-    for (let i = numberStr.length - 1; i >= 0; i -= 1) {
-      let digit = parseInt(numberStr[i], 10);
-      if (Number.isNaN(digit)) return null;
-      if (shouldDouble) {
+    for (let i = 0; i < imei.length; i += 1) {
+      let digit = parseInt(imei[i], 10);
+      if (Number.isNaN(digit)) return false;
+      if (i % 2 === 1) {
         digit *= 2;
         if (digit > 9) {
-          digit -= 9;
+          digit = Math.floor(digit / 10) + (digit % 10);
         }
       }
       sum += digit;
-      shouldDouble = !shouldDouble;
     }
-    return sum % 10;
-  }
-
-  function isValidIMEI(imei) {
-    if (!imei || imei.length !== 15) {
-      return false;
-    }
-    const body = imei.slice(0, 14);
-    const checkDigit = parseInt(imei[14], 10);
-    if (Number.isNaN(checkDigit)) return false;
-    const luhn = calculateLuhnCheck(body + '0');
-    if (luhn === null) return false;
-    const expectedDigit = (10 - (calculateLuhnCheck(body) || 0)) % 10;
-    return checkDigit === expectedDigit;
+    return sum % 10 === 0;
   }
 
   function sanitizeText(raw) {
