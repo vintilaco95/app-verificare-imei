@@ -78,6 +78,28 @@
           <small class="form-hint"><%= t('verify.form.fields.imei.hint') %></small>
           <div id="imei-error" class="imei-feedback" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;"></div>
           <div id="imei-valid" class="imei-feedback" style="color: #22c55e; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+
+          <div class="imei-ocr-wrapper">
+            <button
+              type="button"
+              class="btn btn-secondary imei-ocr-button"
+              data-target="#imei"
+              data-text-loading="<%= t('verify.form.ocr.loading') %>"
+              data-text-scanning="<%= t('verify.form.ocr.scanning') %>"
+              data-text-error="<%= t('verify.form.ocr.error') %>"
+              data-text-success="<%= t('verify.form.ocr.success') %>"
+              data-text-permission="<%= t('verify.form.ocr.permissionDenied') %>"
+              data-text-unsupported="<%= t('verify.form.ocr.cameraUnsupported') %>"
+              data-text-capture="<%= t('verify.form.ocr.capture') %>"
+              data-text-close="<%= t('verify.form.ocr.close') %>"
+              data-text-gallery="<%= t('verify.form.ocr.gallery') %>"
+            >
+              <span class="imei-ocr-emoji" aria-hidden="true">📷</span>
+              <span class="sr-only"><%= t('verify.form.ocr.camera') %></span>
+            </button>
+            <input type="file" accept="image/*" capture="environment" class="imei-ocr-file" data-target="#imei" hidden>
+            <small class="imei-ocr-feedback" data-target="#imei"></small>
+          </div>
           
           <!-- Previous Verifications -->
           <div id="previous-verifications" class="previous-verifications" style="display: none; margin-top: 1rem;">
@@ -143,6 +165,28 @@
           <small class="form-hint"><%= t('verify.form.fields.imei.hint') %></small>
           <div id="imei-error-guest" class="imei-feedback" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.5rem;"></div>
           <div id="imei-valid-guest" class="imei-feedback" style="color: #22c55e; font-size: 0.85rem; margin-top: 0.5rem;"></div>
+
+          <div class="imei-ocr-wrapper">
+            <button
+              type="button"
+              class="btn btn-secondary imei-ocr-button"
+              data-target="#imei-guest"
+              data-text-loading="<%= t('verify.form.ocr.loading') %>"
+              data-text-scanning="<%= t('verify.form.ocr.scanning') %>"
+              data-text-error="<%= t('verify.form.ocr.error') %>"
+              data-text-success="<%= t('verify.form.ocr.success') %>"
+              data-text-permission="<%= t('verify.form.ocr.permissionDenied') %>"
+              data-text-unsupported="<%= t('verify.form.ocr.cameraUnsupported') %>"
+              data-text-capture="<%= t('verify.form.ocr.capture') %>"
+              data-text-close="<%= t('verify.form.ocr.close') %>"
+              data-text-gallery="<%= t('verify.form.ocr.gallery') %>"
+            >
+              <span class="imei-ocr-emoji" aria-hidden="true">📷</span>
+              <span class="sr-only"><%= t('verify.form.ocr.camera') %></span>
+            </button>
+            <input type="file" accept="image/*" capture="environment" class="imei-ocr-file" data-target="#imei-guest" hidden>
+            <small class="imei-ocr-feedback" data-target="#imei-guest"></small>
+          </div>
         </div>
         
         <div class="form-group">
@@ -224,6 +268,8 @@
 </script>
 <script src="/js/imei-validator.js"></script>
 <script src="/js/pricing.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="/js/imei-scanner.js"></script>
 <script>
   // Initialize IMEI validation when page loads
   document.addEventListener('DOMContentLoaded', function() {
