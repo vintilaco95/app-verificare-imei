@@ -128,7 +128,33 @@
     });
   }
 
-  async function recognizeImage(source, texts, targetInput, feedbackEl) {
+  async function detectBarcode(canvas) {
+    if (!('BarcodeDetector' in window)) {
+      return null;
+    }
+    try {
+      const detector = new window.BarcodeDetector({
+        formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e']
+      });
+      const bitmap = await createImageBitmap(canvas);
+      const barcodes = await detector.detect(bitmap);
+      if (barcodes && barcodes.length > 0) {
+        for (const barcode of barcodes) {
+          if (barcode && typeof barcode.rawValue === 'string') {
+            const imei = extractIMEIFromText(barcode.rawValue);
+            if (imei) {
+              return imei;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[IMEI OCR] Barcode detection error:', error);
+    }
+    return null;
+  }
+
+  async function recognizeWithTesseract(source, texts, targetInput, feedbackEl) {
     if (!window.Tesseract || typeof window.Tesseract.recognize !== 'function') {
       setFeedback(feedbackEl, 'Tesseract.js failed to load.', 'error');
       return;
@@ -184,6 +210,45 @@
     }
 
     setFeedback(feedbackEl, texts.error, 'error');
+  }
+
+  async function processCanvas(canvas, texts, targetInput, feedbackEl) {
+    setFeedback(feedbackEl, texts.loading);
+
+    const barcodeResult = await detectBarcode(canvas);
+    if (barcodeResult) {
+      targetInput.value = barcodeResult;
+      targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+      const successMessage = texts.success.replace('{imei}', barcodeResult);
+      setFeedback(feedbackEl, successMessage, 'success');
+      return;
+    }
+
+    const dataUrl = canvas.toDataURL('image/png');
+    await recognizeWithTesseract(dataUrl, texts, targetInput, feedbackEl);
+  }
+
+  async function createCanvasFromImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const maxDim = 2000;
+          const scale = Math.min(1, maxDim / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      image.onerror = reject;
+      image.crossOrigin = 'Anonymous';
+      image.src = src;
+    });
   }
 
   function createOverlay(texts) {
@@ -313,10 +378,26 @@
               cropHeight
             );
 
-            const dataUrl = canvas.toDataURL('image/png');
-            cleanup();
+            const resultCanvas = document.createElement('canvas');
+            const ctx2 = resultCanvas.getContext('2d');
+            const maxDim = 2000;
+            const scale = Math.min(1, maxDim / Math.max(cropWidth, cropHeight));
+            resultCanvas.width = Math.max(1, Math.round(cropWidth * scale));
+            resultCanvas.height = Math.max(1, Math.round(cropHeight * scale));
+            ctx2.drawImage(
+              canvas,
+              0,
+              0,
+              cropWidth,
+              cropHeight,
+              0,
+              0,
+              resultCanvas.width,
+              resultCanvas.height
+            );
 
-            await recognizeImage(dataUrl, texts, targetInput, feedbackEl);
+            cleanup();
+            await processCanvas(resultCanvas, texts, targetInput, feedbackEl);
           } catch (error) {
             console.error('[IMEI OCR] capture error:', error);
             cleanup();
@@ -341,8 +422,14 @@
       const file = event.target.files && event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (e) => {
-        recognizeImage(e.target.result, texts, targetInput, feedbackEl);
+      reader.onload = async (e) => {
+        try {
+          const canvas = await createCanvasFromImage(e.target.result);
+          await processCanvas(canvas, texts, targetInput, feedbackEl);
+        } catch (error) {
+          console.error('[IMEI OCR] gallery error:', error);
+          setFeedback(feedbackEl, texts.error, 'error');
+        }
       };
       reader.onerror = () => {
         setFeedback(feedbackEl, texts.error, 'error');
