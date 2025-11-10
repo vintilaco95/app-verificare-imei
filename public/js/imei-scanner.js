@@ -553,12 +553,17 @@
 
               if (result.imei) {
                 lastValidIMEI = result.imei;
+                lastNearCandidate = null;
                 updatePreview(result.imei, 'success');
               } else if (result.nearCandidate) {
                 lastNearCandidate = result.nearCandidate;
-                updatePreview(`${result.nearCandidate} ✳`, 'near');
+                if (!lastValidIMEI) {
+                  updatePreview(`${result.nearCandidate} ✳`, 'near');
+                }
               } else {
-                updatePreview('—');
+                if (!lastValidIMEI) {
+                  updatePreview('—');
+                }
               }
             } catch (error) {
               console.error('[IMEI OCR] live scan error:', error);
@@ -582,6 +587,15 @@
               targetInput.value = lastValidIMEI;
               targetInput.dispatchEvent(new Event('input', { bubbles: true }));
               const successMessage = texts.success.replace('{imei}', lastValidIMEI);
+              setFeedback(feedbackEl, successMessage, 'success');
+              return;
+            }
+
+            if (lastNearCandidate && isValidIMEI(lastNearCandidate)) {
+              cleanup();
+              targetInput.value = lastNearCandidate;
+              targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+              const successMessage = texts.success.replace('{imei}', lastNearCandidate);
               setFeedback(feedbackEl, successMessage, 'success');
               return;
             }
