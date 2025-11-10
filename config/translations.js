@@ -197,7 +197,7 @@ const translations = {
     'verify.form.ocr.close': 'Închide',
     'verify.form.ocr.scanning': 'Se procesează imaginea...',
     'verify.form.ocr.success': 'IMEI detectat: {imei}',
-    'verify.form.ocr.error': 'Nu am găsit un IMEI valid. Încearcă din nou.',
+    'verify.form.ocr.error': 'Nu am găsit un IMEI valid. Asigură-te că doar cifrele sunt în cadru.',
     'verify.form.ocr.permissionDenied': 'Nu am acces la cameră. Te rugăm să permiți accesul și să încerci din nou.',
     'verify.form.ocr.cameraUnsupported': 'Camera nu este suportată pe acest dispozitiv.',
     'verify.form.ocr.loading': 'Se pregătește camera...',

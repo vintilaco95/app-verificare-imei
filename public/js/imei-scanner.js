@@ -72,9 +72,54 @@
     return result.replace(/\s+/g, ' ');
   }
 
-  function extractIMEICandidates(text) {
-    const sanitized = sanitizeText(text);
-    const digitsOnly = sanitized.replace(/[^0-9]/g, '');
+  function extractSegments(data) {
+    const segments = [];
+
+    if (Array.isArray(data.lines)) {
+      data.lines.forEach((line) => {
+        if (line && typeof line.text === 'string') {
+          const raw = line.text;
+          const sanitized = sanitizeText(raw);
+
+          if (/^\s*IMEI[\s:]*\d{6,}\s*$/i.test(raw)) {
+            const digits = raw.replace(/[^0-9]/g, '');
+            segments.push(digits);
+            return;
+          }
+
+          if (/^\d{8,}$/.test(sanitized)) {
+            segments.push(sanitized);
+            return;
+          }
+
+          if (Array.isArray(line.words)) {
+            const numericWords = line.words
+              .filter((word) => word && typeof word.text === 'string')
+              .map((word) => sanitizeText(word.text))
+              .filter((w) => /^\d{4,}$/.test(w));
+
+            if (numericWords.length >= 2) {
+              segments.push(numericWords.join(''));
+            } else if (numericWords.length === 1) {
+              segments.push(numericWords[0]);
+            }
+          }
+        }
+      });
+    }
+
+    if (typeof data.text === 'string') {
+      const sanitized = sanitizeText(data.text);
+      if (/^\d{8,}$/.test(sanitized)) {
+        segments.push(sanitized);
+      }
+    }
+
+    return segments;
+  }
+
+  function extractIMEICandidates(segment) {
+    const digitsOnly = segment.replace(/[^0-9]/g, '');
     const matches = [];
     for (let i = 0; i + 15 <= digitsOnly.length; i += 1) {
       matches.push(digitsOnly.slice(i, i + 15));
@@ -85,32 +130,10 @@
   function extractIMEI(data) {
     if (!data) return null;
 
-    const candidates = [];
+    const segments = extractSegments(data);
 
-    if (data.text) {
-      candidates.push(data.text);
-    }
-
-    if (Array.isArray(data.lines)) {
-      data.lines.forEach((line) => {
-        if (line && typeof line.text === 'string') {
-          candidates.push(line.text);
-        }
-      });
-    }
-
-    if (Array.isArray(data.words)) {
-      const wordsOnlyDigits = data.words
-        .filter((word) => word && typeof word.text === 'string')
-        .map((word) => word.text);
-
-      if (wordsOnlyDigits.length) {
-        candidates.push(wordsOnlyDigits.join(' '));
-      }
-    }
-
-    for (let i = 0; i < candidates.length; i += 1) {
-      const group = extractIMEICandidates(candidates[i]);
+    for (let i = 0; i < segments.length; i += 1) {
+      const group = extractIMEICandidates(segments[i]);
       for (let j = 0; j < group.length; j += 1) {
         if (isValidIMEI(group[j])) {
           return group[j];
@@ -118,7 +141,7 @@
       }
     }
 
-    const allCandidates = candidates
+    const allCandidates = segments
       .map(extractIMEICandidates)
       .reduce((acc, curr) => acc.concat(curr), []);
     const nearValid = allCandidates.find((value) => value.length === 15 && /^\d+$/.test(value));
