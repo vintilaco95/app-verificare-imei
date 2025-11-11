@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const CreditTransaction = require('../models/CreditTransaction');
 const pricingService = require('../services/pricingService');
+const stripeService = require('../services/stripeService');
 const { PRICING } = require('../config/pricing');
 const { CREDIT_VALUE, BASE_CURRENCY } = require('../config/currency');
 const { processCreditTopupSession } = require('../services/creditTopupService');

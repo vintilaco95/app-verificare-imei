@@ -8,6 +8,10 @@
   const brands = Array.from(brandSet);
 %>
 
+<%
+  const stats = dashboardStats || {};
+%>
+
 <section class="admin-dashboard">
   <% if (alerts && (alerts.success || alerts.error)) { %>
     <div class="admin-alert <%= alerts.error ? 'admin-alert-error' : 'admin-alert-success' %>">
@@ -15,142 +19,500 @@
     </div>
   <% } %>
 
-  <div class="admin-section">
-    <h1>Configurare prețuri</h1>
-    <form method="POST" action="/admin/pricing" class="admin-card">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Brand</th>
-            <th>Credite (utilizatori logați)</th>
-            <th>Preț One-Time (RON)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% brands.forEach((brand) => { %>
-            <tr>
-              <td class="admin-table-brand"><%= brand %></td>
-              <td>
-                <input type="number" step="0.01" min="0" name="baseCredits[<%= brand %>]" value="<%= (pricingConfig && pricingConfig.baseCredits && pricingConfig.baseCredits[brand]) || 0 %>">
-              </td>
-              <td>
-                <input type="number" step="0.01" min="0" name="guestPrices[<%= brand %>]" value="<%= (pricingConfig && pricingConfig.guestPrices && pricingConfig.guestPrices[brand]) || 0 %>">
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-      <button type="submit" class="btn btn-primary">Salvează prețurile</button>
-    </form>
+  <header class="admin-dashboard__header">
+    <div>
+      <h1>Panou administrator</h1>
+      <p>Monitorizează activitatea, gestionează utilizatorii și ajustează tarifele platformei.</p>
+    </div>
+  </header>
+
+  <div class="admin-dashboard__stats">
+    <article class="admin-stat-card">
+      <span class="admin-stat-card__label">Utilizatori activi</span>
+      <strong class="admin-stat-card__value"><%= stats.activeUsers || 0 %></strong>
+      <span class="admin-stat-card__meta">Din <%= stats.totalUsers || 0 %> conturi</span>
+    </article>
+    <article class="admin-stat-card">
+      <span class="admin-stat-card__label">Verificări finalizate</span>
+      <strong class="admin-stat-card__value"><%= stats.completedVerifications || 0 %></strong>
+      <span class="admin-stat-card__meta"><%= stats.totalVerifications || 0 %> total efectuate</span>
+    </article>
+    <article class="admin-stat-card">
+      <span class="admin-stat-card__label">Verificări azi</span>
+      <strong class="admin-stat-card__value"><%= stats.todaysVerifications || 0 %></strong>
+      <span class="admin-stat-card__meta">Ultimele 24h</span>
+    </article>
+    <article class="admin-stat-card">
+      <span class="admin-stat-card__label">Credite consumate</span>
+      <strong class="admin-stat-card__value"><%= (stats.totalCreditsSpent || 0).toFixed(2) %></strong>
+      <span class="admin-stat-card__meta">în toate verificările</span>
+    </article>
   </div>
 
-  <div class="admin-section">
-    <h2>Utilizatori</h2>
-    <div class="admin-card">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Credite</th>
-            <th>Rol</th>
-            <th>Acțiuni</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (users && users.length) { %>
-            <% users.forEach(function(u) { %>
+  <div class="admin-dashboard__grid">
+    <section class="admin-panel" id="admin-users">
+      <div class="admin-panel__header">
+        <div>
+          <h2>Utilizatori</h2>
+          <p>Selectează un utilizator pentru a gestiona creditele, restricțiile sau istoricul lui.</p>
+        </div>
+      </div>
+
+      <div class="admin-table-wrapper">
+        <table class="admin-table admin-table--compact">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Credite</th>
+              <th>Creat</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (users && users.length) { %>
+              <% users.forEach(function(u) { %>
+                <tr>
+                  <td>
+                    <div class="admin-user-email"><%= u.email %></div>
+                    <div class="admin-user-meta">
+                      <% if (u.isAdmin) { %><span class="badge badge-info">Admin</span><% } %>
+                      <% if (u.isBanned) { %><span class="badge badge-error">Banat</span><% } %>
+                    </div>
+                  </td>
+                  <td>
+                    <% if (u.isSelf) { %>
+                      <span class="badge">Contul tău</span>
+                    <% } else { %>
+                      <span class="badge"><%= u.isAdmin ? 'Administrator' : 'Utilizator' %></span>
+                    <% } %>
+                  </td>
+                  <td><%= Number(u.credits || 0).toFixed(2) %></td>
+                  <td><%= u.createdAt ? u.createdAt.toLocaleDateString() : '—' %></td>
+                  <td class="admin-table__actions">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-secondary admin-user-trigger"
+                      data-admin-user="<%= u.id %>"
+                      <%= u.isSelf ? 'data-self="true"' : '' %>>
+                      Gestionează
+                    </button>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
               <tr>
-                <td>
-                  <div class="admin-user-email"><%= u.email %></div>
-                  <div class="admin-user-meta">
-                    <% if (u.isAdmin) { %><span class="badge badge-info">Admin</span><% } %>
-                    <% if (u.isBanned) { %><span class="badge badge-error">Banat</span><% } %>
-                  </div>
-                </td>
-                <td><%= Number(u.credits || 0).toFixed(2) %></td>
-                <td>
-                  <% if (u.isSelf) { %>
-                    <span class="badge">Contul tău</span>
+                <td colspan="5" class="admin-table__empty">Nu există utilizatori înregistrați.</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel" id="admin-verifications">
+      <div class="admin-panel__header">
+        <div>
+          <h2>Verificări</h2>
+          <p>Caută și vizualizează orice verificare înregistrată în platformă.</p>
+        </div>
+        <form class="admin-search-bar" method="GET" action="/admin">
+          <div class="admin-search-bar__field">
+            <input
+              type="search"
+              name="search"
+              value="<%= searchQuery || '' %>"
+              placeholder="Caută după IMEI, email, brand sau ID comandă"
+              aria-label="Caută verificări">
+            <% if (searchQuery) { %>
+              <button type="button" class="admin-search-bar__clear" data-admin-clear-search aria-label="Șterge căutarea">×</button>
+            <% } %>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary">Caută</button>
+          <% if (searchQuery) { %>
+            <a href="/admin" class="admin-search-bar__reset">Resetează</a>
+          <% } %>
+        </form>
+      </div>
+
+      <% if (searchQuery) { %>
+        <p class="admin-search-result">Rezultate pentru „<strong><%= searchQuery %></strong>” — <%= verificationsCount %> înregistrări</p>
+      <% } %>
+
+      <div class="admin-table-wrapper">
+        <table class="admin-table admin-table--dense">
+          <thead>
+            <tr>
+              <th>ID comandă</th>
+              <th>Data</th>
+              <th>Utilizator</th>
+              <th>Brand</th>
+              <th>IMEI</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (verifications && verifications.length) { %>
+              <% verifications.forEach(function(order) { %>
+                <tr>
+                  <td>#<%= order.orderId || '—' %></td>
+                  <td><%= order.createdAt ? order.createdAt.toLocaleString() : '—' %></td>
+                  <td>
+                    <span class="admin-verification-email"><%= order.displayEmail %></span>
+                  </td>
+                  <td><%= order.brand || '—' %></td>
+                  <td><%= order.imei || '—' %></td>
+                  <td><span class="badge badge-status-<%= order.status %>"><%= order.status %></span></td>
+                  <td class="admin-table__actions">
+                    <% if (order.userId) { %>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline admin-user-trigger"
+                        data-admin-user="<%= order.userId %>">
+                        Utilizator
+                      </button>
+                    <% } else { %>
+                      <span class="admin-table__meta">Guest</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="7" class="admin-table__empty">
+                  <% if (searchQuery) { %>
+                    Nicio verificare nu corespunde căutării.
                   <% } else { %>
-                    <span class="badge"><%= u.isAdmin ? 'Administrator' : 'Utilizator' %></span>
+                    Nu există verificări înregistrate.
                   <% } %>
                 </td>
-                <td>
-                  <div class="admin-actions">
-                    <form method="POST" action="/admin/users/<%= u.id %>/credits" class="admin-inline-form">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <input type="number" step="0.01" name="amount" placeholder="ex: 5" required>
-                      <input type="text" name="note" placeholder="Notă (opțional)">
-                      <button type="submit" class="btn btn-sm">Ajustează</button>
-                    </form>
-
-                    <% if (!u.isSelf) { %>
-                      <% if (!u.isBanned) { %>
-                        <form method="POST" action="/admin/users/<%= u.id %>/ban" class="admin-inline-form">
-                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                          <input type="text" name="reason" placeholder="Motiv ban (opțional)">
-                          <button type="submit" class="btn btn-sm btn-danger">Banează</button>
-                        </form>
-                      <% } else { %>
-                        <form method="POST" action="/admin/users/<%= u.id %>/unban" class="admin-inline-form">
-                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                          <button type="submit" class="btn btn-sm btn-secondary">Deblochează</button>
-                        </form>
-                      <% } %>
-
-                      <form method="POST" action="/admin/users/<%= u.id %>/delete" class="admin-inline-form" onsubmit="return confirm('Sigur vrei să ștergi acest utilizator?');">
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <button type="submit" class="btn btn-sm btn-outline">Șterge</button>
-                      </form>
-                    <% } %>
-                  </div>
-                </td>
               </tr>
-            <% }) %>
-          <% } else { %>
-            <tr>
-              <td colspan="4">Nu există utilizatori înregistrați.</td>
-            </tr>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
-  </div>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-  <div class="admin-section">
-    <h2>Verificări recente</h2>
-    <div class="admin-card">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Data</th>
-            <th>Utilizator</th>
-            <th>Brand</th>
-            <th>Status</th>
-            <th>IMEI</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (recentOrders && recentOrders.length) { %>
-            <% recentOrders.forEach(function(order) { %>
-              <tr>
-                <td><%= order.createdAt ? order.createdAt.toLocaleString() : '-' %></td>
-                <td><%= order.email || 'Guest' %></td>
-                <td><%= order.brand || '—' %></td>
-                <td><span class="badge badge-status-<%= order.status %>"><%= order.status %></span></td>
-                <td><%= order.imei || '—' %></td>
-              </tr>
-            <% }) %>
-          <% } else { %>
-            <tr>
-              <td colspan="5">Nu există verificări recente.</td>
-            </tr>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
+    <section class="admin-panel" id="admin-pricing">
+      <div class="admin-panel__header">
+        <div>
+          <h2>Tarife și prețuri</h2>
+          <p>Controlează costurile în credite și prețurile pentru utilizatorii nelogați.</p>
+        </div>
+      </div>
+
+      <form method="POST" action="/admin/pricing" class="admin-card admin-pricing-card">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="admin-pricing-grid">
+          <div class="admin-pricing-grid__header">
+            <span>Brand</span>
+            <span>Credite (logați)</span>
+            <span>Preț one-time (RON)</span>
+          </div>
+          <% brands.forEach((brand) => { %>
+            <div class="admin-pricing-row">
+              <span class="admin-pricing-row__brand"><%= brand %></span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                name="baseCredits[<%= brand %>]"
+                value="<%= (pricingConfig && pricingConfig.baseCredits && pricingConfig.baseCredits[brand]) || 0 %>">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                name="guestPrices[<%= brand %>]"
+                value="<%= (pricingConfig && pricingConfig.guestPrices && pricingConfig.guestPrices[brand]) || 0 %>">
+            </div>
+          <% }) %>
+        </div>
+        <div class="admin-pricing-actions">
+          <button type="submit" class="btn btn-primary">Salvează prețurile</button>
+        </div>
+      </form>
+    </section>
   </div>
 </section>
+
+<div class="admin-modal" id="admin-user-modal" aria-hidden="true">
+  <div class="admin-modal__overlay" data-admin-modal-close></div>
+  <div class="admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="admin-user-modal-title">
+    <button class="admin-modal__close" type="button" data-admin-modal-close aria-label="Închide fereastra">&times;</button>
+    <div class="admin-modal__content" data-admin-modal-content hidden>
+      <div class="admin-modal__header">
+        <div>
+          <h3 id="admin-user-modal-title">Utilizator</h3>
+          <p class="admin-modal__subtitle" data-admin-user-meta></p>
+        </div>
+        <span class="badge" data-admin-user-role></span>
+      </div>
+
+      <div class="admin-modal__body">
+        <div class="admin-modal__stats">
+          <div class="admin-modal-stat">
+            <span>Total verificări</span>
+            <strong data-admin-user-total-verifications>0</strong>
+            <small>Finalizate cu succes</small>
+          </div>
+          <div class="admin-modal-stat">
+            <span>Credite consumate</span>
+            <strong data-admin-user-credits-used>0</strong>
+            <small>în verificări</small>
+          </div>
+          <div class="admin-modal-stat">
+            <span>Credite curente</span>
+            <strong data-admin-user-credits>0</strong>
+            <small>Disponibile</small>
+          </div>
+        </div>
+
+        <div class="admin-modal__actions">
+          <form id="admin-user-credits-form" method="POST" class="admin-modal-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label for="admin-user-credits-amount">Ajustează credite</label>
+            <div class="admin-modal-form__row">
+              <input id="admin-user-credits-amount" type="number" step="0.01" name="amount" placeholder="ex: 5" required>
+              <input type="text" name="note" placeholder="Notă (opțional)">
+              <button type="submit" class="btn btn-sm btn-primary">Actualizează</button>
+            </div>
+          </form>
+
+          <form id="admin-user-ban-form" method="POST" class="admin-modal-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label for="admin-user-ban-reason">Banează utilizator</label>
+            <div class="admin-modal-form__row">
+              <input id="admin-user-ban-reason" type="text" name="reason" placeholder="Motivul banului">
+              <button type="submit" class="btn btn-sm btn-danger">Banează</button>
+            </div>
+          </form>
+
+          <form id="admin-user-unban-form" method="POST" class="admin-modal-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label>Deblochează utilizator</label>
+            <button type="submit" class="btn btn-sm btn-secondary">Deblochează</button>
+          </form>
+
+          <form id="admin-user-delete-form" method="POST" class="admin-modal-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label>Șterge utilizator</label>
+            <button type="submit" class="btn btn-sm btn-outline" data-admin-delete-confirm>Șterge contul</button>
+          </form>
+        </div>
+
+        <div class="admin-modal__section">
+          <h4>Ultimele verificări</h4>
+          <ul class="admin-modal-list" data-admin-user-orders>
+            <li class="admin-modal-list__empty">Date indisponibile.</li>
+          </ul>
+        </div>
+
+        <div class="admin-modal__section">
+          <h4>Istoric credite</h4>
+          <ul class="admin-modal-list" data-admin-user-transactions>
+            <li class="admin-modal-list__empty">Nu există tranzacții.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="admin-modal__loading" data-admin-modal-loading hidden>
+      <span class="admin-modal__spinner"></span>
+      <p>Se încarcă datele utilizatorului...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const body = document.body;
+    const modal = document.getElementById('admin-user-modal');
+    const modalContent = modal.querySelector('[data-admin-modal-content]');
+    const loadingState = modal.querySelector('[data-admin-modal-loading]');
+    const overlayElements = modal.querySelectorAll('[data-admin-modal-close]');
+    const triggers = document.querySelectorAll('.admin-user-trigger');
+    const clearSearchBtn = document.querySelector('[data-admin-clear-search]');
+
+    const roleBadge = modal.querySelector('[data-admin-user-role]');
+    const metaEl = modal.querySelector('[data-admin-user-meta]');
+    const statsVerifications = modal.querySelector('[data-admin-user-total-verifications]');
+    const statsCreditsUsed = modal.querySelector('[data-admin-user-credits-used]');
+    const statsCredits = modal.querySelector('[data-admin-user-credits]');
+    const ordersList = modal.querySelector('[data-admin-user-orders]');
+    const transactionsList = modal.querySelector('[data-admin-user-transactions]');
+    const modalTitle = modal.querySelector('#admin-user-modal-title');
+
+    const creditsForm = document.getElementById('admin-user-credits-form');
+    const banForm = document.getElementById('admin-user-ban-form');
+    const unbanForm = document.getElementById('admin-user-unban-form');
+    const deleteForm = document.getElementById('admin-user-delete-form');
+    const csrfToken = '<%= csrfToken %>';
+
+    const toggleModal = (show) => {
+      if (show) {
+        modal.setAttribute('aria-hidden', 'false');
+        modal.classList.add('is-open');
+        body.classList.add('admin-modal-open');
+      } else {
+        modal.setAttribute('aria-hidden', 'true');
+        modal.classList.remove('is-open');
+        body.classList.remove('admin-modal-open');
+      }
+    };
+
+    const resetModalContent = () => {
+      modalTitle.textContent = 'Utilizator';
+      metaEl.textContent = '';
+      roleBadge.textContent = '';
+      roleBadge.classList.remove('badge-info', 'badge-error');
+      statsVerifications.textContent = '0';
+      statsCreditsUsed.textContent = '0';
+      statsCredits.textContent = '0';
+      ordersList.innerHTML = '<li class="admin-modal-list__empty">Date indisponibile.</li>';
+      transactionsList.innerHTML = '<li class="admin-modal-list__empty">Nu există tranzacții.</li>';
+    };
+
+    const renderList = (container, items, formatter, emptyMessage) => {
+      if (!items || !items.length) {
+        container.innerHTML = '<li class="admin-modal-list__empty">' + emptyMessage + '</li>';
+        return;
+      }
+      container.innerHTML = items.map(formatter).join('');
+    };
+
+    const formatDateTime = (value) => {
+      if (!value) return '—';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '—';
+      return date.toLocaleString();
+    };
+
+    const formatOrderItem = (item) => {
+      return '<li>' +
+        '<div><strong>IMEI:</strong> ' + (item.imei || '—') + '</div>' +
+        '<div class="admin-modal-list__meta">' +
+          '<span>' + (item.brand || '—') + '</span>' +
+          '<span>' + formatDateTime(item.createdAt) + '</span>' +
+          '<span class="badge badge-status-' + item.status + '">' + item.status + '</span>' +
+        '</div>' +
+      '</li>';
+    };
+
+    const formatTransactionItem = (item) => {
+      return '<li>' +
+        '<div><strong>' + item.type + ':</strong> ' + item.amount + '</div>' +
+        '<div class="admin-modal-list__meta">' +
+          '<span>' + (item.description || '—') + '</span>' +
+          '<span>' + formatDateTime(item.createdAt) + '</span>' +
+        '</div>' +
+      '</li>';
+    };
+
+    const openModal = async (userId, isSelf) => {
+      if (!userId) return;
+      resetModalContent();
+      toggleModal(true);
+      modalContent.setAttribute('hidden', 'hidden');
+      loadingState.removeAttribute('hidden');
+
+      try {
+        const response = await fetch('/admin/users/' + userId + '/details', {
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Nu am putut încărca detaliile utilizatorului.');
+        }
+
+        const data = await response.json();
+        if (!data || !data.user) {
+          throw new Error('Răspuns invalid de la server.');
+        }
+
+        modalTitle.textContent = data.user.email;
+        metaEl.textContent = data.user.createdAt ? ('Creat la ' + formatDateTime(data.user.createdAt)) : '';
+
+        roleBadge.textContent = data.user.isAdmin ? 'Administrator' : 'Utilizator';
+        roleBadge.classList.toggle('badge-info', Boolean(data.user.isAdmin));
+        roleBadge.classList.toggle('badge-error', Boolean(data.user.isBanned));
+        if (data.user.isBanned && data.user.bannedReason) {
+          metaEl.textContent += metaEl.textContent ? ' · ' : '';
+          metaEl.textContent += 'Banat: ' + data.user.bannedReason;
+        }
+
+        statsVerifications.textContent = data.stats.totalVerifications || 0;
+        statsCreditsUsed.textContent = (data.stats.totalCreditsUsed || 0).toFixed(2);
+        statsCredits.textContent = (data.user.credits || 0).toFixed(2);
+
+        renderList(ordersList, data.recentOrders, formatOrderItem, 'Nu există verificări finalizate.');
+        renderList(transactionsList, data.creditHistory, formatTransactionItem, 'Nu există tranzacții de credit.');
+
+        creditsForm.action = '/admin/users/' + userId + '/credits';
+        banForm.action = '/admin/users/' + userId + '/ban';
+        unbanForm.action = '/admin/users/' + userId + '/unban';
+        deleteForm.action = '/admin/users/' + userId + '/delete';
+
+        if (isSelf || data.user.isSelf) {
+          creditsForm.querySelectorAll('input, button').forEach((el) => el.disabled = true);
+          banForm.querySelectorAll('input, button').forEach((el) => el.disabled = true);
+          unbanForm.querySelectorAll('button').forEach((el) => el.disabled = true);
+          deleteForm.querySelectorAll('button').forEach((el) => el.disabled = true);
+        } else {
+          creditsForm.querySelectorAll('input, button').forEach((el) => el.disabled = false);
+          deleteForm.querySelectorAll('button').forEach((el) => el.disabled = false);
+          if (data.user.isBanned) {
+            banForm.setAttribute('hidden', 'hidden');
+            unbanForm.removeAttribute('hidden');
+          } else {
+            unbanForm.setAttribute('hidden', 'hidden');
+            banForm.removeAttribute('hidden');
+          }
+        }
+
+        modalContent.removeAttribute('hidden');
+        loadingState.setAttribute('hidden', 'hidden');
+      } catch (error) {
+        console.error('[Admin] User modal error:', error);
+        modalContent.setAttribute('hidden', 'hidden');
+        loadingState.innerHTML = '<p class="admin-modal__error">' + (error.message || 'Eroare la încărcarea datelor.') + '</p>';
+      }
+    };
+
+    triggers.forEach((button) => {
+      button.addEventListener('click', () => {
+        const userId = button.getAttribute('data-admin-user');
+        const isSelf = button.hasAttribute('data-self');
+        openModal(userId, isSelf);
+      });
+    });
+
+    overlayElements.forEach((element) => {
+      element.addEventListener('click', () => toggleModal(false));
+    });
+
+    modal.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        toggleModal(false);
+      }
+    });
+
+    deleteForm.addEventListener('submit', (event) => {
+      if (!window.confirm('Sigur vrei să ștergi acest utilizator? Această acțiune este ireversibilă.')) {
+        event.preventDefault();
+      }
+    });
+
+    if (clearSearchBtn) {
+      clearSearchBtn.addEventListener('click', () => {
+        const input = clearSearchBtn.closest('.admin-search-bar').querySelector('input[type="search"]');
+        input.value = '';
+        input.focus();
+      });
+    }
+  })();
+</script>
 
 <%- include('../partials/footer') %>

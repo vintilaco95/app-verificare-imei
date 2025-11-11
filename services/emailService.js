@@ -28,67 +28,19 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
   console.log('⚠️  Email service not configured - EMAIL_USER or EMAIL_PASS missing in environment');
 }
 
-/**
- * Send IMEI verification result via email using the dedicated HTML email template.
- */
-async function sendVerificationResult(email, order, resultData, renderedHTML, options = {}) {
+async function sendMail(options) {
   if (!transporter) {
     console.log('Email service not configured. Skipping email send.');
     return { success: false, error: 'Email service not configured' };
   }
-  
-  try {
-    const requestedLang = options && options.lang ? options.lang : (order && order.language ? order.language : DEFAULT_LANGUAGE);
-    const lang = normalizeLang(requestedLang);
-    // Determine rendered HTML fragments
-    let emailContent = null;
-    
-    if (renderedHTML && typeof renderedHTML === 'object') {
-      emailContent = renderedHTML.emailHTML || null;
-    }
-    
-    if (!emailContent) {
-      const { generateResultHTML } = require('./generateResultHTML');
-      const generated = await generateResultHTML(order, { lang });
-      emailContent = generated.emailHTML;
-    }
-    
-    if (!emailContent) {
-      throw new Error('Email content could not be generated');
-    }
-    
-    const fromAddress = process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@') 
-      ? process.env.EMAIL_FROM 
-      : process.env.EMAIL_USER;
 
-    const subjectTemplate = getTranslation(lang, 'email.subject.result');
-    const textTemplate = getTranslation(lang, 'email.text.result');
-    const imeiValue = order && order.imei ? order.imei : '';
-    const subject = subjectTemplate.replace('{imei}', imeiValue);
-    const textBody = textTemplate.replace('{imei}', imeiValue);
-    
-    const mailOptions = {
-      from: `"IMEI Verification" <${fromAddress}>`,
-      to: email,
-      subject,
-      html: emailContent,
-      text: textBody
-    };
-    
-    console.log('📤 Attempting to send email:');
-    console.log('   From:', mailOptions.from);
-    console.log('   To:', mailOptions.to);
-    
-    // Verify connection before sending
+  try {
     await transporter.verify();
-    console.log('✅ SMTP server connection verified');
-    
-    const info = await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(options);
     console.log('📧 Email sent successfully:');
     console.log('   Message ID:', info.messageId);
-    console.log('   To:', email);
-    console.log('   From:', mailOptions.from);
-    console.log('   Subject:', mailOptions.subject);
+    console.log('   To:', options.to);
+    console.log('   Subject:', options.subject);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ Email sending error:', error);
@@ -99,6 +51,80 @@ async function sendVerificationResult(email, order, resultData, renderedHTML, op
   }
 }
 
+function getFromAddress() {
+  return process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@')
+    ? process.env.EMAIL_FROM
+    : process.env.EMAIL_USER;
+}
+
+/**
+ * Send IMEI verification result via email using the dedicated HTML email template.
+ */
+async function sendVerificationResult(email, order, resultData, renderedHTML, options = {}) {
+  const requestedLang = options && options.lang ? options.lang : (order && order.language ? order.language : DEFAULT_LANGUAGE);
+  const lang = normalizeLang(requestedLang);
+
+  try {
+    let emailContent = null;
+
+    if (renderedHTML && typeof renderedHTML === 'object') {
+      emailContent = renderedHTML.emailHTML || null;
+    }
+
+    if (!emailContent) {
+      const { generateResultHTML } = require('./generateResultHTML');
+      const generated = await generateResultHTML(order, { lang });
+      emailContent = generated.emailHTML;
+    }
+
+    if (!emailContent) {
+      throw new Error('Email content could not be generated');
+    }
+
+    const subjectTemplate = getTranslation(lang, 'email.subject.result');
+    const textTemplate = getTranslation(lang, 'email.text.result');
+    const imeiValue = order && order.imei ? order.imei : '';
+    const subject = subjectTemplate.replace('{imei}', imeiValue);
+    const textBody = textTemplate.replace('{imei}', imeiValue);
+
+    return await sendMail({
+      from: `"IMEI Verification" <${getFromAddress()}>`,
+      to: email,
+      subject,
+      html: emailContent,
+      text: textBody
+    });
+  } catch (error) {
+    console.error('[EmailService] Failed to send verification result email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function sendVerificationEmail(email, token, options = {}) {
+  const lang = normalizeLang(options && options.lang ? options.lang : DEFAULT_LANGUAGE);
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const verificationUrl = `${baseUrl.replace(/\/$/, '')}/auth/verify/${token}`;
+
+  const subjectTemplate = getTranslation(lang, 'email.subject.verify');
+  const textTemplate = getTranslation(lang, 'email.text.verify');
+  const htmlTemplate = getTranslation(lang, 'email.html.verify');
+
+  const subject = subjectTemplate.replace('{brand}', getTranslation(lang, 'nav.brand'));
+  const textBody = textTemplate.replace('{url}', verificationUrl);
+  const htmlBody = htmlTemplate
+    .replace('{url}', verificationUrl)
+    .replace('{brand}', getTranslation(lang, 'nav.brand'));
+
+  return await sendMail({
+    from: `"IMEI Verification" <${getFromAddress()}>`,
+    to: email,
+    subject,
+    html: htmlBody,
+    text: textBody
+  });
+}
+
 module.exports = {
-  sendVerificationResult
+  sendVerificationResult,
+  sendVerificationEmail
 };

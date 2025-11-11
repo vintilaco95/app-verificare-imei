@@ -1,0 +1,15 @@
+<%- include('../partials/header', { title: t('auth.checkEmail.pageTitle'), user: null }) %>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <h1 class="auth-title"><%= t('auth.checkEmail.heading') %></h1>
+    <p class="auth-subtitle"><%= t('auth.checkEmail.subtitle') %></p>
+    <div class="auth-info-box">
+      <p><%= t('auth.checkEmail.info').replace('{email}', email) %></p>
+      <p><%= t('auth.checkEmail.instructions') %></p>
+    </div>
+    <a href="/auth/login" class="btn btn-primary btn-block"><%= t('auth.checkEmail.cta') %></a>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

@@ -38,6 +38,18 @@ const userSchema = new mongoose.Schema({
   bannedReason: {
     type: String,
     default: null
+  },
+  verificationToken: {
+    type: String,
+    default: null
+  },
+  verificationTokenExpires: {
+    type: Date,
+    default: null
+  },
+  verifiedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

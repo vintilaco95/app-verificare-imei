@@ -36,13 +36,65 @@ const toNumberOrNull = (value) => {
 
 router.get('/', async (req, res) => {
   try {
-    const [pricingConfig, usersRaw, recentOrdersRaw] = await Promise.all([
+    const searchQuery = (req.query.search || '').trim();
+    const searchLimit = searchQuery ? 120 : 50;
+
+    let orderFilter = {};
+    if (searchQuery) {
+      const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+      const numericQuery = Number.parseInt(searchQuery, 10);
+
+      orderFilter = {
+        $or: [
+          { imei: regex },
+          { email: regex },
+          { brand: regex },
+          { serviceName: regex }
+        ]
+      };
+
+      if (!Number.isNaN(numericQuery)) {
+        orderFilter.$or.push({ orderId: numericQuery });
+      }
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const [
+      pricingConfig,
+      usersRaw,
+      ordersRaw,
+      totalUsers,
+      bannedUsers,
+      totalVerifications,
+      completedVerifications,
+      todaysVerifications,
+      creditUsageAgg,
+      totalOrdersMatching
+    ] = await Promise.all([
       pricingService.getPricingConfig(),
       User.find({}).sort({ createdAt: -1 }).lean(),
-      Order.find({}).sort({ createdAt: -1 }).limit(50).lean()
+      Order.find(orderFilter)
+        .sort({ createdAt: -1 })
+        .limit(searchLimit)
+        .populate('userId', 'email isBanned')
+        .lean(),
+      User.countDocuments({}),
+      User.countDocuments({ isBanned: true }),
+      Order.countDocuments({}),
+      Order.countDocuments({ status: 'success' }),
+      Order.countDocuments({ createdAt: { $gte: startOfDay } }),
+      CreditTransaction.aggregate([
+        { $match: { type: 'usage' } },
+        { $group: { _id: null, totalUsage: { $sum: '$amount' } } }
+      ]),
+      searchQuery ? Order.countDocuments(orderFilter) : null
     ]);
 
     const currentUserId = req.user ? req.user._id.toString() : '';
+    const totalCreditsSpent = creditUsageAgg.length ? creditUsageAgg[0].totalUsage : 0;
 
     const users = usersRaw.map((u) => ({
       ...u,
@@ -52,19 +104,37 @@ router.get('/', async (req, res) => {
       isSelf: currentUserId === u._id.toString()
     }));
 
-    const recentOrders = recentOrdersRaw.map((order) => ({
-      ...order,
-      id: order._id.toString(),
-      createdAt: order.createdAt ? new Date(order.createdAt) : null,
-      userId: order.userId ? order.userId.toString() : null
-    }));
+    const verifications = ordersRaw.map((order) => {
+      const populatedUser = order.userId && typeof order.userId === 'object' ? order.userId : null;
+      return {
+        ...order,
+        id: order._id.toString(),
+        createdAt: order.createdAt ? new Date(order.createdAt) : null,
+        userId: populatedUser && populatedUser._id ? populatedUser._id.toString() : order.userId ? order.userId.toString() : null,
+        userEmail: populatedUser ? populatedUser.email : null,
+        displayEmail: order.email || (populatedUser ? populatedUser.email : 'Guest')
+      };
+    });
+
+    const dashboardStats = {
+      totalUsers,
+      activeUsers: totalUsers - bannedUsers,
+      bannedUsers,
+      totalVerifications,
+      completedVerifications,
+      todaysVerifications,
+      totalCreditsSpent
+    };
 
     res.render('admin/dashboard', {
       title: 'Panou administrator',
       user: req.user,
       users,
-      recentOrders,
+      verifications,
       pricingConfig,
+      dashboardStats,
+      searchQuery,
+      verificationsCount: searchQuery ? totalOrdersMatching || 0 : verifications.length,
       csrfToken: res.locals.csrfToken || '',
       alerts: {
         success: SUCCESS_MESSAGES[req.query.success] || null,
@@ -214,6 +284,94 @@ router.post('/pricing', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Failed to update pricing:', error);
     res.redirect('/admin?error=pricing');
+  }
+});
+
+router.get('/users/:id/details', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!userId || !userId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: 'ID utilizator invalid.' });
+    }
+
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ error: 'Utilizatorul nu a fost găsit.' });
+    }
+
+    const [orderStats, creditUsageStats, recentOrders, creditHistory] = await Promise.all([
+      Order.aggregate([
+        { $match: { userId: user._id } },
+        {
+          $group: {
+            _id: '$userId',
+            totalVerifications: {
+              $sum: {
+                $cond: [{ $eq: ['$status', 'success'] }, 1, 0]
+              }
+            },
+            totalOrders: { $sum: 1 },
+            lastVerificationAt: { $max: '$createdAt' }
+          }
+        }
+      ]),
+      CreditTransaction.aggregate([
+        { $match: { userId: user._id, type: 'usage' } },
+        { $group: { _id: '$userId', totalUsage: { $sum: '$amount' } } }
+      ]),
+      Order.find({ userId: user._id })
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .lean(),
+      CreditTransaction.find({ userId: user._id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean()
+    ]);
+
+    const stats = orderStats.length ? orderStats[0] : null;
+    const totalCreditsUsed = creditUsageStats.length ? creditUsageStats[0].totalUsage : 0;
+
+    res.json({
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        credits: Number(user.credits || 0),
+        isBanned: Boolean(user.isBanned),
+        isAdmin: Boolean(user.isAdmin),
+        createdAt: user.createdAt,
+        verifiedAt: user.verifiedAt || null,
+        bannedReason: user.bannedReason || null,
+        bannedAt: user.bannedAt || null,
+        isSelf: req.user && req.user._id.toString() === user._id.toString()
+      },
+      stats: {
+        totalVerifications: stats ? stats.totalVerifications : 0,
+        totalOrders: stats ? stats.totalOrders : 0,
+        lastVerificationAt: stats ? stats.lastVerificationAt : null,
+        totalCreditsUsed
+      },
+      recentOrders: recentOrders.map((order) => ({
+        id: order._id.toString(),
+        imei: order.imei,
+        brand: order.brand,
+        status: order.status,
+        price: order.price,
+        createdAt: order.createdAt,
+        orderId: order.orderId
+      })),
+      creditHistory: creditHistory.map((tx) => ({
+        id: tx._id.toString(),
+        type: tx.type,
+        amount: tx.amount,
+        description: tx.description,
+        createdAt: tx.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('[Admin] Failed to load user details:', error);
+    res.status(500).json({ error: 'Eroare la încărcarea detaliilor utilizatorului.' });
   }
 });
 
