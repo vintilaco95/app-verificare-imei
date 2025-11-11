@@ -8,7 +8,7 @@ const creditTransactionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['purchase', 'usage', 'refund'],
+    enum: ['purchase', 'usage', 'refund', 'adjustment'],
     required: true
   },
   amount: {
@@ -18,6 +18,15 @@ const creditTransactionSchema = new mongoose.Schema({
   description: {
     type: String,
     required: true
+  },
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   orderId: {
     type: mongoose.Schema.Types.ObjectId,

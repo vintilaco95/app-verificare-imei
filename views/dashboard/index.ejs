@@ -2,9 +2,16 @@
 
 <div class="dashboard-container">
   <div class="dashboard-header">
-    <h1><%= t('dashboard.overview.heading') %></h1>
-    <p><%= t('dashboard.overview.welcome') %>, <%= user.email %>!</p>
-    <a href="/dashboard/credits/topup" class="btn btn-primary"><%= t('dashboard.overview.actions.topup') %></a>
+    <div class="dashboard-heading">
+      <h1><%= t('dashboard.overview.heading') %></h1>
+      <p><%= t('dashboard.overview.welcome') %>, <%= user.email %>!</p>
+    </div>
+    <div class="dashboard-actions">
+      <a href="/dashboard/credits/topup" class="btn btn-primary"><%= t('dashboard.overview.actions.topup') %></a>
+      <% if (user && user.isAdmin) { %>
+        <a href="/admin" class="btn btn-secondary"><%= t('dashboard.overview.actions.admin') %></a>
+      <% } %>
+    </div>
   </div>
 
   <div class="dashboard-stats">

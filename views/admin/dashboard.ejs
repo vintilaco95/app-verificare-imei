@@ -1,0 +1,156 @@
+<%- include('../partials/header', { title: 'Panou administrator', user: user }) %>
+<%
+  const tFn = typeof t === 'function' ? t : (key) => key;
+  const brandEntries = Object.entries((pricingConfig && pricingConfig.baseCredits) || {});
+  const guestEntries = Object.entries((pricingConfig && pricingConfig.guestPrices) || {});
+  const brandSet = new Set(brandEntries.map(([key]) => key));
+  guestEntries.forEach(([key]) => brandSet.add(key));
+  const brands = Array.from(brandSet);
+%>
+
+<section class="admin-dashboard">
+  <% if (alerts && (alerts.success || alerts.error)) { %>
+    <div class="admin-alert <%= alerts.error ? 'admin-alert-error' : 'admin-alert-success' %>">
+      <%= alerts.error || alerts.success %>
+    </div>
+  <% } %>
+
+  <div class="admin-section">
+    <h1>Configurare prețuri</h1>
+    <form method="POST" action="/admin/pricing" class="admin-card">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Credite (utilizatori logați)</th>
+            <th>Preț One-Time (RON)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% brands.forEach((brand) => { %>
+            <tr>
+              <td class="admin-table-brand"><%= brand %></td>
+              <td>
+                <input type="number" step="0.01" min="0" name="baseCredits[<%= brand %>]" value="<%= (pricingConfig && pricingConfig.baseCredits && pricingConfig.baseCredits[brand]) || 0 %>">
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" name="guestPrices[<%= brand %>]" value="<%= (pricingConfig && pricingConfig.guestPrices && pricingConfig.guestPrices[brand]) || 0 %>">
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <button type="submit" class="btn btn-primary">Salvează prețurile</button>
+    </form>
+  </div>
+
+  <div class="admin-section">
+    <h2>Utilizatori</h2>
+    <div class="admin-card">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Credite</th>
+            <th>Rol</th>
+            <th>Acțiuni</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (users && users.length) { %>
+            <% users.forEach(function(u) { %>
+              <tr>
+                <td>
+                  <div class="admin-user-email"><%= u.email %></div>
+                  <div class="admin-user-meta">
+                    <% if (u.isAdmin) { %><span class="badge badge-info">Admin</span><% } %>
+                    <% if (u.isBanned) { %><span class="badge badge-error">Banat</span><% } %>
+                  </div>
+                </td>
+                <td><%= Number(u.credits || 0).toFixed(2) %></td>
+                <td>
+                  <% if (u.isSelf) { %>
+                    <span class="badge">Contul tău</span>
+                  <% } else { %>
+                    <span class="badge"><%= u.isAdmin ? 'Administrator' : 'Utilizator' %></span>
+                  <% } %>
+                </td>
+                <td>
+                  <div class="admin-actions">
+                    <form method="POST" action="/admin/users/<%= u.id %>/credits" class="admin-inline-form">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="number" step="0.01" name="amount" placeholder="ex: 5" required>
+                      <input type="text" name="note" placeholder="Notă (opțional)">
+                      <button type="submit" class="btn btn-sm">Ajustează</button>
+                    </form>
+
+                    <% if (!u.isSelf) { %>
+                      <% if (!u.isBanned) { %>
+                        <form method="POST" action="/admin/users/<%= u.id %>/ban" class="admin-inline-form">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <input type="text" name="reason" placeholder="Motiv ban (opțional)">
+                          <button type="submit" class="btn btn-sm btn-danger">Banează</button>
+                        </form>
+                      <% } else { %>
+                        <form method="POST" action="/admin/users/<%= u.id %>/unban" class="admin-inline-form">
+                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                          <button type="submit" class="btn btn-sm btn-secondary">Deblochează</button>
+                        </form>
+                      <% } %>
+
+                      <form method="POST" action="/admin/users/<%= u.id %>/delete" class="admin-inline-form" onsubmit="return confirm('Sigur vrei să ștergi acest utilizator?');">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="btn btn-sm btn-outline">Șterge</button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="4">Nu există utilizatori înregistrați.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="admin-section">
+    <h2>Verificări recente</h2>
+    <div class="admin-card">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Utilizator</th>
+            <th>Brand</th>
+            <th>Status</th>
+            <th>IMEI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (recentOrders && recentOrders.length) { %>
+            <% recentOrders.forEach(function(order) { %>
+              <tr>
+                <td><%= order.createdAt ? order.createdAt.toLocaleString() : '-' %></td>
+                <td><%= order.email || 'Guest' %></td>
+                <td><%= order.brand || '—' %></td>
+                <td><span class="badge badge-status-<%= order.status %>"><%= order.status %></span></td>
+                <td><%= order.imei || '—' %></td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr>
+              <td colspan="5">Nu există verificări recente.</td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

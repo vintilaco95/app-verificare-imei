@@ -7,8 +7,11 @@ const imeiService = require('../services/imeiService');
 const User = require('../models/User');
 const Order = require('../models/Order');
 const CreditTransaction = require('../models/CreditTransaction');
-const { PRICING, getBasePrice, calculateTotalPrice } = require('../config/pricing');
-const stripeService = require('../services/stripeService');
+const pricingService = require('../services/pricingService');
+const { PRICING } = require('../config/pricing');
+const { CREDIT_VALUE, BASE_CURRENCY } = require('../config/currency');
+const { processCreditTopupSession } = require('../services/creditTopupService');
+const { addVerificationJob } = require('../services/verificationQueue');
 const {
   formatWarrantyInfo,
   formatDate,
@@ -27,34 +30,36 @@ const {
 } = require('../services/emailFormatter');
 const { generateResultHTML } = require('../services/generateResultHTML');
 const { parseAppleMdmHTML } = require('../services/parseAppleMdmHTML');
-const {
-  CREDIT_VALUE,
-  BASE_CURRENCY,
-  GUEST_VERIFICATION_CREDITS
-} = require('../config/currency');
-const { processCreditTopupSession } = require('../services/creditTopupService');
-const { addVerificationJob } = require('../services/verificationQueue');
 
-const guestPricing = Object.keys(PRICING.base).reduce((acc, key) => {
-  acc[key] = GUEST_VERIFICATION_CREDITS;
-  return acc;
-}, {});
-
-function getPricingForUser(user) {
-  return user ? PRICING.base : guestPricing;
+async function renderVerifyForm(res, params = {}) {
+  try {
+    const pricingConfig = await pricingService.getPricingConfig();
+    return res.render('verify/form', {
+      pricing: pricingConfig.baseCredits,
+      guestPricing: pricingConfig.guestPrices,
+      creditValue: CREDIT_VALUE,
+      currencyCode: BASE_CURRENCY,
+      ...params
+    });
+  } catch (error) {
+    console.error('[Verify] Failed to load pricing config:', error);
+    const fallbackBase = (PRICING && PRICING.base) || {};
+    return res.render('verify/form', {
+      pricing: fallbackBase,
+      guestPricing: {},
+      creditValue: CREDIT_VALUE,
+      currencyCode: BASE_CURRENCY,
+      ...params
+    });
+  }
 }
 
 // Show verification form
-router.get('/imei', (req, res) => {
-  res.render('verify/form', {
+router.get('/imei', async (req, res) => {
+  await renderVerifyForm(res, {
     title: 'Verificare IMEI',
     user: req.user || null,
-    errors: null,
-    pricing: getPricingForUser(req.user),
-    selectedBrand: null,
-    creditValue: CREDIT_VALUE,
-    currencyCode: BASE_CURRENCY,
-    guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+    errors: null
   });
 });
 
@@ -103,16 +108,13 @@ router.post('/imei', requireAuth, [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.render('verify/form', {
+    await renderVerifyForm(res, {
       title: 'Verificare IMEI',
       errors: errors.array(),
       user: req.user || null,
-      pricing: getPricingForUser(req.user),
-      selectedBrand: null,
-      creditValue: CREDIT_VALUE,
-      currencyCode: BASE_CURRENCY,
-      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+      selectedBrand: null
     });
+    return;
   }
   
   try {
@@ -123,16 +125,13 @@ router.post('/imei', requireAuth, [
     
     // Validate IMEI format
     if (!/^\d{15}$/.test(imei)) {
-      return res.render('verify/form', {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
         errors: [{ msg: 'IMEI-ul trebuie să aibă exact 15 cifre' }],
         user: req.user || null,
-        pricing: getPricingForUser(req.user),
-        selectedBrand: null,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: null
       });
+      return;
     }
     
     // Parse additional services
@@ -154,20 +153,17 @@ router.post('/imei', requireAuth, [
     }
     
     // Calculate total cost using detected brand (fallback to default)
-    const totalCost = calculateTotalPrice(pricingBrand, additionalServiceIds);
+    const totalCredits = await pricingService.calculateTotalCredits(pricingBrand, additionalServiceIds);
     
     // Check if user has enough credits
-    if (user.credits < totalCost) {
-      return res.render('verify/form', {
+    if (user.credits < totalCredits) {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
-        errors: [{ msg: `Credite insuficiente. Ai ${user.credits.toFixed(2)} credite, dar ai nevoie de ${totalCost.toFixed(2)} credite.` }],
+        errors: [{ msg: `Credite insuficiente. Ai ${user.credits.toFixed(2)} credite, dar ai nevoie de ${totalCredits.toFixed(2)} credite.` }],
         user: req.user || null,
-        pricing: getPricingForUser(req.user),
-        selectedBrand: null,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: null
       });
+      return;
     }
     
     // Create order first with pending status
@@ -178,7 +174,7 @@ router.post('/imei', requireAuth, [
       imei: imei,
       serviceId: 0,
       serviceName: 'IMEI Verification',
-      price: totalCost,
+      price: totalCredits,
       status: 'pending',
       result: null,
       object: null,
@@ -190,14 +186,14 @@ router.post('/imei', requireAuth, [
     await tempOrder.save();
     
     // Deduct credits immediately
-    user.credits -= totalCost;
+    user.credits -= totalCredits;
     await user.save();
     
     // Record transaction
     const transaction = new CreditTransaction({
       userId: user._id,
       type: 'usage',
-      amount: -totalCost,
+      amount: -totalCredits,
       description: `Verificare IMEI: ${imei}${additionalServiceIds.length > 0 ? ` + ${additionalServiceIds.length} verificări suplimentare` : ''}`,
       orderId: tempOrder._id
     });
@@ -218,44 +214,37 @@ router.post('/imei', requireAuth, [
       console.error('[Queue] Failed to enqueue verification job:', queueError);
       
       // Rollback credits and delete order
-      user.credits += totalCost;
+      user.credits += totalCredits;
       await user.save();
       
       await CreditTransaction.create({
         userId: user._id,
         type: 'refund',
-        amount: totalCost,
+        amount: totalCredits,
         description: `Refund - eroare coadă verificare IMEI: ${imei}`,
         orderId: tempOrder._id
       });
       
       await Order.findByIdAndDelete(tempOrder._id);
       
-      return res.render('verify/form', {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
         errors: [{ msg: 'Serviciul de procesare este indisponibil momentan. Te rugăm să încerci din nou.' }],
         user: req.user || null,
-        pricing: getPricingForUser(req.user),
-        selectedBrand: null,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: null
       });
+      return;
     }
     
     // Redirect to processing page
     res.redirect(`/verify/processing/${tempOrder._id}`);
   } catch (error) {
     console.error('Verification error:', error);
-    res.render('verify/form', {
+    await renderVerifyForm(res, {
       title: 'Verificare IMEI',
       errors: [{ msg: 'Eroare la verificare. Încearcă din nou.' }],
       user: req.user || null,
-      pricing: getPricingForUser(req.user),
-      selectedBrand: null,
-      creditValue: CREDIT_VALUE,
-      currencyCode: BASE_CURRENCY,
-      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+      selectedBrand: null
     });
   }
 });
@@ -267,16 +256,13 @@ router.post('/imei/guest', [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.render('verify/form', {
+    await renderVerifyForm(res, {
       title: 'Verificare IMEI',
       errors: errors.array(),
       user: null,
-      pricing: getPricingForUser(null),
-      selectedBrand: null,
-      creditValue: CREDIT_VALUE,
-      currencyCode: BASE_CURRENCY,
-      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+      selectedBrand: null
     });
+    return;
   }
   
   const { brand: selectedBrandRaw } = req.body;
@@ -289,31 +275,26 @@ router.post('/imei/guest', [
     
     // Validate IMEI format
     if (!/^\d{15}$/.test(imei)) {
-      return res.render('verify/form', {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
         errors: [{ msg: 'IMEI-ul trebuie să aibă exact 15 cifre' }],
         user: null,
-        pricing: getPricingForUser(null),
-        selectedBrand: selectedBrandRaw || null,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: selectedBrandRaw || null
       });
+      return;
     }
     
-    // Ensure brand is selected
-    const availableBrands = Object.keys(PRICING.base);
+    const pricingConfig = await pricingService.getPricingConfig();
+    const availableBrands = Object.keys(pricingConfig.baseCredits || {});
+    
     if (!brand || !availableBrands.includes(brand)) {
-      return res.render('verify/form', {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
         errors: [{ msg: 'Te rugăm să selectezi brandul telefonului înainte de a continua.' }],
         user: null,
-        pricing: getPricingForUser(null),
-        selectedBrand: brand || null,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: brand || null
       });
+      return;
     }
     
     // Parse additional services
@@ -322,29 +303,22 @@ router.post('/imei/guest', [
       : (additionalServices ? [parseInt(additionalServices)] : []);
     const lang = normalizeLang(res.locals.currentLang || req.session.lang || DEFAULT_LANGUAGE);
     
-    // Use selected brand for pricing
-    const pricingBrand = brand;
-    let detectedBrandForPricing = null;
-    
-    // Calculate guest pricing: base credits override + additional services
-    const defaultTotalCredits = calculateTotalPrice(pricingBrand, additionalServiceIds);
-    const baseCredits = PRICING.base[pricingBrand] || PRICING.base.default || 1;
-    const additionalCredits = Math.max(0, parseFloat((defaultTotalCredits - baseCredits).toFixed(2)));
-    const totalCredits = parseFloat((GUEST_VERIFICATION_CREDITS + additionalCredits).toFixed(2));
-    const totalAmount = parseFloat((totalCredits * CREDIT_VALUE).toFixed(2));
+    // Calculate guest pricing
+    const totalCredits = await pricingService.calculateTotalCredits(brand, additionalServiceIds);
+    const baseCredits = await pricingService.getBasePrice(brand);
+    const guestBaseAmount = await pricingService.getGuestPrice(brand);
+    const additionalCredits = Math.max(0, totalCredits - baseCredits);
+    const totalAmount = parseFloat((guestBaseAmount + additionalCredits * CREDIT_VALUE).toFixed(2));
     
     // Validate price (security: prevent price manipulation)
     if (totalCredits <= 0 || totalCredits > 100) {
-      return res.render('verify/form', {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
         errors: [{ msg: 'Preț invalid. Te rugăm să reîmprospătezi pagina și să încerci din nou.' }],
         user: null,
-        pricing: getPricingForUser(null),
-        selectedBrand: brand || null,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: brand || null
       });
+      return;
     }
     
     // Create order first with pending payment status
@@ -362,7 +336,7 @@ router.post('/imei/guest', [
       paymentStatus: 'pending', // Payment required before verification
       result: null,
       object: null,
-      brand: pricingBrand || 'unknown', // Will be confirmed via API
+      brand: brand || 'unknown', // Will be confirmed via API
       model: 'Processing...',
       additionalServices: additionalServiceIds,
       language: lang
@@ -377,51 +351,39 @@ router.post('/imei/guest', [
         email,
         imei,
         {
-          brand: pricingBrand,
+          brand,
           additionalServiceIds,
           creditsAmount: totalCredits,
           currency: BASE_CURRENCY
         }
       );
       
-      // If amount was adjusted due to Stripe minimum, update order price
       if (adjustedAmount && adjustedAmount > totalAmount) {
         tempOrder.currencyAmount = adjustedAmount;
         console.log(`[Payment] Order price adjusted from ${totalAmount.toFixed(2)} to ${adjustedAmount.toFixed(2)} ${BASE_CURRENCY} (Stripe minimum)`);
       }
       
-      // Save Stripe session ID to order
       tempOrder.stripeSessionId = session.id;
       await tempOrder.save();
       
-      // Redirect to Stripe Checkout
       res.redirect(303, session.url);
     } catch (error) {
       console.error('Stripe Checkout creation error:', error);
-      // Delete the order if payment setup fails
       await Order.findByIdAndDelete(tempOrder._id);
-      return res.render('verify/form', {
+      await renderVerifyForm(res, {
         title: 'Verificare IMEI',
         errors: [{ msg: 'Eroare la inițierea plății. Te rugăm să încerci din nou.' }],
         user: null,
-        pricing: getPricingForUser(null),
-        selectedBrand: pricingBrand,
-        creditValue: CREDIT_VALUE,
-        currencyCode: BASE_CURRENCY,
-        guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+        selectedBrand: brand || null
       });
     }
   } catch (error) {
     console.error('Guest verification error:', error);
-    res.render('verify/form', {
+    await renderVerifyForm(res, {
       title: 'Verificare IMEI',
       errors: [{ msg: 'Eroare la verificare. Încearcă din nou.' }],
       user: null,
-      pricing: getPricingForUser(null),
-      selectedBrand: selectedBrandRaw || null,
-      creditValue: CREDIT_VALUE,
-      currencyCode: BASE_CURRENCY,
-      guestVerificationCredits: GUEST_VERIFICATION_CREDITS
+      selectedBrand: selectedBrandRaw || null
     });
   }
 });

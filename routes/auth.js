@@ -91,6 +91,15 @@ router.post('/login', requireGuest, [
         user: null
       });
     }
+
+    if (user.isBanned) {
+      console.warn(`[AUTH] Banned user login attempt: ${email}`);
+      return res.render('auth/login', {
+        title: 'Autentificare',
+        errors: [{ msg: 'Contul tău a fost dezactivat. Contactează suportul.' }],
+        user: null
+      });
+    }
     
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {

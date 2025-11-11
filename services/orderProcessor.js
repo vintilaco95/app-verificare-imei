@@ -3,9 +3,9 @@ const User = require('../models/User');
 const CreditTransaction = require('../models/CreditTransaction');
 const imeiService = require('./imeiService');
 const emailService = require('./emailService');
-const { PRICING, calculateTotalPrice } = require('../config/pricing');
+const pricingService = require('./pricingService');
 const { DEFAULT_LANGUAGE, normalizeLang } = require('./emailFormatter');
-const { CREDIT_VALUE, BASE_CURRENCY, GUEST_VERIFICATION_CREDITS } = require('../config/currency');
+const { CREDIT_VALUE, BASE_CURRENCY } = require('../config/currency');
 
 async function processOrder(jobData) {
   const {
@@ -51,13 +51,15 @@ async function processOrder(jobData) {
 
     const initialPrice = order.price || 0;
     const effectiveBrandForPricing = (result.brand || order.brand || 'default');
-    const baseCalculatedCost = calculateTotalPrice(effectiveBrandForPricing, additionalServiceIds);
+    const baseCalculatedCost = await pricingService.calculateTotalCredits(effectiveBrandForPricing, additionalServiceIds);
     let computedPrice = baseCalculatedCost;
 
     if (!userId) {
-      const baseCredits = PRICING.base[effectiveBrandForPricing] || PRICING.base.default || 1;
+      const baseCredits = await pricingService.getBasePrice(effectiveBrandForPricing);
       const additionalCredits = Math.max(0, parseFloat((baseCalculatedCost - baseCredits).toFixed(2)));
-      computedPrice = parseFloat((GUEST_VERIFICATION_CREDITS + additionalCredits).toFixed(2));
+      const guestBaseAmount = await pricingService.getGuestPrice(effectiveBrandForPricing);
+      order.currency = BASE_CURRENCY;
+      order.currencyAmount = parseFloat((guestBaseAmount + additionalCredits * CREDIT_VALUE).toFixed(2));
     }
 
     let priceDifference = 0;
@@ -77,7 +79,7 @@ async function processOrder(jobData) {
     order.brand = result.brand || order.brand;
     order.model = result.model || order.model;
 
-    if (!userId) {
+    if (!userId && !order.currencyAmount) {
       order.currency = BASE_CURRENCY;
       order.currencyAmount = parseFloat((order.price * CREDIT_VALUE).toFixed(2));
     }

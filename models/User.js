@@ -19,14 +19,28 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
   isVerified: {
     type: Boolean,
     default: false
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
+  bannedAt: {
+    type: Date,
+    default: null
+  },
+  bannedReason: {
+    type: String,
+    default: null
   }
+}, {
+  timestamps: true
 });
 
 // Hash password before saving
@@ -42,3 +56,4 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 module.exports = mongoose.model('User', userSchema);
+

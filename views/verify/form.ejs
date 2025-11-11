@@ -4,9 +4,7 @@
   const locale = currentLang === 'en' ? 'en-US' : 'ro-RO';
   const creditUnitValue = typeof creditValue !== 'undefined' ? creditValue : 1;
   const currencyCodeValue = typeof currencyCode !== 'undefined' ? currencyCode : 'RON';
-  const guestVerificationCreditsValue = typeof guestVerificationCredits !== 'undefined'
-    ? guestVerificationCredits
-    : 3;
+  const guestPricingData = typeof guestPricing !== 'undefined' ? guestPricing : {};
   const brandLabels = {
     apple: t('verify.form.brands.apple'),
     samsung: t('verify.form.brands.samsung'),
@@ -47,6 +45,7 @@
     if (Number.isNaN(num)) return value;
     return (num * creditUnitValue).toFixed(2);
   };
+  const selectedBrandValue = typeof selectedBrand !== 'undefined' ? selectedBrand : null;
 %>
 
 <div class="verify-container">
@@ -210,10 +209,10 @@
             <option value=""><%= t('verify.form.fields.brand.placeholder') %></option>
             <% Object.keys(pricing || {}).forEach(function(key) { %>
               <% if (key !== 'default') { %>
-                <option value="<%= key %>" <%= selectedBrand === key ? 'selected' : '' %>><%= brandLabels[key] || key %></option>
+                <option value="<%= key %>" <%= selectedBrandValue === key ? 'selected' : '' %>><%= brandLabels[key] || key %></option>
               <% } %>
             <% }); %>
-            <option value="default" <%= selectedBrand === 'default' ? 'selected' : '' %>><%= t('verify.form.fields.brand.otherOption') %></option>
+            <option value="default" <%= selectedBrandValue === 'default' ? 'selected' : '' %>><%= t('verify.form.fields.brand.otherOption') %></option>
           </select>
           <small class="form-hint"><%= t('verify.form.fields.brand.hint') %></small>
         </div>
@@ -263,7 +262,7 @@
   window.serverPricing = <%- JSON.stringify(pricing || {}) %>;
   window.creditValue = <%= creditUnitValue %>;
   window.currencyCode = <%- JSON.stringify(currencyCodeValue) %>;
-  window.guestVerificationCredits = <%= guestVerificationCreditsValue %>;
+  window.guestPricing = <%- JSON.stringify(guestPricingData || {}) %>;
 </script>
 <script src="/js/imei-validator.js"></script>
 <script src="/js/pricing.js"></script>
@@ -286,14 +285,6 @@
     const currencyLabel = (currencyLabelRaw || 'RON').toUpperCase();
     const rawCreditValue = parseFloat(window.creditValue !== undefined ? window.creditValue : '<%= creditUnitValue %>');
     const creditUnitValueGuest = (!isNaN(rawCreditValue) && rawCreditValue > 0) ? rawCreditValue : <%= creditUnitValue %>;
-    const rawGuestCredits = parseFloat(
-      window.guestVerificationCredits !== undefined
-        ? window.guestVerificationCredits
-        : '<%= guestVerificationCreditsValue %>'
-    );
-    const guestVerificationCredits = (!isNaN(rawGuestCredits) && rawGuestCredits > 0)
-      ? rawGuestCredits
-      : <%= guestVerificationCreditsValue %>;
     function formatCreditDisplay(value) {
       if (typeof value !== 'number' || isNaN(value)) return value;
       return Number.isInteger(value) ? value.toString() : value.toFixed(2);

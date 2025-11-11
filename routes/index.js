@@ -1,19 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { getBasePrice } = require('../config/pricing');
+const pricingService = require('../services/pricingService');
 
-router.get('/', (req, res) => {
-  // Get pricing for display
-  const pricing = {
-    apple: getBasePrice('apple'),
-    samsung: getBasePrice('samsung'),
-    honor: getBasePrice('honor'),
-    huawei: getBasePrice('huawei'),
-    xiaomi: getBasePrice('xiaomi'),
-    oneplus: getBasePrice('oneplus'),
-    motorola: getBasePrice('motorola'),
-    default: getBasePrice('default')
-  };
+router.get('/', async (req, res) => {
+  let pricing = {};
+  try {
+    const pricingConfig = await pricingService.getPricingConfig();
+    pricing = pricingConfig.baseCredits || {};
+  } catch (error) {
+    console.error('[Index] Failed to load pricing config:', error);
+  }
   
   res.render('index', { 
     title: 'Verificare IMEI - Aplicație Web',

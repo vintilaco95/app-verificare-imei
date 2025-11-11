@@ -164,6 +164,8 @@ app.use('/auth', require('./routes/auth'));
 app.use('/verify', verifyRoutes.router);
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/api', require('./routes/api'));
+const adminRoutes = require('./routes/admin');
+app.use('/admin', adminRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
