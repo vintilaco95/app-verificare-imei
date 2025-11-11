@@ -4,11 +4,20 @@
   <div class="auth-card">
     <h1 class="auth-title"><%= t('auth.checkEmail.heading') %></h1>
     <p class="auth-subtitle"><%= t('auth.checkEmail.subtitle') %></p>
+    <%- include('../partials/flash', { errors: errors, success: success }) %>
+
     <div class="auth-info-box">
       <p><%= t('auth.checkEmail.info').replace('{email}', email) %></p>
       <p><%= t('auth.checkEmail.instructions') %></p>
     </div>
-    <a href="/auth/login" class="btn btn-primary btn-block"><%= t('auth.checkEmail.cta') %></a>
+
+    <form action="/auth/resend-verification" method="POST" class="auth-form mt-15">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+      <input type="hidden" name="email" value="<%= email %>">
+      <button type="submit" class="btn btn-secondary btn-block"><%= t('auth.checkEmail.resendButton') %></button>
+    </form>
+
+    <a href="/auth/login" class="btn btn-primary btn-block mt-10"><%= t('auth.checkEmail.cta') %></a>
   </div>
 </div>
 

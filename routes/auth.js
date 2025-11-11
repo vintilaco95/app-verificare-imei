@@ -6,6 +6,12 @@ const { requireGuest } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 const { sendVerificationEmail } = require('../services/emailService');
 
+const emailNormalizeOptions = {
+  gmail_remove_dots: false,
+  gmail_remove_subaddress: false,
+  gmail_remove_extension: false
+};
+
 // Register
 router.get('/register', requireGuest, (req, res) => {
   res.render('auth/register', { 
@@ -18,7 +24,7 @@ router.get('/register', requireGuest, (req, res) => {
 const getTranslator = (res) => (typeof res.locals.t === 'function' ? res.locals.t : (key) => key);
 
 router.post('/register', requireGuest, [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail(emailNormalizeOptions),
   body('password').isLength({ min: 6 })
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -37,6 +43,45 @@ router.post('/register', requireGuest, [
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      if (!existingUser.isVerified) {
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const expiresIn = parseInt(process.env.EMAIL_VERIFICATION_TTL || `${24 * 60 * 60 * 1000}`, 10);
+        existingUser.verificationToken = verificationToken;
+        existingUser.verificationTokenExpires = new Date(Date.now() + expiresIn);
+        await existingUser.save();
+
+        try {
+          const emailResult = await sendVerificationEmail(existingUser.email, verificationToken, { lang: res.locals.currentLang || 'ro' });
+          if (!emailResult.success) {
+            console.error('[Auth] Failed to resend verification email:', emailResult.error);
+            return res.render('auth/check-email', {
+              title: t('auth.checkEmail.pageTitle'),
+              email: existingUser.email,
+              errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
+              success: null,
+              user: null
+            });
+          }
+        } catch (emailError) {
+          console.error('[Auth] Error while resending verification email:', emailError);
+          return res.render('auth/check-email', {
+            title: t('auth.checkEmail.pageTitle'),
+            email: existingUser.email,
+            errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
+            success: null,
+            user: null
+          });
+        }
+
+        return res.render('auth/check-email', {
+          title: t('auth.checkEmail.pageTitle'),
+          email: existingUser.email,
+          success: t('auth.checkEmail.success.resent'),
+          errors: null,
+          user: null
+        });
+      }
+
       return res.render('auth/register', {
         title: 'Înregistrare',
         errors: [{ msg: 'Email-ul este deja înregistrat' }],
@@ -58,14 +103,33 @@ router.post('/register', requireGuest, [
     await user.save();
 
     try {
-      await sendVerificationEmail(email, verificationToken, { lang: res.locals.currentLang || 'ro' });
+      const emailResult = await sendVerificationEmail(email, verificationToken, { lang: res.locals.currentLang || 'ro' });
+      if (!emailResult.success) {
+        console.error('[Auth] Failed to send verification email:', emailResult.error);
+        return res.render('auth/check-email', {
+          title: t('auth.checkEmail.pageTitle'),
+          email,
+          errors: [{ msg: t('auth.checkEmail.error.sendFailed') }],
+          success: null,
+          user: null
+        });
+      }
     } catch (emailError) {
       console.error('[Auth] Failed to send verification email:', emailError);
+      return res.render('auth/check-email', {
+        title: t('auth.checkEmail.pageTitle'),
+        email,
+        errors: [{ msg: t('auth.checkEmail.error.sendFailed') }],
+        success: null,
+        user: null
+      });
     }
 
     res.render('auth/check-email', {
       title: t('auth.checkEmail.pageTitle'),
       email,
+      success: t('auth.register.success.checkEmail'),
+      errors: null,
       user: null
     });
   } catch (error) {
@@ -88,7 +152,7 @@ router.get('/login', requireGuest, (req, res) => {
 });
 
 router.post('/login', requireGuest, [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail(emailNormalizeOptions),
   body('password').notEmpty()
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -158,7 +222,7 @@ router.post('/login', requireGuest, [
 });
 
 router.post('/resend-verification', requireGuest, [
-  body('email').isEmail().normalizeEmail()
+  body('email').isEmail().normalizeEmail(emailNormalizeOptions)
 ], async (req, res) => {
   const errors = validationResult(req);
   const t = getTranslator(res);
@@ -197,9 +261,22 @@ router.post('/resend-verification', requireGuest, [
     await user.save();
 
     try {
-      await sendVerificationEmail(email, verificationToken, { lang: res.locals.currentLang || 'ro' });
+      const emailResult = await sendVerificationEmail(email, verificationToken, { lang: res.locals.currentLang || 'ro' });
+      if (!emailResult.success) {
+        console.error('[Auth] Failed to resend verification email:', emailResult.error);
+        return res.render('auth/login', {
+          title: t('auth.login.pageTitle'),
+          errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
+          user: null
+        });
+      }
     } catch (emailError) {
       console.error('[Auth] Failed to resend verification email:', emailError);
+      return res.render('auth/login', {
+        title: t('auth.login.pageTitle'),
+        errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
+        user: null
+      });
     }
 
     return res.render('auth/login', {

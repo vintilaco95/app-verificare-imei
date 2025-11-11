@@ -111,8 +111,7 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
-  if (safeMethods.includes(req.method) && typeof req.csrfToken === 'function') {
+  if (typeof req.csrfToken === 'function') {
     try {
       res.locals.csrfToken = req.csrfToken();
     } catch (err) {

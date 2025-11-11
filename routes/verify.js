@@ -251,9 +251,15 @@ router.post('/imei', requireAuth, [
 });
 
 // Process verification (guest user - one-time payment)
+const emailNormalizeOptions = {
+  gmail_remove_dots: false,
+  gmail_remove_subaddress: false,
+  gmail_remove_extension: false
+};
+
 router.post('/imei/guest', [
   body('imei').notEmpty().trim().isLength({ min: 15, max: 15 }).withMessage('IMEI-ul trebuie să aibă 15 cifre'),
-  body('email').isEmail().normalizeEmail()
+  body('email').isEmail().normalizeEmail(emailNormalizeOptions)
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
