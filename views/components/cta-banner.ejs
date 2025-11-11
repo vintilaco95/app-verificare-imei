@@ -1,0 +1,30 @@
+<%
+  const bannerId = typeof id !== 'undefined' ? id : `cta-${Date.now()}`;
+  const backgroundUrl = typeof background !== 'undefined' ? background : null;
+  const bannerClass = ['cta-banner'];
+  if (backgroundUrl) {
+    bannerClass.push('cta-banner--has-image');
+  }
+%>
+<section class="<%= bannerClass.join(' ') %>" id="<%= bannerId %>" style="<%= backgroundUrl ? `--cta-bg:url('${backgroundUrl}')` : '' %>">
+  <div class="cta-banner-content">
+    <% if (typeof eyebrow !== 'undefined' && eyebrow) { %>
+      <span class="cta-banner-eyebrow"><%= eyebrow %></span>
+    <% } %>
+    <% if (typeof heading !== 'undefined' && heading) { %>
+      <h2><%= heading %></h2>
+    <% } %>
+    <% if (typeof description !== 'undefined' && description) { %>
+      <p><%= description %></p>
+    <% } %>
+    <% if (Array.isArray(ctas)) { %>
+      <div class="cta-banner-actions">
+        <% ctas.forEach(function(action) { %>
+          <% if (action && action.href && action.label) { %>
+            <a href="<%= action.href %>" class="btn <%= action.variant === 'secondary' ? 'btn-secondary' : 'btn-primary' %>"><%= action.label %></a>
+          <% } %>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</section>

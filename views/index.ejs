@@ -1,5 +1,112 @@
 <%- include('partials/header', { title: title, user: user }) %>
 
+<%
+  const brandAssets = {
+    apple: { logo: '/images/Apple-Logosu.png', alt: 'Apple' },
+    samsung: { logo: '/images/samsung-brand-logo-phone-symbol-white-design-south-korean-mobile-illustration-with-black-background-free-vector.jpg', alt: 'Samsung' },
+    honor: { logo: '/images/honor-logo.jpg', alt: 'Honor' },
+    huawei: { logo: '/images/huawei-logo-brand-phone-symbol-red-with-name-white-design-china-mobile-illustration-with-black-background-free-vector.jpg', alt: 'Huawei' },
+    xiaomi: { logo: '/images/xiaomi-logo.jpg', alt: 'Xiaomi' },
+    oneplus: { logo: '/images/OPPO-LOGO.jpg', alt: 'OnePlus' },
+    motorola: { logo: '/images/motorola-logo.jpg', alt: 'Motorola' },
+    default: { logo: '/images/Phone-Unlocking-Secrets-Unlock-Your-Device-Easily-1.png', alt: 'IMEI Guard' }
+  };
+
+  const pricingOrder = ['apple', 'samsung', 'honor', 'huawei', 'xiaomi', 'oneplus', 'motorola', 'default'];
+  const pricingKeys = Array.from(
+    new Set([
+      ...pricingOrder,
+      ...((typeof pricing !== 'undefined' && pricing) ? Object.keys(pricing) : [])
+    ])
+  );
+  const brandNames = {
+    apple: t('verify.form.brands.apple'),
+    samsung: t('verify.form.brands.samsung'),
+    honor: t('verify.form.brands.honor'),
+    huawei: t('verify.form.brands.huawei'),
+    xiaomi: t('verify.form.brands.xiaomi'),
+    oneplus: t('verify.form.brands.oneplus'),
+    motorola: t('verify.form.brands.motorola'),
+    default: t('home.pricing.default.title')
+  };
+
+  const showcaseItems = [
+    {
+      src: '/images/Phone-Unlocking-Secrets-Unlock-Your-Device-Easily-1.png',
+      alt: t('home.showcase.items.1.alt'),
+      caption: t('home.showcase.items.1.title'),
+      description: t('home.showcase.items.1.description'),
+      label: t('home.showcase.items.1.label')
+    },
+    {
+      src: '/images/How-to-Find-a-Phones-IMEI-Number-A-Step-by-Step-Guide.jpg',
+      alt: t('home.showcase.items.2.alt'),
+      caption: t('home.showcase.items.2.title'),
+      description: t('home.showcase.items.2.description'),
+      label: t('home.showcase.items.2.label')
+    },
+    {
+      src: '/images/android-phone-unlocking-software.jpg',
+      alt: t('home.showcase.items.3.alt'),
+      caption: t('home.showcase.items.3.title'),
+      description: t('home.showcase.items.3.description'),
+      label: t('home.showcase.items.3.label')
+    }
+  ];
+
+  const tabFeatures = [
+    {
+      icon: '🛡️',
+      title: t('home.tabs.security.tab'),
+      heading: t('home.tabs.security.title'),
+      description: t('home.tabs.security.description'),
+      bullets: [
+        t('home.tabs.security.points.1'),
+        t('home.tabs.security.points.2'),
+        t('home.tabs.security.points.3')
+      ],
+      image: '/images/depositphotos_160832748-stock-photo-programming-code-abstract-technology-background.jpg',
+      imageAlt: t('home.tabs.security.imageAlt'),
+      cta: { href: '/verify/imei', label: t('home.tabs.cta') }
+    },
+    {
+      icon: '⚡',
+      title: t('home.tabs.speed.tab'),
+      heading: t('home.tabs.speed.title'),
+      description: t('home.tabs.speed.description'),
+      bullets: [
+        t('home.tabs.speed.points.1'),
+        t('home.tabs.speed.points.2'),
+        t('home.tabs.speed.points.3')
+      ],
+      image: '/images/ios-17-iphone-15-pro-forgot-password-account-locked.png',
+      imageAlt: t('home.tabs.speed.imageAlt'),
+      cta: { href: '/auth/register', label: t('home.tabs.cta') }
+    },
+    {
+      icon: '📊',
+      title: t('home.tabs.analytics.tab'),
+      heading: t('home.tabs.analytics.title'),
+      description: t('home.tabs.analytics.description'),
+      bullets: [
+        t('home.tabs.analytics.points.1'),
+        t('home.tabs.analytics.points.2'),
+        t('home.tabs.analytics.points.3')
+      ],
+      image: '/images/My-Post-copy-25-4-2-1024x559.png',
+      imageAlt: t('home.tabs.analytics.imageAlt'),
+      cta: { href: '/dashboard', label: t('home.tabs.ctaDashboard') }
+    }
+  ];
+
+  const statsHighlights = [
+    { value: '98%', label: t('home.stats.success'), description: t('home.stats.successDetail') },
+    { value: '15+', label: t('home.stats.partners'), description: t('home.stats.partnersDetail') },
+    { value: '100k+', label: t('home.stats.devices'), description: t('home.stats.devicesDetail') },
+    { value: '24/7', label: t('home.stats.support'), description: t('home.stats.supportDetail') }
+  ];
+%>
+
 <div class="hero-section">
   <div class="hero-content">
     <h1 class="hero-title">
@@ -19,6 +126,10 @@
       <% if (!user) { %>
         <a href="/auth/register" class="btn btn-secondary btn-large"><%= t('home.hero.cta.secondary') %></a>
       <% } %>
+    </div>
+    <div class="hero-trust">
+      <span class="hero-trust-eyebrow"><%= t('home.hero.trust.eyebrow') %></span>
+      <p><%= t('home.hero.trust.text') %></p>
     </div>
   </div>
   
@@ -46,6 +157,119 @@
   </div>
 </div>
 
+<%- include('components/media-slider', {
+  id: 'home-showcase',
+  title: t('home.showcase.title'),
+  subtitle: t('home.showcase.subtitle'),
+  items: showcaseItems
+}) %>
+
+<section class="text-rich-section">
+  <div class="text-rich-container">
+    <div class="text-rich-intro">
+      <h2><%= t('home.rich.title') %></h2>
+      <p><%= t('home.rich.paragraph1') %></p>
+      <p><%= t('home.rich.paragraph2') %></p>
+    </div>
+    <div class="text-rich-points">
+      <div class="text-rich-point">
+        <span class="text-rich-icon">✅</span>
+        <div>
+          <h3><%= t('home.rich.points.1.title') %></h3>
+          <p><%= t('home.rich.points.1.text') %></p>
+        </div>
+      </div>
+      <div class="text-rich-point">
+        <span class="text-rich-icon">🧠</span>
+        <div>
+          <h3><%= t('home.rich.points.2.title') %></h3>
+          <p><%= t('home.rich.points.2.text') %></p>
+        </div>
+      </div>
+      <div class="text-rich-point">
+        <span class="text-rich-icon">🌍</span>
+        <div>
+          <h3><%= t('home.rich.points.3.title') %></h3>
+          <p><%= t('home.rich.points.3.text') %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('components/icon-tabs', {
+  id: 'home-tabs',
+  title: t('home.tabs.title'),
+  subtitle: t('home.tabs.subtitle'),
+  items: tabFeatures
+}) %>
+
+<section class="stats-section">
+  <div class="stats-grid">
+    <% statsHighlights.forEach(function(stat) { %>
+      <div class="stat-bubble">
+        <div class="stat-value"><%= stat.value %></div>
+        <div class="stat-label"><%= stat.label %></div>
+        <p class="stat-description"><%= stat.description %></p>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<section class="steps-section">
+  <div class="steps-content">
+    <h2><%= t('home.steps.title') %></h2>
+    <p><%= t('home.steps.subtitle') %></p>
+    <ol class="steps-list">
+      <li>
+        <span class="steps-number">1</span>
+        <div>
+          <h3><%= t('home.steps.items.1.title') %></h3>
+          <p><%= t('home.steps.items.1.text') %></p>
+        </div>
+      </li>
+      <li>
+        <span class="steps-number">2</span>
+        <div>
+          <h3><%= t('home.steps.items.2.title') %></h3>
+          <p><%= t('home.steps.items.2.text') %></p>
+        </div>
+      </li>
+      <li>
+        <span class="steps-number">3</span>
+        <div>
+          <h3><%= t('home.steps.items.3.title') %></h3>
+          <p><%= t('home.steps.items.3.text') %></p>
+        </div>
+      </li>
+    </ol>
+  </div>
+  <div class="steps-media">
+    <img src="/images/How-to-Find-a-Phones-IMEI-Number-A-Step-by-Step-Guide.jpg" alt="<%= t('home.steps.imageAlt') %>" loading="lazy">
+  </div>
+</section>
+
+<%- include('components/cta-banner', {
+  id: 'home-cta',
+  background: '/images/Phone-Unlocking-Secrets-Unlock-Your-Device-Easily-1.png',
+  eyebrow: t('home.cta.eyebrow'),
+  heading: t('home.cta.title'),
+  description: t('home.cta.text'),
+  ctas: [
+    { href: '/verify/imei', label: t('home.cta.primary') },
+    { href: '/dashboard/credits/topup', label: t('home.cta.secondary'), variant: 'secondary' }
+  ]
+}) %>
+
+<section class="seo-section">
+  <div class="seo-content">
+    <h2><%= t('home.seo.title') %></h2>
+    <p><%= t('home.seo.paragraph1') %></p>
+    <p><%= t('home.seo.paragraph2') %></p>
+    <p><%= t('home.seo.paragraph3') %></p>
+  </div>
+</section>
+
 <!-- Pricing Section -->
 <div class="pricing-section">
   <div class="container">
@@ -53,53 +277,27 @@
     <p class="section-subtitle"><%= t('home.pricing.subtitle') %></p>
     
     <div class="pricing-grid">
-      <div class="pricing-card">
-        <div class="pricing-brand">🍎 Apple</div>
-        <div class="pricing-price"><%= pricing.apple.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.apple.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">📱 Samsung</div>
-        <div class="pricing-price"><%= pricing.samsung.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.samsung.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">🏆 Honor</div>
-        <div class="pricing-price"><%= pricing.honor.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.honor.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">🇨🇳 Huawei</div>
-        <div class="pricing-price"><%= pricing.huawei.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.huawei.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">📲 Xiaomi</div>
-        <div class="pricing-price"><%= pricing.xiaomi.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.xiaomi.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">⚡ OnePlus</div>
-        <div class="pricing-price"><%= pricing.oneplus.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.oneplus.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">📶 Motorola</div>
-        <div class="pricing-price"><%= pricing.motorola.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.motorola.desc') %></p>
-      </div>
-      
-      <div class="pricing-card">
-        <div class="pricing-brand">📱 <%= t('home.pricing.default.title') %></div>
-        <div class="pricing-price"><%= pricing.default.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-        <p class="pricing-description"><%= t('home.pricing.default.desc') %></p>
-      </div>
+      <% pricingKeys.forEach(function(key) { 
+           if (typeof pricing[key] === 'undefined') { return; }
+           const priceValue = Number(pricing[key]);
+           if (Number.isNaN(priceValue)) { return; }
+           const asset = brandAssets[key] || brandAssets.default;
+           const label = brandNames[key] || key.charAt(0).toUpperCase() + key.slice(1);
+           const descriptionKey = key === 'default'
+             ? 'home.pricing.default.desc'
+             : `home.pricing.${key}.desc`;
+        %>
+        <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
+          <div class="pricing-brand">
+            <% if (asset && asset.logo) { %>
+              <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
+            <% } %>
+            <span class="pricing-brand-name"><%= key === 'default' ? t('home.pricing.default.title') : label %></span>
+          </div>
+          <div class="pricing-price"><%= priceValue.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+          <p class="pricing-description"><%= t(descriptionKey) %></p>
+        </div>
+      <% }); %>
     </div>
   </div>
 </div>

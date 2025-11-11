@@ -25,15 +25,15 @@
     motorola: t('verify.form.brandDescriptions.motorola'),
     default: t('verify.form.brandDescriptions.default')
   };
-  const brandIcons = {
-    apple: '🍎',
-    samsung: '📱',
-    honor: '🏆',
-    huawei: '🇨🇳',
-    xiaomi: '📲',
-    oneplus: '⚡',
-    motorola: '📶',
-    default: '🌐'
+  const brandAssets = {
+    apple: { logo: '/images/Apple-Logosu.png', alt: t('verify.form.brands.apple') },
+    samsung: { logo: '/images/samsung-brand-logo-phone-symbol-white-design-south-korean-mobile-illustration-with-black-background-free-vector.jpg', alt: t('verify.form.brands.samsung') },
+    honor: { logo: '/images/honor-logo.jpg', alt: t('verify.form.brands.honor') },
+    huawei: { logo: '/images/huawei-logo-brand-phone-symbol-red-with-name-white-design-china-mobile-illustration-with-black-background-free-vector.jpg', alt: t('verify.form.brands.huawei') },
+    xiaomi: { logo: '/images/xiaomi-logo.jpg', alt: t('verify.form.brands.xiaomi') },
+    oneplus: { logo: '/images/OPPO-LOGO.jpg', alt: t('verify.form.brands.oneplus') },
+    motorola: { logo: '/images/motorola-logo.jpg', alt: t('verify.form.brands.motorola') },
+    default: { logo: '/images/Phone-Unlocking-Secrets-Unlock-Your-Device-Easily-1.png', alt: 'IMEI Guard' }
   };
   const formatCredits = (value) => {
     const num = Number(value);
@@ -134,12 +134,20 @@
           <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
           <p class="section-subtitle"><%= t('verify.form.pricing.subtitleAuth') %></p>
           <div class="pricing-grid pricing-grid-compact">
-            <% Object.keys(pricing).forEach(function(key) { %>
-              <div class="pricing-card">
+            <% Object.keys(pricing).forEach(function(key) { 
+                 const priceValue = Number(pricing[key]);
+                 if (Number.isNaN(priceValue)) { return; }
+                 const asset = brandAssets[key] || brandAssets.default;
+                 const label = brandLabels[key] || key;
+               %>
+              <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
                 <div class="pricing-brand">
-                  <%= `${brandIcons[key] || brandIcons.default} ${brandLabels[key] || key}` %>
+                  <% if (asset && asset.logo) { %>
+                    <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
+                  <% } %>
+                  <span class="pricing-brand-name"><%= label %></span>
                 </div>
-                <div class="pricing-price"><%= formatCredits(pricing[key]) %> <span class="pricing-currency"><%= t('common.labels.credits') %></span></div>
+                <div class="pricing-price"><%= formatCredits(priceValue) %> <span class="pricing-currency"><%= t('common.labels.credits') %></span></div>
                 <p class="pricing-description"><%= brandDescriptions[key] || brandDescriptions.default %></p>
               </div>
             <% }); %>
@@ -239,14 +247,22 @@
           <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
           <p class="section-subtitle"><%= t('verify.form.pricing.subtitleGuest') %></p>
           <div class="pricing-grid pricing-grid-compact">
-            <% Object.keys(pricing).forEach(function(key) { %>
-              <div class="pricing-card">
+            <% Object.keys(pricing).forEach(function(key) { 
+                 const priceValue = Number(pricing[key]);
+                 if (Number.isNaN(priceValue)) { return; }
+                 const asset = brandAssets[key] || brandAssets.default;
+                 const label = brandLabels[key] || key;
+               %>
+              <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
                 <div class="pricing-brand">
-                  <%= `${brandIcons[key] || brandIcons.default} ${brandLabels[key] || key}` %>
+                  <% if (asset && asset.logo) { %>
+                    <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
+                  <% } %>
+                  <span class="pricing-brand-name"><%= label %></span>
                 </div>
                 <div class="pricing-price">
-                  <span class="pricing-primary"><%= formatCurrencyAmount(pricing[key]) %> <%= currencyCodeValue %></span>
-                  <span class="pricing-secondary">≈ <%= formatCredits(pricing[key]) %> <%= t('common.labels.credits') %></span>
+                  <span class="pricing-primary"><%= formatCurrencyAmount(priceValue) %> <%= currencyCodeValue %></span>
+                  <span class="pricing-secondary">≈ <%= formatCredits(priceValue) %> <%= t('common.labels.credits') %></span>
                 </div>
                 <p class="pricing-description"><%= brandDescriptions[key] || brandDescriptions.default %></p>
               </div>
@@ -257,6 +273,54 @@
     <% } %>
   </div>
 </div>
+
+<section class="verify-info-section">
+  <div class="verify-info-grid">
+    <div class="verify-info-text">
+      <span class="verify-info-eyebrow"><%= t('verify.info.eyebrow') %></span>
+      <h2><%= t('verify.info.title') %></h2>
+      <p><%= t('verify.info.paragraph1') %></p>
+      <p><%= t('verify.info.paragraph2') %></p>
+      <div class="verify-info-cta">
+        <a href="/auth/register" class="btn btn-primary"><%= t('verify.info.cta.primary') %></a>
+        <a href="/dashboard/orders" class="btn btn-secondary"><%= t('verify.info.cta.secondary') %></a>
+      </div>
+    </div>
+    <div class="verify-info-media">
+      <img src="/images/ios-17-iphone-15-pro-forgot-password-account-locked.png" alt="<%= t('verify.info.imageAlt') %>" loading="lazy">
+      <span class="verify-info-caption"><%= t('verify.info.caption') %></span>
+    </div>
+  </div>
+</section>
+
+<section class="verify-highlight-section">
+  <div class="verify-highlight-grid">
+    <div class="verify-highlight-card">
+      <span class="verify-highlight-icon">🔍</span>
+      <h3><%= t('verify.highlight.points.1.title') %></h3>
+      <p><%= t('verify.highlight.points.1.text') %></p>
+    </div>
+    <div class="verify-highlight-card">
+      <span class="verify-highlight-icon">📄</span>
+      <h3><%= t('verify.highlight.points.2.title') %></h3>
+      <p><%= t('verify.highlight.points.2.text') %></p>
+    </div>
+    <div class="verify-highlight-card">
+      <span class="verify-highlight-icon">🤝</span>
+      <h3><%= t('verify.highlight.points.3.title') %></h3>
+      <p><%= t('verify.highlight.points.3.text') %></p>
+    </div>
+  </div>
+</section>
+
+<section class="verify-seo-section">
+  <div class="verify-seo-content">
+    <h2><%= t('verify.seo.title') %></h2>
+    <p><%= t('verify.seo.paragraph1') %></p>
+    <p><%= t('verify.seo.paragraph2') %></p>
+    <p><%= t('verify.seo.paragraph3') %></p>
+  </div>
+</section>
 
 <script>
   window.serverPricing = <%- JSON.stringify(pricing || {}) %>;

@@ -146,6 +146,76 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Media sliders
+  document.querySelectorAll('[data-slider]').forEach(slider => {
+    let main = slider.querySelector('[data-slider-main]');
+    const thumbs = slider.querySelectorAll('[data-slider-target]');
+    if (!main || !thumbs.length) return;
+
+    const renderSlide = (index) => {
+      const data = thumbs[index].dataset;
+      const figure = document.createElement('figure');
+      figure.className = 'media-slider-main';
+      figure.setAttribute('data-slider-main', '');
+      figure.innerHTML = `
+        <img src="${data.src || ''}" alt="${data.alt || ''}" loading="lazy">
+        ${(data.caption || data.description) ? `
+          <figcaption>
+            ${data.caption ? `<h3>${data.caption}</h3>` : ''}
+            ${data.description ? `<p>${data.description}</p>` : ''}
+          </figcaption>` : ''}
+      `;
+
+      if (main) {
+        main.replaceWith(figure);
+      }
+      main = figure;
+      thumbs.forEach(btn => btn.classList.remove('is-active'));
+      thumbs[index].classList.add('is-active');
+      thumbs[index].setAttribute('aria-current', 'true');
+    };
+
+    thumbs.forEach((thumb, index) => {
+      thumb.addEventListener('click', () => renderSlide(index));
+      if (index === 0) {
+        renderSlide(index);
+      }
+    });
+  });
+
+  // Icon tabs
+  document.querySelectorAll('[data-icon-tabs]').forEach(tabContainer => {
+    const tabs = tabContainer.querySelectorAll('[data-tab-target]');
+    const panels = tabContainer.querySelectorAll('[data-tab-panel]');
+    if (!tabs.length || !panels.length) return;
+
+    const activateTab = (index) => {
+      tabs.forEach((tab, i) => {
+        const isActive = i === index;
+        tab.classList.toggle('is-active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      panels.forEach((panel, i) => {
+        const isActive = i === index;
+        panel.classList.toggle('is-active', isActive);
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+      });
+    };
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => activateTab(index));
+      tab.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault();
+          const direction = event.key === 'ArrowRight' ? 1 : -1;
+          const nextIndex = (index + direction + tabs.length) % tabs.length;
+          tabs[nextIndex].focus();
+          activateTab(nextIndex);
+        }
+      });
+    });
+  });
 });
 
 // Subtle 3D card effects - only on hover (excluding verify-card)

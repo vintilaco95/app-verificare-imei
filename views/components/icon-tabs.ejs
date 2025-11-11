@@ -1,0 +1,69 @@
+<%
+  const tabsId = typeof id !== 'undefined' ? id : `tabs-${Date.now()}`;
+  const tabs = Array.isArray(items) ? items : [];
+  const activeIndex = 0;
+%>
+<div class="icon-tabs" id="<%= tabsId %>" data-icon-tabs>
+  <% if (typeof title !== 'undefined' && title) { %>
+    <div class="icon-tabs-header">
+      <h2 class="section-title"><%= title %></h2>
+      <% if (typeof subtitle !== 'undefined' && subtitle) { %>
+        <p class="section-subtitle"><%= subtitle %></p>
+      <% } %>
+    </div>
+  <% } %>
+  <div class="icon-tabs-wrapper">
+    <div class="icon-tabs-list" role="tablist">
+      <% tabs.forEach(function(tab, index) { %>
+        <button
+          type="button"
+          class="icon-tab <%= index === activeIndex ? 'is-active' : '' %>"
+          role="tab"
+          data-tab-target="<%= index %>"
+          aria-selected="<%= index === activeIndex %>"
+          aria-controls="<%= tabsId %>-panel-<%= index %>">
+          <% if (tab.icon) { %>
+            <span class="icon-tab-icon"><%= tab.icon %></span>
+          <% } %>
+          <span class="icon-tab-label"><%= tab.title || `Tab ${index + 1}` %></span>
+        </button>
+      <% }) %>
+    </div>
+    <div class="icon-tabs-panels">
+      <% tabs.forEach(function(tab, index) { %>
+        <div
+          class="icon-tab-panel <%= index === activeIndex ? 'is-active' : '' %>"
+          id="<%= tabsId %>-panel-<%= index %>"
+          role="tabpanel"
+          data-tab-panel="<%= index %>"
+          aria-hidden="<%= index === activeIndex ? 'false' : 'true' %>">
+          <div class="icon-tab-content">
+            <div class="icon-tab-text">
+              <% if (tab.heading) { %>
+                <h3><%= tab.heading %></h3>
+              <% } %>
+              <% if (tab.description) { %>
+                <p><%= tab.description %></p>
+              <% } %>
+              <% if (Array.isArray(tab.bullets)) { %>
+                <ul>
+                  <% tab.bullets.forEach(function(item) { %>
+                    <li><%= item %></li>
+                  <% }) %>
+                </ul>
+              <% } %>
+              <% if (tab.cta && tab.cta.href && tab.cta.label) { %>
+                <a href="<%= tab.cta.href %>" class="btn btn-primary"><%= tab.cta.label %></a>
+              <% } %>
+            </div>
+            <% if (tab.image) { %>
+              <div class="icon-tab-media">
+                <img src="<%= tab.image %>" alt="<%= tab.imageAlt || (tab.title || '') %>" loading="lazy">
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>

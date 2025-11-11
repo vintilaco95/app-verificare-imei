@@ -1,0 +1,58 @@
+<%
+  const sliderId = typeof id !== 'undefined' ? id : `slider-${Date.now()}`;
+  const sliderItems = Array.isArray(items) ? items : [];
+  const firstItem = sliderItems.length > 0 ? sliderItems[0] : null;
+%>
+<div class="media-slider" id="<%= sliderId %>" data-slider>
+  <div class="media-slider-header">
+    <% if (typeof title !== 'undefined' && title) { %>
+      <h2 class="section-title"><%= title %></h2>
+    <% } %>
+    <% if (typeof subtitle !== 'undefined' && subtitle) { %>
+      <p class="section-subtitle"><%= subtitle %></p>
+    <% } %>
+  </div>
+  <div class="media-slider-body">
+    <figure class="media-slider-main" data-slider-main>
+      <% if (firstItem) { %>
+        <img src="<%= firstItem.src %>" alt="<%= firstItem.alt || '' %>" loading="lazy">
+        <% if (firstItem.caption || firstItem.description) { %>
+          <figcaption>
+            <% if (firstItem.caption) { %>
+              <h3><%= firstItem.caption %></h3>
+            <% } %>
+            <% if (firstItem.description) { %>
+              <p><%= firstItem.description %></p>
+            <% } %>
+          </figcaption>
+        <% } %>
+      <% } else { %>
+        <div class="media-slider-placeholder">No items provided</div>
+      <% } %>
+    </figure>
+    <div class="media-slider-thumbs" data-slider-thumbs>
+      <% sliderItems.forEach(function(item, index) { %>
+        <%
+          const caption = (item.caption || '').replace(/"/g, '&quot;');
+          const description = (item.description || '').replace(/"/g, '&quot;');
+          const altText = (item.alt || '').replace(/"/g, '&quot;');
+          const src = (item.src || '').replace(/"/g, '&quot;');
+        %>
+        <button type="button"
+                class="media-slider-thumb <%= index === 0 ? 'is-active' : '' %>"
+                data-slider-target="<%= index %>"
+                data-src="<%= src %>"
+                data-caption="<%= caption %>"
+                data-description="<%= description %>"
+                data-alt="<%= altText %>"
+                aria-label="<%= item.caption || item.alt || 'Slide' %>"
+                <%= index === 0 ? 'aria-current="true"' : '' %>>
+          <span class="media-slider-thumb-image" style="background-image: url('<%= item.src %>')"></span>
+          <% if (item.label) { %>
+            <span class="media-slider-thumb-label"><%= item.label %></span>
+          <% } %>
+        </button>
+      <% }) %>
+    </div>
+  </div>
+</div>
