@@ -4,6 +4,8 @@ const { DEFAULT_LANGUAGE, normalizeLang } = require('./emailFormatter');
 
 // Configure email transporter (only if credentials are provided)
 let transporter = null;
+const EMAIL_TIMEOUT = parseInt(process.env.EMAIL_TIMEOUT || '12000', 10);
+
 if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
   const emailConfig = {
     host: process.env.EMAIL_HOST || 'zengsm.ro',
@@ -15,7 +17,13 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     },
     tls: {
       rejectUnauthorized: false // Allow self-signed certificates
-    }
+    },
+    connectionTimeout: EMAIL_TIMEOUT,
+    greetingTimeout: EMAIL_TIMEOUT,
+    socketTimeout: EMAIL_TIMEOUT,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 10
   };
   
   transporter = nodemailer.createTransport(emailConfig);
@@ -35,8 +43,12 @@ async function sendMail(options) {
   }
 
   try {
-    await transporter.verify();
-    const info = await transporter.sendMail(options);
+    const sendPromise = transporter.sendMail(options);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Email send timed out')), EMAIL_TIMEOUT);
+    });
+
+    const info = await Promise.race([sendPromise, timeoutPromise]);
     console.log('📧 Email sent successfully:');
     console.log('   Message ID:', info.messageId);
     console.log('   To:', options.to);
