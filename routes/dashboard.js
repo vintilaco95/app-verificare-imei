@@ -6,8 +6,16 @@ const CreditTransaction = require('../models/CreditTransaction');
 const stripeService = require('../services/stripeService');
 const { CREDIT_PACKAGES, MIN_TOPUP_AMOUNT } = require('../config/creditPackages');
 const { processCreditTopupSession } = require('../services/creditTopupService');
+const User = require('../models/User');
 
-router.use(requireAuth);
+const OPEN_ACCESS_PATHS = ['/credits/success', '/credits/cancel'];
+
+router.use((req, res, next) => {
+  if (OPEN_ACCESS_PATHS.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  return requireAuth(req, res, next);
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -212,6 +220,22 @@ router.get('/credits/success', async (req, res) => {
     const session = await stripeService.retrieveCheckoutSession(session_id);
     if (!session || !session.metadata || session.metadata.type !== 'credit_topup') {
       return res.redirect('/dashboard/credits');
+    }
+
+    const metadataUserId = session.metadata.userId;
+
+    if (metadataUserId) {
+      if (!req.session.userId) {
+        req.session.userId = metadataUserId;
+      }
+
+      if (!req.user || req.user._id.toString() !== metadataUserId) {
+        const restoredUser = await User.findById(metadataUserId).select('-password');
+        if (restoredUser) {
+          req.user = restoredUser;
+          res.locals.user = restoredUser;
+        }
+      }
     }
 
     const topupResult = await processCreditTopupSession(session);
