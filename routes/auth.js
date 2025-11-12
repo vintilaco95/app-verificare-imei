@@ -61,20 +61,34 @@ router.get('/register', requireGuest, (req, res) => {
 
 router.post('/register', requireGuest, [
   body('email').isEmail().normalizeEmail(emailNormalizeOptions),
-  body('password').isLength({ min: 6 })
+  body('password').isLength({ min: 6 }),
+  body('passwordConfirm').custom((value, { req }) => {
+    if (!value || value !== req.body.password) {
+      throw new Error('PASSWORD_MISMATCH');
+    }
+    return true;
+  })
 ], async (req, res) => {
   const errors = validationResult(req);
+  const formData = { email: req.body.email || '' };
+  const t = getTranslator(res);
   if (!errors.isEmpty()) {
+    const formattedErrors = errors.array().map((err) => {
+      if (err.msg === 'PASSWORD_MISMATCH') {
+        return { msg: t('auth.register.errors.passwordMismatch') };
+      }
+      return err;
+    });
     return res.render('auth/register', {
       title: 'Înregistrare',
-      errors: errors.array(),
-      user: null
+      errors: formattedErrors,
+      user: null,
+      formData
     });
   }
 
   try {
     const { email, password } = req.body;
-    const t = getTranslator(res);
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -97,7 +111,8 @@ router.post('/register', requireGuest, [
       return res.render('auth/register', {
         title: 'Înregistrare',
         errors: [{ msg: t('auth.register.errors.emailExists') || 'Email-ul este deja înregistrat' }],
-        user: null
+        user: null,
+        formData
       });
     }
 
@@ -131,7 +146,8 @@ router.post('/register', requireGuest, [
     return res.render('auth/register', {
       title: 'Înregistrare',
       errors: [{ msg: 'Eroare la înregistrare. Încearcă din nou.' }],
-      user: null
+      user: null,
+      formData
     });
   }
 });
@@ -161,7 +177,7 @@ router.post('/login', requireGuest, [
   try {
     const { email, password } = req.body;
     const t = getTranslator(res);
-    
+
     const user = await User.findOne({ email });
     if (!user) {
       console.warn(`[AUTH] Failed login attempt for unknown email: ${email}`);
@@ -180,7 +196,7 @@ router.post('/login', requireGuest, [
         user: null
       });
     }
-    
+
     if (!user.isVerified) {
       console.warn(`[AUTH] Unverified user login attempt: ${email}`);
       const emailResult = await sendVerificationCodeForExistingUser(user, res);
@@ -190,7 +206,7 @@ router.post('/login', requireGuest, [
         success: emailResult.success ? t('auth.verifyCode.success.resent') : null
       });
     }
-    
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       console.warn(`[AUTH] Failed login attempt for email: ${email}`);
@@ -200,7 +216,7 @@ router.post('/login', requireGuest, [
         user: null
       });
     }
-    
+
     req.session.userId = user._id;
     return res.redirect('/dashboard');
   } catch (error) {
@@ -253,11 +269,12 @@ router.post('/verify-code', requireGuest, [
     }
 
     if (user.isVerified) {
-      return res.render('auth/login', {
-        title: t('auth.login.pageTitle'),
-        success: t('auth.verifyCode.success.alreadyVerified'),
-        errors: null,
-        user: null
+      req.session.userId = user._id;
+      return req.session.save((err) => {
+        if (err) {
+          console.error('Session save error after existing verification:', err);
+        }
+        return res.redirect('/dashboard');
       });
     }
 
@@ -297,11 +314,12 @@ router.post('/verify-code', requireGuest, [
     user.verifiedAt = new Date();
     await user.save();
 
-    return res.render('auth/login', {
-      title: t('auth.login.pageTitle'),
-      success: t('auth.verifyCode.success.verified'),
-      errors: null,
-      user: null
+    req.session.userId = user._id;
+    return req.session.save((err) => {
+      if (err) {
+        console.error('Session save error after verification:', err);
+      }
+      return res.redirect('/dashboard');
     });
   } catch (error) {
     console.error('Verify code error:', error);
