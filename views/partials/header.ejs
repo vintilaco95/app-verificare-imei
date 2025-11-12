@@ -24,20 +24,11 @@
     : (typeof locals !== 'undefined' && typeof locals.switchLangLabel !== 'undefined'
       ? locals.switchLangLabel
       : currentLangLabelValue);
-  const currentHostValue = typeof currentHost !== 'undefined'
-    ? currentHost
-    : (typeof locals !== 'undefined' && typeof locals.currentHost !== 'undefined'
-      ? locals.currentHost
-      : '');
-  const requestedPathValue = typeof requestedPath !== 'undefined'
-    ? requestedPath
-    : (typeof locals !== 'undefined' && typeof locals.requestedPath !== 'undefined'
-      ? locals.requestedPath
-      : '/');
-  const domainByLang = { ro: 'https://imeiguard.ro', en: 'https://imeiguard.com' };
-  const targetLangValue = currentLangValue === 'ro' ? 'en' : 'ro';
-  const targetDomainValue = domainByLang[targetLangValue] || domainByLang.ro;
-  const langToggleUrl = `${targetDomainValue}${requestedPathValue}`;
+  const langToggleValue = typeof langTogglePath !== 'undefined'
+    ? langTogglePath
+    : (typeof locals !== 'undefined' && typeof locals.langTogglePath !== 'undefined'
+      ? locals.langTogglePath
+      : `?lang=${switchLangValue}`);
 %>
 <!DOCTYPE html>
 <html lang="<%= currentLangValue %>">
@@ -71,7 +62,7 @@
         <span></span>
       </button>
       <div class="nav-mobile-meta">
-        <a href="<%= langToggleUrl %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
+        <a href="<%= langToggleValue %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
           <span class="sr-only"><%= tFn('nav.language.toggleLabel') %></span>
           <span class="lang-toggle" aria-hidden="true">
             <span class="lang-flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>
@@ -107,7 +98,7 @@
           <a href="/auth/login" class="nav-link nav-link-ghost"><%= tFn('nav.login') %></a>
           <a href="/auth/register" class="nav-link nav-link-primary"><%= tFn('nav.register') %></a>
         <% } %>
-        <a href="<%= langToggleUrl %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
+        <a href="<%= langToggleValue %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
           <span class="sr-only"><%= tFn('nav.language.toggleLabel') %></span>
           <span class="lang-toggle" aria-hidden="true">
             <span class="lang-flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>

@@ -51,10 +51,12 @@ app.use(session({
 app.use((req, res, next) => {
   const host = (req.hostname || '').toLowerCase();
   const url = new URL(req.originalUrl || '/', `http://${host || 'localhost'}`);
+  const originalSearchParams = new URLSearchParams(url.searchParams);
 
-  // remove explicit lang param from toggle URLs
+  // remove explicit lang param from toggle/base URLs
   url.searchParams.delete('lang');
-  const cleanedPath = `${url.pathname}${url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''}`;
+  const sanitizedSearch = url.searchParams.toString();
+  const sanitizedPath = `${url.pathname}${sanitizedSearch ? `?${sanitizedSearch}` : ''}`;
 
   let lang = defaultLang;
 
@@ -75,13 +77,23 @@ app.use((req, res, next) => {
     req.session.lang = lang;
   }
 
+  const switchLang = lang === 'ro' ? 'en' : 'ro';
+  const toggleSearchParams = new URLSearchParams(url.searchParams);
+  toggleSearchParams.set('lang', switchLang);
+  const togglePath = `${url.pathname}?${toggleSearchParams.toString()}`;
+
+  if (originalSearchParams.get('lang') && originalSearchParams.get('lang') !== lang) {
+    originalSearchParams.set('lang', lang);
+  }
+
   res.locals.currentHost = host;
-  res.locals.requestedPath = cleanedPath || '/';
+  res.locals.requestedPath = sanitizedPath || '/';
   res.locals.currentLang = lang;
   res.locals.currentLangLabel = getTranslation(lang, 'nav.language.current');
   res.locals.t = (key) => getTranslation(lang, key);
-  res.locals.switchLang = lang === 'ro' ? 'en' : 'ro';
-  res.locals.switchLangLabel = getTranslation(lang === 'ro' ? 'en' : 'ro', 'nav.language.current');
+  res.locals.switchLang = switchLang;
+  res.locals.switchLangLabel = getTranslation(switchLang, 'nav.language.current');
+  res.locals.langTogglePath = togglePath;
   next();
 });
 
