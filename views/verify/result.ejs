@@ -700,7 +700,7 @@
             window.__FANE_BOT__.language = '<%= lang %>';
             window.__FANE_BOT__.currentVerification = <%- JSON.stringify({
               orderId: order && order._id ? order._id.toString() : null,
-              externalOrderId: orderData && orderData.orderId ? orderData.orderId : null,
+              externalOrderId: typeof orderData !== 'undefined' && orderData && orderData.orderId ? orderData.orderId : null,
               imei,
               imei2,
               brand: order && order.brand ? order.brand : brand,
@@ -710,10 +710,10 @@
               riskScoreMax: riskScoreMaxValue,
               riskLabel,
               summaryLabel,
-              price: typeof orderData.price !== 'undefined' ? orderData.price : null,
-              currency: orderData && orderData.currency ? orderData.currency : null,
-              language: orderData && orderData.language ? orderData.language : lang,
-              createdAt: orderData && orderData.createdAt ? new Date(orderData.createdAt).toISOString() : null,
+              price: typeof orderData !== 'undefined' && orderData && typeof orderData.price !== 'undefined' ? orderData.price : null,
+              currency: typeof orderData !== 'undefined' && orderData && orderData.currency ? orderData.currency : null,
+              language: typeof orderData !== 'undefined' && orderData && orderData.language ? orderData.language : lang,
+              createdAt: typeof orderData !== 'undefined' && orderData && orderData.createdAt ? new Date(orderData.createdAt).toISOString() : null,
               statuses: {
                 iCloud: iCloudData ? localizedText(iCloudData) : null,
                 blacklist: blacklistData ? localizedText(blacklistData) : null,
@@ -725,9 +725,9 @@
                 origin: originData ? localizedText(originData) : null
               },
               fullReport: reportData || null,
-              rawResult: orderData && orderData.result ? orderData.result : null,
+              rawResult: typeof orderData !== 'undefined' && orderData && orderData.result ? orderData.result : null,
               appleMdmCheck: appleMdmData,
-              orderStatus: orderData && orderData.status ? orderData.status : null
+              orderStatus: typeof orderData !== 'undefined' && orderData && orderData.status ? orderData.status : null
             }) %>;
           } catch (err) {
             console.warn('FANE BOT context error:', err);

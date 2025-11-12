@@ -74,15 +74,6 @@ app.use((req, res, next) => {
 const { attachUser } = require('./middleware/auth');
 app.use(attachUser);
 
-// Rate limiting
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: 'Prea multe încercări de autentificare. Încearcă din nou mai târziu.'
-});
-
 const verifyLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -91,8 +82,6 @@ const verifyLimiter = rateLimit({
   message: 'Prea multe solicitări. Încearcă din nou în câteva momente.'
 });
 
-app.use('/auth/login', authLimiter);
-app.use('/auth/register', authLimiter);
 app.use('/verify/imei', verifyLimiter);
 app.use('/verify/imei/guest', verifyLimiter);
 app.use('/verify/imei/check', verifyLimiter);
