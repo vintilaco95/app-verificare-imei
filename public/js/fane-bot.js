@@ -237,6 +237,17 @@ const FaneBot = (() => {
     toggleWindow(false);
   });
   formEl?.addEventListener('submit', handleSubmit);
+  inputEl?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      const value = inputEl.value.trim();
+      if (!value || state.isSending) {
+        return;
+      }
+      inputEl.value = '';
+      sendMessage(value);
+    }
+  });
 
   (async () => {
     await resetSession();

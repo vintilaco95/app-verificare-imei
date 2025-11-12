@@ -405,7 +405,8 @@ router.get('/processing/:orderId', async (req, res) => {
     }
     
     // Check access
-    if (order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
+    const isAdmin = req.user && req.user.isAdmin;
+    if (!isAdmin && order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
       return res.status(403).render('error', { 
         error: 'Nu ai acces la această verificare',
         user: req.user || null
@@ -452,7 +453,8 @@ router.get('/status/:orderId', async (req, res) => {
     }
     
     // Check access
-    if (order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
+    const isAdmin = req.user && req.user.isAdmin;
+    if (!isAdmin && order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
       return res.status(403).json({ error: 'Access denied' });
     }
     
@@ -481,7 +483,8 @@ router.get('/result/:orderId', async (req, res) => {
       return res.redirect(`/verify/processing/${order._id}`);
     }
 
-    if (order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
+    const isAdmin = req.user && req.user.isAdmin;
+    if (!isAdmin && order.userId && req.session.userId && order.userId.toString() !== req.session.userId.toString()) {
       return res.status(403).render('error', {
         error: 'Nu ai acces la acest rezultat',
         user: req.user || null

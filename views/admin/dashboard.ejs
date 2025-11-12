@@ -35,12 +35,16 @@
     <article class="admin-stat-card">
       <span class="admin-stat-card__label">Verificări finalizate</span>
       <strong class="admin-stat-card__value"><%= stats.completedVerifications || 0 %></strong>
-      <span class="admin-stat-card__meta"><%= stats.totalVerifications || 0 %> total efectuate</span>
+      <span class="admin-stat-card__meta">
+        Logați: <%= stats.completedLogged || 0 %> &nbsp;|&nbsp; OTP: <%= stats.completedGuest || 0 %>
+      </span>
     </article>
     <article class="admin-stat-card">
       <span class="admin-stat-card__label">Verificări azi</span>
       <strong class="admin-stat-card__value"><%= stats.todaysVerifications || 0 %></strong>
-      <span class="admin-stat-card__meta">Ultimele 24h</span>
+      <span class="admin-stat-card__meta">
+        Logați: <%= stats.todaysLogged || 0 %> &nbsp;|&nbsp; OTP: <%= stats.todaysGuest || 0 %>
+      </span>
     </article>
     <article class="admin-stat-card">
       <span class="admin-stat-card__label">Credite consumate</span>
@@ -73,23 +77,23 @@
             <% if (users && users.length) { %>
               <% users.forEach(function(u) { %>
                 <tr>
-                  <td>
+                  <td data-label="Email">
                     <div class="admin-user-email"><%= u.email %></div>
                     <div class="admin-user-meta">
                       <% if (u.isAdmin) { %><span class="badge badge-info">Admin</span><% } %>
                       <% if (u.isBanned) { %><span class="badge badge-error">Banat</span><% } %>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Rol">
                     <% if (u.isSelf) { %>
                       <span class="badge">Contul tău</span>
                     <% } else { %>
                       <span class="badge"><%= u.isAdmin ? 'Administrator' : 'Utilizator' %></span>
                     <% } %>
                   </td>
-                  <td><%= Number(u.credits || 0).toFixed(2) %></td>
-                  <td><%= u.createdAt ? u.createdAt.toLocaleDateString() : '—' %></td>
-                  <td class="admin-table__actions">
+                  <td data-label="Credite"><%= Number(u.credits || 0).toFixed(2) %></td>
+                  <td data-label="Creat la"><%= u.createdAt ? u.createdAt.toLocaleDateString() : '—' %></td>
+                  <td data-label="Acțiuni" class="admin-table__actions">
                     <button
                       type="button"
                       class="btn btn-sm btn-secondary admin-user-trigger"
@@ -154,30 +158,57 @@
           </thead>
           <tbody>
             <% if (verifications && verifications.length) { %>
-              <% verifications.forEach(function(order) { %>
-                <tr>
-                  <td>#<%= order.orderId || '—' %></td>
-                  <td><%= order.createdAt ? order.createdAt.toLocaleString() : '—' %></td>
-                  <td>
-                    <span class="admin-verification-email"><%= order.displayEmail %></span>
+              <% verifications.forEach(function(order, index) { 
+                   const hideRow = !searchQuery && index >= 5;
+                %>
+                <tr class="admin-verification-row <%= hideRow ? 'admin-verification-row--hidden' : '' %>" <%= hideRow ? 'data-admin-verification-row="hidden"' : '' %>>
+                  <td data-label="ID">
+                    <a
+                      href="/verify/result/<%= order.id %>"
+                      class="admin-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Deschide rezultatul verificării">
+                      #<%= order.orderId || order.id %>
+                    </a>
                   </td>
-                  <td><%= order.brand || '—' %></td>
-                  <td><%= order.imei || '—' %></td>
-                  <td><span class="badge badge-status-<%= order.status %>"><%= order.status %></span></td>
-                  <td class="admin-table__actions">
+                  <td data-label="Data"><%= order.createdAt ? order.createdAt.toLocaleString() : '—' %></td>
+                  <td data-label="Utilizator">
+                    <span class="admin-verification-email"><%= order.displayEmail %></span>
+                    <% if (order.userLabel && order.userLabel !== order.displayEmail) { %>
+                      <span class="admin-verification-user"><%= order.userLabel %></span>
+                    <% } %>
+                  </td>
+                  <td data-label="Brand"><%= order.brand || '—' %></td>
+                  <td data-label="IMEI"><%= order.imei || '—' %></td>
+                  <td data-label="Status"><span class="badge badge-status-<%= order.status %>"><%= order.status %></span></td>
+                  <td data-label="Acțiuni" class="admin-table__actions">
                     <% if (order.userId) { %>
-                      <button
-                        type="button"
-                        class="btn btn-xs btn-outline admin-user-trigger"
-                        data-admin-user="<%= order.userId %>">
-                        Utilizator
-                      </button>
+                      <div class="admin-table__actions-user">
+                        <span class="admin-table__meta admin-table__meta--user"><%= order.userLabel %></span>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-outline admin-user-trigger"
+                          data-admin-user="<%= order.userId %>"
+                          title="Gestionează <%= order.userLabel %>">
+                          Gestionează
+                        </button>
+                      </div>
                     <% } else { %>
                       <span class="admin-table__meta">Guest</span>
                     <% } %>
                   </td>
                 </tr>
               <% }) %>
+              <% if (!searchQuery && verifications.length > 5) { %>
+                <tr class="admin-table__footer">
+                  <td colspan="7">
+                    <button type="button" class="btn btn-sm btn-secondary" data-admin-verifications-show-all>
+                      Vezi toate (<%= verifications.length %>)
+                    </button>
+                  </td>
+                </tr>
+              <% } %>
             <% } else { %>
               <tr>
                 <td colspan="7" class="admin-table__empty">
@@ -332,6 +363,7 @@
     const overlayElements = modal.querySelectorAll('[data-admin-modal-close]');
     const triggers = document.querySelectorAll('.admin-user-trigger');
     const clearSearchBtn = document.querySelector('[data-admin-clear-search]');
+    const showAllBtn = document.querySelector('[data-admin-verifications-show-all]');
 
     const roleBadge = modal.querySelector('[data-admin-user-role]');
     const metaEl = modal.querySelector('[data-admin-user-meta]');
@@ -510,6 +542,19 @@
         const input = clearSearchBtn.closest('.admin-search-bar').querySelector('input[type="search"]');
         input.value = '';
         input.focus();
+      });
+    }
+
+    if (showAllBtn) {
+      showAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('[data-admin-verification-row="hidden"]').forEach((row) => {
+          row.classList.remove('admin-verification-row--hidden');
+          row.removeAttribute('data-admin-verification-row');
+        });
+        const footerRow = showAllBtn.closest('.admin-table__footer');
+        if (footerRow) {
+          footerRow.remove();
+        }
       });
     }
   })();

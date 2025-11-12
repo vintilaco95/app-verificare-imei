@@ -10,10 +10,8 @@ const PhoneBackground = (() => {
   let width = 0;
   let height = 0;
   let dpr = window.devicePixelRatio || 1;
-  let lastTime = performance.now();
 
   const randomBetween = (min, max) => min + Math.random() * (max - min);
-  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
   function configureCanvas() {
     width = window.innerWidth;
@@ -42,50 +40,15 @@ const PhoneBackground = (() => {
         hue,
         saturation,
         brightness,
-        driftX: randomBetween(-0.05, 0.05),
-        driftY: randomBetween(-0.04, 0.04),
         pulseOffset: Math.random() * Math.PI * 2,
-        pulseSpeed: randomBetween(0.00025, 0.0005),
-        baseScale: randomBetween(0.9, 1.15),
-        scale: 1,
-        targetScale: 1,
-        alpha: randomBetween(0.25, 0.42),
-        targetAlpha: randomBetween(0.3, 0.45),
-        responsiveness: randomBetween(0.55, 1.15)
+        scale: randomBetween(0.9, 1.15),
+        alpha: randomBetween(0.28, 0.4)
       });
     }
   }
 
-  function resize() {
-    configureCanvas();
-    initGlows();
-  }
-
-  function wrapGlow(glow) {
-    const buffer = glow.baseRadius * 1.5;
-    if (glow.x < -buffer) glow.x = width + buffer;
-    if (glow.x > width + buffer) glow.x = -buffer;
-    if (glow.y < -buffer) glow.y = height + buffer;
-    if (glow.y > height + buffer) glow.y = -buffer;
-  }
-
-  function updateGlow(glow, deltaFactor) {
-    glow.pulseOffset += glow.pulseSpeed * deltaFactor * 16;
-
-    glow.scale += (glow.targetScale - glow.scale) * 0.045 * deltaFactor;
-    glow.alpha += (glow.targetAlpha - glow.alpha) * 0.04 * deltaFactor;
-
-    glow.driftX *= 0.998;
-    glow.driftY *= 0.998;
-
-    glow.x += glow.driftX * deltaFactor * 4;
-    glow.y += glow.driftY * deltaFactor * 4;
-
-    wrapGlow(glow);
-  }
-
   function renderGlow(glow) {
-    const pulse = 0.85 + Math.sin(glow.pulseOffset) * 0.08;
+    const pulse = 0.92 + Math.sin(glow.pulseOffset) * 0.04;
     const radius = glow.baseRadius * glow.scale * pulse;
 
     const gradient = ctx.createRadialGradient(glow.x, glow.y, radius * 0.18, glow.x, glow.y, radius);
@@ -99,32 +62,27 @@ const PhoneBackground = (() => {
     ctx.fill();
   }
 
-  function draw(frameTime) {
-    const deltaTime = Math.min(100, frameTime - lastTime);
-    lastTime = frameTime;
-    const deltaFactor = deltaTime / 16.6667;
-
+  function renderScene() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
     ctx.globalCompositeOperation = 'screen';
 
-    glows.forEach((glow) => {
-      updateGlow(glow, deltaFactor);
-      renderGlow(glow);
-    });
+    glows.forEach((glow) => renderGlow(glow));
 
     ctx.globalCompositeOperation = 'source-over';
-
-    requestAnimationFrame(draw);
   }
 
-  resize();
-  window.addEventListener('resize', resize, { passive: true });
+  function refresh() {
+    configureCanvas();
+    initGlows();
+    renderScene();
+  }
 
-  requestAnimationFrame(draw);
+  refresh();
+  window.addEventListener('resize', refresh, { passive: true });
 
   return {
-    refresh: resize
+    refresh
   };
 })();

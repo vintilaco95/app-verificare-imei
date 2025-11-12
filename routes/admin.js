@@ -62,6 +62,8 @@ router.get('/', async (req, res) => {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
+    const guestMatch = [{ userId: null }, { userId: { $exists: false } }];
+
     const [
       pricingConfig,
       usersRaw,
@@ -72,7 +74,11 @@ router.get('/', async (req, res) => {
       completedVerifications,
       todaysVerifications,
       creditUsageAgg,
-      totalOrdersMatching
+      totalOrdersMatching,
+      completedLogged,
+      completedGuest,
+      todaysLogged,
+      todaysGuest
     ] = await Promise.all([
       pricingService.getPricingConfig(),
       User.find({}).sort({ createdAt: -1 }).lean(),
@@ -90,7 +96,17 @@ router.get('/', async (req, res) => {
         { $match: { type: 'usage' } },
         { $group: { _id: null, totalUsage: { $sum: '$amount' } } }
       ]),
-      searchQuery ? Order.countDocuments(orderFilter) : null
+      searchQuery ? Order.countDocuments(orderFilter) : null,
+      Order.countDocuments({ status: 'success', userId: { $ne: null } }),
+      Order.countDocuments({
+        status: 'success',
+        $or: guestMatch
+      }),
+      Order.countDocuments({ createdAt: { $gte: startOfDay }, userId: { $ne: null } }),
+      Order.countDocuments({
+        createdAt: { $gte: startOfDay },
+        $or: guestMatch
+      })
     ]);
 
     const currentUserId = req.user ? req.user._id.toString() : '';
@@ -112,7 +128,8 @@ router.get('/', async (req, res) => {
         createdAt: order.createdAt ? new Date(order.createdAt) : null,
         userId: populatedUser && populatedUser._id ? populatedUser._id.toString() : order.userId ? order.userId.toString() : null,
         userEmail: populatedUser ? populatedUser.email : null,
-        displayEmail: order.email || (populatedUser ? populatedUser.email : 'Guest')
+        displayEmail: order.email || (populatedUser ? populatedUser.email : 'Guest'),
+        userLabel: populatedUser ? (populatedUser.email || 'Utilizator') : (order.email || 'Guest')
       };
     });
 
@@ -123,7 +140,11 @@ router.get('/', async (req, res) => {
       totalVerifications,
       completedVerifications,
       todaysVerifications,
-      totalCreditsSpent
+      totalCreditsSpent,
+      completedLogged,
+      completedGuest,
+      todaysLogged,
+      todaysGuest
     };
 
     res.render('admin/dashboard', {

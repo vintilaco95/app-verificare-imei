@@ -49,10 +49,21 @@ app.use(session({
 }));
 
 app.use((req, res, next) => {
+  const host = (req.hostname || '').toLowerCase();
+  const url = new URL(req.originalUrl || '/', `http://${host || 'localhost'}`);
+
+  // remove explicit lang param from toggle URLs
+  url.searchParams.delete('lang');
+  const cleanedPath = `${url.pathname}${url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''}`;
+
   let lang = defaultLang;
 
   if (req.session && req.session.lang && supportedLangs.includes(req.session.lang)) {
     lang = req.session.lang;
+  } else if (host.endsWith('imeiguard.com')) {
+    lang = 'en';
+  } else if (host.endsWith('imeiguard.ro')) {
+    lang = 'ro';
   }
 
   if (req.query.lang && supportedLangs.includes(req.query.lang)) {
@@ -60,8 +71,12 @@ app.use((req, res, next) => {
     if (req.session) {
       req.session.lang = lang;
     }
+  } else if (req.session && !req.session.lang) {
+    req.session.lang = lang;
   }
 
+  res.locals.currentHost = host;
+  res.locals.requestedPath = cleanedPath || '/';
   res.locals.currentLang = lang;
   res.locals.currentLangLabel = getTranslation(lang, 'nav.language.current');
   res.locals.t = (key) => getTranslation(lang, key);
