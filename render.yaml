@@ -36,6 +36,14 @@ services:
         sync: false  # Adresă de reply/expeditor
       - key: EMAIL_TIMEOUT
         value: "12000"
+      - key: OPENAI_API_KEY
+        sync: false  # Cheia API OpenAI
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: FANE_BOT_PREVIOUS_LIMIT
+        value: "5"
+      - key: FANE_BOT_DB_LIMIT
+        value: "20"
       - key: BASE_URL
         fromService:
           type: web
@@ -84,6 +92,14 @@ services:
         sync: false  # Setează manual (același ca pentru web service)
       - key: EMAIL_TIMEOUT
         value: "12000"
+      - key: OPENAI_API_KEY
+        sync: false  # același ca pentru web service
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: FANE_BOT_PREVIOUS_LIMIT
+        value: "5"
+      - key: FANE_BOT_DB_LIMIT
+        value: "20"
       - key: BASE_URL
         fromService:
           type: web

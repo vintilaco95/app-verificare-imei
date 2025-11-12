@@ -10,9 +10,7 @@ const PhoneBackground = (() => {
   let width = 0;
   let height = 0;
   let dpr = window.devicePixelRatio || 1;
-  let lastScrollY = window.scrollY || 0;
   let lastTime = performance.now();
-  let scrollEnergy = 0;
 
   const randomBetween = (min, max) => min + Math.random() * (max - min);
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -71,26 +69,6 @@ const PhoneBackground = (() => {
     if (glow.y > height + buffer) glow.y = -buffer;
   }
 
-  function handleScroll() {
-    const currentY = window.scrollY || 0;
-    const delta = currentY - lastScrollY;
-    if (delta !== 0) {
-      const impulse = clamp(delta / 260, -0.85, 0.85);
-      scrollEnergy = clamp(scrollEnergy + impulse * 0.42, -1, 1);
-
-      glows.forEach((glow) => {
-        const direction = Math.sign(impulse) || 1;
-        const energy = Math.abs(scrollEnergy) * glow.responsiveness;
-        glow.targetScale = clamp(glow.baseScale + direction * energy * 0.22, glow.baseScale * 0.75, glow.baseScale * 1.4);
-        glow.targetAlpha = clamp(0.24 + energy * 0.1, 0.2, 0.5);
-        glow.driftX += direction * 0.012 * glow.responsiveness;
-        glow.driftY -= direction * 0.008 * glow.responsiveness;
-      });
-
-      lastScrollY = currentY;
-    }
-  }
-
   function updateGlow(glow, deltaFactor) {
     glow.pulseOffset += glow.pulseSpeed * deltaFactor * 16;
 
@@ -126,8 +104,6 @@ const PhoneBackground = (() => {
     lastTime = frameTime;
     const deltaFactor = deltaTime / 16.6667;
 
-    scrollEnergy *= 0.975;
-
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
@@ -145,7 +121,6 @@ const PhoneBackground = (() => {
 
   resize();
   window.addEventListener('resize', resize, { passive: true });
-  window.addEventListener('scroll', handleScroll, { passive: true });
 
   requestAnimationFrame(draw);
 

@@ -108,15 +108,33 @@
   </div>
 </div>
 
-<div class="footer-whatsapp" aria-label="<%= tFn('footer.whatsapp.tooltip') %>">
-  <a href="https://wa.me/<%= whatsappNumber %>" class="footer-whatsapp-link" rel="noopener" target="_blank">
-    <span class="footer-whatsapp-icon" aria-hidden="true">💬</span>
-    <span class="sr-only"><%= tFn('footer.whatsapp.label') %></span>
-    <span class="footer-whatsapp-badge" aria-hidden="true">!</span>
-  </a>
+<div class="fane-bot" id="fane-bot" aria-live="polite">
+  <button type="button" class="fane-bot-toggle" id="fane-bot-toggle" aria-expanded="false" aria-controls="fane-bot-window">
+    <span class="fane-bot-avatar" aria-hidden="true"></span>
+    <span class="fane-bot-toggle-label">FANE BOT</span>
+  </button>
+  <div class="fane-bot-window" id="fane-bot-window" hidden>
+    <header class="fane-bot-header">
+      <div class="fane-bot-header-info">
+        <span class="fane-bot-name">FANE BOT</span>
+        <span class="fane-bot-role">Expert GSM &amp; Reparații</span>
+      </div>
+      <button type="button" class="fane-bot-close" id="fane-bot-close" aria-label="Închide chatul">
+        ✕
+      </button>
+    </header>
+    <div class="fane-bot-messages" id="fane-bot-messages" role="log"></div>
+    <div class="fane-bot-status" id="fane-bot-status" hidden></div>
+    <form class="fane-bot-form" id="fane-bot-form" novalidate>
+      <label class="sr-only" for="fane-bot-input">Mesaj către FANE</label>
+      <textarea id="fane-bot-input" class="fane-bot-input" rows="2" placeholder="Întreabă-l pe FANE despre telefon..." required></textarea>
+      <button type="submit" class="fane-bot-send" id="fane-bot-send">Trimite</button>
+    </form>
+  </div>
 </div>
 
 <script src="/js/main.js"></script>
 <script src="/js/phone-background.js"></script>
+<script src="/js/fane-bot.js" defer></script>
 </body>
 </html>

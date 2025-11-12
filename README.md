@@ -158,6 +158,10 @@ Aplicația necesită următoarele variabile de mediu:
 | `EMAILJS_TEMPLATE_RESULT` | Template EmailJS pentru rezultatul verificării | `template_result` |
 | `EMAIL_FROM` | Email expeditor/reply-to | `support@domeniu.ro` |
 | `EMAIL_TIMEOUT` | Timeout request EmailJS (ms) | `12000` |
+| `OPENAI_API_KEY` | Cheie API OpenAI pentru FANE BOT | `sk-...` |
+| `OPENAI_MODEL` | Model OpenAI folosit | `gpt-4o-mini` (implicit) |
+| `FANE_BOT_PREVIOUS_LIMIT` | Numărul de verificări anterioare trimise către bot | `5` |
+| `FANE_BOT_DB_LIMIT` | Numărul maxim de mesaje salvate în istoricul FANE | `20` |
 | `BASE_URL` | URL-ul aplicației | `https://your-app.onrender.com` |
 | `STRIPE_SECRET_KEY` | Stripe Secret Key | `sk_test_...` sau `sk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Webhook Secret | `whsec_...` |

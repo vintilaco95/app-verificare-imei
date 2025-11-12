@@ -1,6 +1,7 @@
 <% const isEmailView = typeof isEmail !== 'undefined' && isEmail; %>
 <%
-  const lang = typeof currentLang !== 'undefined' ? currentLang : (typeof templateData !== 'undefined' && templateData.currentLang ? templateData.currentLang : 'ro');
+  const tplData = (typeof templateData !== 'undefined' && templateData) || (typeof globals !== 'undefined' && globals.templateData) || {};
+  const lang = typeof currentLang !== 'undefined' ? currentLang : (tplData.currentLang ? tplData.currentLang : 'ro');
   const tt = (key) => typeof t === 'function' ? t(key) : key;
   const localizedText = (entry) => {
     if (!entry) return '';
@@ -12,16 +13,24 @@
   const summaryLabel = (typeof summaryTexts !== 'undefined' && summaryTexts && summaryTexts[lang]) ? summaryTexts[lang] : (summaryText || '');
   const appleMdmData = typeof appleMdm !== 'undefined'
     ? appleMdm
-    : (typeof templateData !== 'undefined' && typeof templateData.appleMdm !== 'undefined' ? templateData.appleMdm : null);
+    : (tplData.appleMdm ? tplData.appleMdm : null);
   const showAppleMdmButtonFlag = typeof showAppleMdmButton !== 'undefined'
     ? showAppleMdmButton
-    : (typeof templateData !== 'undefined' && typeof templateData.showAppleMdmButton !== 'undefined' ? templateData.showAppleMdmButton : false);
+    : (typeof tplData.showAppleMdmButton !== 'undefined' ? tplData.showAppleMdmButton : false);
   const appleMdmButtonDisabledFlag = typeof appleMdmButtonDisabled !== 'undefined'
     ? appleMdmButtonDisabled
-    : (typeof templateData !== 'undefined' && typeof templateData.appleMdmButtonDisabled !== 'undefined' ? templateData.appleMdmButtonDisabled : false);
+    : (typeof tplData.appleMdmButtonDisabled !== 'undefined' ? tplData.appleMdmButtonDisabled : false);
   const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
     ? riskScoreMax
-    : (typeof templateData !== 'undefined' && typeof templateData.riskScoreMax !== 'undefined' ? templateData.riskScoreMax : 10);
+    : (typeof tplData.riskScoreMax !== 'undefined' ? tplData.riskScoreMax : 10);
+  const iCloudData = typeof iCloud !== 'undefined' ? iCloud : (tplData.iCloud ? tplData.iCloud : null);
+  const blacklistData = typeof blacklist !== 'undefined' ? blacklist : (tplData.blacklist ? tplData.blacklist : null);
+  const knoxData = typeof knox !== 'undefined' ? knox : (tplData.knox ? tplData.knox : null);
+  const mdmData = typeof mdm !== 'undefined' ? mdm : (tplData.mdm ? tplData.mdm : null);
+  const lostModeData = typeof lostMode !== 'undefined' ? lostMode : (tplData.lostMode ? tplData.lostMode : null);
+  const networkLockData = typeof networkLock !== 'undefined' ? networkLock : (tplData.networkLock ? tplData.networkLock : null);
+  const warrantyData = typeof warranty !== 'undefined' ? warranty : (tplData.warranty ? tplData.warranty : null);
+  const originData = typeof origin !== 'undefined' ? origin : (tplData.origin ? tplData.origin : null);
 %>
 <% if (!isEmailView) { 
   const headerProps = {
@@ -85,11 +94,11 @@
         
         <div class="critical-info-grid">
           <!-- 1. iCloud Status (iPhone only) -->
-          <% if (isApple && iCloud) { %>
+          <% if (isApple && iCloudData) { %>
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.icloud') %>:</div>
-            <div class="critical-info-value status-<%= iCloud.status === 'on' ? 'danger' : iCloud.status === 'off' ? 'safe' : 'unknown' %>">
-              <%= localizedText(iCloud) %>
+            <div class="critical-info-value status-<%= iCloudData.status === 'on' ? 'danger' : iCloudData.status === 'off' ? 'safe' : 'unknown' %>">
+              <%= localizedText(iCloudData) %>
             </div>
           </div>
           <% } %>
@@ -97,37 +106,37 @@
           <!-- 2. Blacklist Status -->
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.blacklist') %>:</div>
-            <div class="critical-info-value status-<%= blacklist.status === 'blacklisted' ? 'danger' : blacklist.status === 'clean' ? 'safe' : 'unknown' %>">
-              <%= localizedText(blacklist) %>
+            <div class="critical-info-value status-<%= blacklistData && blacklistData.status === 'blacklisted' ? 'danger' : blacklistData && blacklistData.status === 'clean' ? 'safe' : 'unknown' %>">
+              <%= localizedText(blacklistData) %>
             </div>
           </div>
           
           <!-- 3. Knox Guard (Samsung only) -->
-          <% if (isSamsung && knox) { %>
+          <% if (isSamsung && knoxData) { %>
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.knox') %>:</div>
-            <div class="critical-info-value status-<%= knox.status === 'active' ? 'warning' : knox.status === 'inactive' ? 'safe' : 'unknown' %>">
-              <%= localizedText(knox) %>
+            <div class="critical-info-value status-<%= knoxData.status === 'active' ? 'warning' : knoxData.status === 'inactive' ? 'safe' : 'unknown' %>">
+              <%= localizedText(knoxData) %>
             </div>
           </div>
           <% } %>
           
           <!-- 4. MDM Lock -->
-          <% if (mdm) { %>
+          <% if (mdmData) { %>
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.mdm') %>:</div>
-            <div class="critical-info-value status-<%= mdm.status === 'locked' ? 'warning' : mdm.status === 'unlocked' ? 'safe' : 'unknown' %>">
-              <%= localizedText(mdm) %>
+            <div class="critical-info-value status-<%= mdmData.status === 'locked' ? 'warning' : mdmData.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= localizedText(mdmData) %>
             </div>
           </div>
           <% } %>
           
           <!-- 5. Lost Mode (iPhone only) -->
-          <% if (isApple && lostMode) { %>
+          <% if (isApple && lostModeData) { %>
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.lostMode') %>:</div>
-            <div class="critical-info-value status-<%= lostMode.status === 'active' ? 'danger' : lostMode.status === 'inactive' ? 'safe' : 'unknown' %>">
-              <%= localizedText(lostMode) %>
+            <div class="critical-info-value status-<%= lostModeData.status === 'active' ? 'danger' : lostModeData.status === 'inactive' ? 'safe' : 'unknown' %>">
+              <%= localizedText(lostModeData) %>
             </div>
           </div>
           <% } %>
@@ -135,24 +144,24 @@
           <!-- 6. Network Lock -->
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.networkLock') %>:</div>
-            <div class="critical-info-value status-<%= networkLock.status === 'locked' ? 'danger' : networkLock.status === 'locked_orange' ? 'warning' : networkLock.status === 'unlocked' ? 'safe' : 'unknown' %>">
-              <%= localizedText(networkLock) %>
+            <div class="critical-info-value status-<%= networkLockData && networkLockData.status === 'locked' ? 'danger' : networkLockData && networkLockData.status === 'locked_orange' ? 'warning' : networkLockData && networkLockData.status === 'unlocked' ? 'safe' : 'unknown' %>">
+              <%= localizedText(networkLockData) %>
             </div>
           </div>
           
           <!-- 7. Warranty Info -->
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.warranty') %>:</div>
-            <div class="critical-info-value status-<%= warranty && warranty.hasInfo ? (warranty.status === 'active' ? 'safe' : warranty.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
-              <%= localizedText(warranty) %>
+            <div class="critical-info-value status-<%= warrantyData && warrantyData.hasInfo ? (warrantyData.status === 'active' ? 'safe' : warrantyData.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
+              <%= localizedText(warrantyData) %>
             </div>
           </div>
           
           <!-- 8. Origin Info -->
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.origin') %>:</div>
-            <div class="critical-info-value <%= origin && origin.hasInfo ? '' : 'status-unknown' %>">
-              <%= localizedText(origin) %>
+            <div class="critical-info-value <%= originData && originData.hasInfo ? '' : 'status-unknown' %>">
+              <%= localizedText(originData) %>
             </div>
           </div>
         </div>
@@ -160,7 +169,7 @@
     </div>
 
     <!-- ALERTE (dacă sunt probleme critice) -->
-    <% if (iCloud && iCloud.status === 'on') { %>
+    <% if (iCloudData && iCloudData.status === 'on') { %>
       <div class="alert-box">
         <div class="alert-icon">⚠️</div>
         <div class="alert-content">
@@ -170,7 +179,7 @@
       </div>
     <% } %>
     
-    <% if (lostMode && lostMode.status === 'active') { %>
+    <% if (lostModeData && lostModeData.status === 'active') { %>
       <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
         <div class="alert-icon">🚨</div>
         <div class="alert-content">
@@ -180,7 +189,7 @@
       </div>
     <% } %>
     
-    <% if (blacklist && blacklist.status === 'blacklisted') { %>
+    <% if (blacklistData && blacklistData.status === 'blacklisted') { %>
       <div class="alert-box" style="background-color: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
         <div class="alert-icon">🚫</div>
         <div class="alert-content">
@@ -682,6 +691,51 @@
     });
   </script>
   <% } %>
+
+    <% if (!isEmailView) { %>
+      <script>
+        (function() {
+          try {
+            window.__FANE_BOT__ = window.__FANE_BOT__ || {};
+            window.__FANE_BOT__.language = '<%= lang %>';
+            window.__FANE_BOT__.currentVerification = <%- JSON.stringify({
+              orderId: order && order._id ? order._id.toString() : null,
+              externalOrderId: orderData && orderData.orderId ? orderData.orderId : null,
+              imei,
+              imei2,
+              brand: order && order.brand ? order.brand : brand,
+              model,
+              modelDesc,
+              riskScore,
+              riskScoreMax: riskScoreMaxValue,
+              riskLabel,
+              summaryLabel,
+              price: typeof orderData.price !== 'undefined' ? orderData.price : null,
+              currency: orderData && orderData.currency ? orderData.currency : null,
+              language: orderData && orderData.language ? orderData.language : lang,
+              createdAt: orderData && orderData.createdAt ? new Date(orderData.createdAt).toISOString() : null,
+              statuses: {
+                iCloud: iCloudData ? localizedText(iCloudData) : null,
+                blacklist: blacklistData ? localizedText(blacklistData) : null,
+                knox: knoxData ? localizedText(knoxData) : null,
+                mdm: mdmData ? localizedText(mdmData) : null,
+                lostMode: lostModeData ? localizedText(lostModeData) : null,
+                networkLock: networkLockData ? localizedText(networkLockData) : null,
+                warranty: warrantyData ? localizedText(warrantyData) : null,
+                origin: originData ? localizedText(originData) : null
+              },
+              fullReport: reportData || null,
+              rawResult: orderData && orderData.result ? orderData.result : null,
+              appleMdmCheck: appleMdmData,
+              orderStatus: orderData && orderData.status ? orderData.status : null
+            }) %>;
+          } catch (err) {
+            console.warn('FANE BOT context error:', err);
+          }
+        })();
+      </script>
+    <% } %>
+
 </div>
 
 <% if (!isEmailView) { %>
