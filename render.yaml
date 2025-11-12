@@ -22,16 +22,20 @@ services:
         generateValue: true  # Render va genera automat
       - key: IMEI_API_KEY
         sync: false  # Setează manual
-      - key: EMAIL_HOST
-        sync: false  # Setează manual
-      - key: EMAIL_PORT
-        value: 465
-      - key: EMAIL_USER
-        sync: false  # Setează manual
-      - key: EMAIL_PASS
-        sync: false  # Setează manual
+      - key: EMAILJS_SERVICE_ID
+        sync: false  # Setează manual (din EmailJS)
+      - key: EMAILJS_PUBLIC_KEY
+        sync: false  # Setează manual (din EmailJS)
+      - key: EMAILJS_PRIVATE_KEY
+        sync: false  # Opțional, dacă folosești key secretă
+      - key: EMAILJS_TEMPLATE_VERIFY
+        sync: false  # Template EmailJS pentru codul OTP
+      - key: EMAILJS_TEMPLATE_RESULT
+        sync: false  # Template EmailJS pentru rezultatele verificării
       - key: EMAIL_FROM
-        sync: false  # Setează manual
+        sync: false  # Adresă de reply/expeditor
+      - key: EMAIL_TIMEOUT
+        value: "12000"
       - key: BASE_URL
         fromService:
           type: web
@@ -66,16 +70,20 @@ services:
         sync: false  # Setează manual în dashboard - folosește "Internal Redis URL" din Redis service
       - key: IMEI_API_KEY
         sync: false  # Setează manual (același ca pentru web service)
-      - key: EMAIL_HOST
+      - key: EMAILJS_SERVICE_ID
         sync: false  # Setează manual (același ca pentru web service)
-      - key: EMAIL_PORT
-        value: 465
-      - key: EMAIL_USER
+      - key: EMAILJS_PUBLIC_KEY
         sync: false  # Setează manual (același ca pentru web service)
-      - key: EMAIL_PASS
+      - key: EMAILJS_PRIVATE_KEY
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAILJS_TEMPLATE_VERIFY
+        sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAILJS_TEMPLATE_RESULT
         sync: false  # Setează manual (același ca pentru web service)
       - key: EMAIL_FROM
         sync: false  # Setează manual (același ca pentru web service)
+      - key: EMAIL_TIMEOUT
+        value: "12000"
       - key: BASE_URL
         fromService:
           type: web

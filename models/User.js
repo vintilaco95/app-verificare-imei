@@ -39,13 +39,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  verificationToken: {
+  verificationCode: {
     type: String,
     default: null
   },
-  verificationTokenExpires: {
+  verificationCodeExpires: {
     type: Date,
     default: null
+  },
+  verificationAttempts: {
+    type: Number,
+    default: 0
   },
   verifiedAt: {
     type: Date,

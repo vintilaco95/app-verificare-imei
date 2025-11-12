@@ -35,6 +35,11 @@ const requireAuth = async (req, res, next) => {
     return clearSessionAndRedirect(req, res);
   }
 
+  if (req.user && !req.user.isVerified) {
+    const emailParam = encodeURIComponent(req.user.email);
+    return res.redirect(`/auth/verify-code?email=${emailParam}`);
+  }
+
   next();
 };
 

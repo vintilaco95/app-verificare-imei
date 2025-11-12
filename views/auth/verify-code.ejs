@@ -1,0 +1,71 @@
+<%- include('../partials/header', { title: t('auth.verifyCode.pageTitle'), user: null }) %>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <h1 class="auth-title"><%= t('auth.verifyCode.heading') %></h1>
+    <p class="auth-subtitle"><%= t('auth.verifyCode.subtitle') %></p>
+
+    <%- include('../partials/flash', { errors: errors, success: success }) %>
+
+    <div class="auth-info-box">
+      <% if (email) { %>
+        <p><%= t('auth.verifyCode.info').replace('{email}', email) %></p>
+      <% } %>
+      <p><%= t('auth.verifyCode.instructions') %></p>
+    </div>
+
+    <form action="/auth/verify-code" method="POST" class="auth-form">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+
+      <% if (email) { %>
+        <input type="hidden" name="email" value="<%= email %>">
+      <% } else { %>
+        <div class="form-group">
+          <label for="verify-email"><%= t('auth.verifyCode.emailLabel') %></label>
+          <input
+            type="email"
+            id="verify-email"
+            name="email"
+            autocomplete="email"
+            placeholder="<%= t('auth.verifyCode.emailPlaceholder') %>"
+            required
+          >
+        </div>
+      <% } %>
+
+      <div class="form-group">
+        <label for="verification-code"><%= t('auth.verifyCode.codeLabel') %></label>
+        <input
+          type="text"
+          id="verification-code"
+          name="code"
+          inputmode="numeric"
+          maxlength="6"
+          minlength="6"
+          required
+          autocomplete="one-time-code"
+          placeholder="<%= t('auth.verifyCode.codePlaceholder') %>"
+          oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);"
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block"><%= t('auth.verifyCode.submitButton') %></button>
+    </form>
+
+    <% if (email) { %>
+      <form action="/auth/resend-verification" method="POST" class="auth-form mt-15 subtle">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+        <input type="hidden" name="email" value="<%= email %>">
+        <button type="submit" class="btn btn-secondary btn-block"><%= t('auth.verifyCode.resendButton') %></button>
+      </form>
+    <% } %>
+
+    <p class="auth-footer">
+      <a href="/auth/login"><%= t('auth.verifyCode.backToLogin') %></a> ·
+      <a href="/auth/register"><%= t('auth.verifyCode.backToRegister') %></a>
+    </p>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+

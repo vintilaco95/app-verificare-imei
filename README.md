@@ -50,12 +50,14 @@ SESSION_SECRET=your-secret-key-change-this-in-production
 # IMEI API Configuration
 IMEI_API_KEY=your-imei-api-key-here
 
-# Email Configuration
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=465
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASS=your-email-password
-EMAIL_FROM=your-email@gmail.com
+# Email Configuration (EmailJS)
+EMAILJS_SERVICE_ID=your_emailjs_service_id
+EMAILJS_PUBLIC_KEY=your_emailjs_public_key
+EMAILJS_PRIVATE_KEY=your_emailjs_private_key_optional
+EMAILJS_TEMPLATE_VERIFY=template_id_for_verification_code
+EMAILJS_TEMPLATE_RESULT=template_id_for_result_email
+EMAIL_FROM=support@your-domain.com
+EMAIL_TIMEOUT=12000
 
 # Application Base URL
 BASE_URL=http://localhost:3000
@@ -149,11 +151,13 @@ Aplicația necesită următoarele variabile de mediu:
 | `REDIS_URL` | Connection string Redis | `redis://host:port` |
 | `SESSION_SECRET` | Secret pentru sesiuni | Generează cu `openssl rand -base64 32` |
 | `IMEI_API_KEY` | Cheia API IMEI Check | Obținută de la provider |
-| `EMAIL_HOST` | Host SMTP | `smtp.gmail.com` |
-| `EMAIL_PORT` | Port SMTP | `465` sau `587` |
-| `EMAIL_USER` | Utilizator SMTP | `your-email@gmail.com` |
-| `EMAIL_PASS` | Parolă SMTP | Parolă sau App Password |
-| `EMAIL_FROM` | Email expeditor | `your-email@gmail.com` |
+| `EMAILJS_SERVICE_ID` | Service ID EmailJS | `service_xxxxx` |
+| `EMAILJS_PUBLIC_KEY` | Public Key EmailJS | `your_public_key` |
+| `EMAILJS_PRIVATE_KEY` | Private/Access Key EmailJS (opțional) | `your_private_key` |
+| `EMAILJS_TEMPLATE_VERIFY` | Template EmailJS pentru cod OTP | `template_verify` |
+| `EMAILJS_TEMPLATE_RESULT` | Template EmailJS pentru rezultatul verificării | `template_result` |
+| `EMAIL_FROM` | Email expeditor/reply-to | `support@domeniu.ro` |
+| `EMAIL_TIMEOUT` | Timeout request EmailJS (ms) | `12000` |
 | `BASE_URL` | URL-ul aplicației | `https://your-app.onrender.com` |
 | `STRIPE_SECRET_KEY` | Stripe Secret Key | `sk_test_...` sau `sk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | Stripe Webhook Secret | `whsec_...` |

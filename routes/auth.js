@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { requireGuest } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
@@ -12,16 +13,51 @@ const emailNormalizeOptions = {
   gmail_remove_extension: false
 };
 
+const CODE_TTL = parseInt(process.env.EMAIL_VERIFICATION_CODE_TTL || '600000', 10);
+const CODE_TTL_MINUTES = Math.max(1, Math.round(CODE_TTL / 60000));
+const MAX_CODE_ATTEMPTS = Math.max(3, parseInt(process.env.EMAIL_VERIFICATION_MAX_ATTEMPTS || '5', 10));
+
+const getTranslator = (res) => (typeof res.locals.t === 'function' ? res.locals.t : (key) => key);
+const generateVerificationCode = () => String(crypto.randomInt(100000, 1000000)).padStart(6, '0');
+const codeExpiresAt = () => new Date(Date.now() + CODE_TTL);
+
+const renderVerifyCodeView = (res, payload = {}) => {
+  const t = getTranslator(res);
+  return res.render('auth/verify-code', {
+    title: t('auth.verifyCode.pageTitle'),
+    email: payload.email || '',
+    errors: payload.errors || null,
+    success: payload.success || null,
+    user: null
+  });
+};
+
+async function sendVerificationCodeForExistingUser(user, res) {
+  const code = generateVerificationCode();
+  const codeHash = await bcrypt.hash(code, 10);
+  const emailResult = await sendVerificationEmail(user.email, code, {
+    lang: res.locals.currentLang || 'ro',
+    ttlMinutes: CODE_TTL_MINUTES
+  });
+
+  if (emailResult.success) {
+    user.verificationCode = codeHash;
+    user.verificationCodeExpires = codeExpiresAt();
+    user.verificationAttempts = 0;
+    await user.save();
+  }
+
+  return emailResult;
+}
+
 // Register
 router.get('/register', requireGuest, (req, res) => {
-  res.render('auth/register', { 
+  res.render('auth/register', {
     title: 'Înregistrare',
     errors: null,
     user: null
   });
 });
-
-const getTranslator = (res) => (typeof res.locals.t === 'function' ? res.locals.t : (key) => key);
 
 router.post('/register', requireGuest, [
   body('email').isEmail().normalizeEmail(emailNormalizeOptions),
@@ -35,106 +71,64 @@ router.post('/register', requireGuest, [
       user: null
     });
   }
-  
+
   try {
     const { email, password } = req.body;
     const t = getTranslator(res);
-    
-    // Check if user exists
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       if (!existingUser.isVerified) {
-        const verificationToken = crypto.randomBytes(32).toString('hex');
-        const expiresIn = parseInt(process.env.EMAIL_VERIFICATION_TTL || `${24 * 60 * 60 * 1000}`, 10);
-        existingUser.verificationToken = verificationToken;
-        existingUser.verificationTokenExpires = new Date(Date.now() + expiresIn);
-        await existingUser.save();
-
-        try {
-          const emailResult = await sendVerificationEmail(existingUser.email, verificationToken, { lang: res.locals.currentLang || 'ro' });
-          if (!emailResult.success) {
-            console.error('[Auth] Failed to resend verification email:', emailResult.error);
-            return res.render('auth/check-email', {
-              title: t('auth.checkEmail.pageTitle'),
-              email: existingUser.email,
-              errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
-              success: null,
-              user: null
-            });
-          }
-        } catch (emailError) {
-          console.error('[Auth] Error while resending verification email:', emailError);
-          return res.render('auth/check-email', {
-            title: t('auth.checkEmail.pageTitle'),
+        const emailResult = await sendVerificationCodeForExistingUser(existingUser, res);
+        if (!emailResult.success) {
+          console.error('[Auth] Failed to resend verification code:', emailResult.error);
+          return renderVerifyCodeView(res, {
             email: existingUser.email,
-            errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
-            success: null,
-            user: null
+            errors: [{ msg: t('auth.verifyCode.error.sendFailed') }]
           });
         }
 
-        return res.render('auth/check-email', {
-          title: t('auth.checkEmail.pageTitle'),
+        return renderVerifyCodeView(res, {
           email: existingUser.email,
-          success: t('auth.checkEmail.success.resent'),
-          errors: null,
-          user: null
+          success: t('auth.verifyCode.success.resent')
         });
       }
 
       return res.render('auth/register', {
         title: 'Înregistrare',
-        errors: [{ msg: 'Email-ul este deja înregistrat' }],
+        errors: [{ msg: t('auth.register.errors.emailExists') || 'Email-ul este deja înregistrat' }],
         user: null
       });
     }
-    
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const expiresIn = parseInt(process.env.EMAIL_VERIFICATION_TTL || `${24 * 60 * 60 * 1000}`, 10);
-    const verificationTokenExpires = new Date(Date.now() + expiresIn);
+
+    const verificationCodeRaw = generateVerificationCode();
+    const verificationCodeHash = await bcrypt.hash(verificationCodeRaw, 10);
 
     const user = new User({
       email,
       password,
       isVerified: false,
-      verificationToken,
-      verificationTokenExpires
+      verificationCode: verificationCodeHash,
+      verificationCodeExpires: codeExpiresAt(),
+      verificationAttempts: 0
     });
     await user.save();
 
-    try {
-      const emailResult = await sendVerificationEmail(email, verificationToken, { lang: res.locals.currentLang || 'ro' });
-      if (!emailResult.success) {
-        console.error('[Auth] Failed to send verification email:', emailResult.error);
-        return res.render('auth/check-email', {
-          title: t('auth.checkEmail.pageTitle'),
-          email,
-          errors: [{ msg: t('auth.checkEmail.error.sendFailed') }],
-          success: null,
-          user: null
-        });
-      }
-    } catch (emailError) {
-      console.error('[Auth] Failed to send verification email:', emailError);
-      return res.render('auth/check-email', {
-        title: t('auth.checkEmail.pageTitle'),
-        email,
-        errors: [{ msg: t('auth.checkEmail.error.sendFailed') }],
-        success: null,
-        user: null
-      });
-    }
-
-    res.render('auth/check-email', {
-      title: t('auth.checkEmail.pageTitle'),
-      email,
-      success: t('auth.register.success.checkEmail'),
-      errors: null,
-      user: null
+    const emailResult = await sendVerificationEmail(email, verificationCodeRaw, {
+      lang: res.locals.currentLang || 'ro',
+      ttlMinutes: CODE_TTL_MINUTES
     });
+
+    const viewPayload = {
+      email,
+      success: emailResult.success ? t('auth.verifyCode.success.sent') : null,
+      errors: emailResult.success ? null : [{ msg: t('auth.verifyCode.error.sendFailed') }]
+    };
+
+    return renderVerifyCodeView(res, viewPayload);
   } catch (error) {
     console.error('Registration error:', error);
-    res.render('auth/register', {
+    return res.render('auth/register', {
       title: 'Înregistrare',
       errors: [{ msg: 'Eroare la înregistrare. Încearcă din nou.' }],
       user: null
@@ -163,7 +157,7 @@ router.post('/login', requireGuest, [
       user: null
     });
   }
-  
+
   try {
     const { email, password } = req.body;
     const t = getTranslator(res);
@@ -189,13 +183,11 @@ router.post('/login', requireGuest, [
     
     if (!user.isVerified) {
       console.warn(`[AUTH] Unverified user login attempt: ${email}`);
-      return res.render('auth/login', {
-        title: t('auth.login.pageTitle'),
-        errors: [{ msg: t('auth.login.error.notVerified') }],
-        user: null,
-        pendingEmail: email,
-        showResend: true,
-        success: null
+      const emailResult = await sendVerificationCodeForExistingUser(user, res);
+      return renderVerifyCodeView(res, {
+        email,
+        errors: emailResult.success ? null : [{ msg: t('auth.verifyCode.error.sendFailed') }],
+        success: emailResult.success ? t('auth.verifyCode.success.resent') : null
       });
     }
     
@@ -210,10 +202,10 @@ router.post('/login', requireGuest, [
     }
     
     req.session.userId = user._id;
-    res.redirect('/dashboard');
+    return res.redirect('/dashboard');
   } catch (error) {
     console.error('Login error:', error);
-    res.render('auth/login', {
+    return res.render('auth/login', {
       title: 'Autentificare',
       errors: [{ msg: 'Eroare la autentificare. Încearcă din nou.' }],
       user: null
@@ -221,118 +213,159 @@ router.post('/login', requireGuest, [
   }
 });
 
-router.post('/resend-verification', requireGuest, [
-  body('email').isEmail().normalizeEmail(emailNormalizeOptions)
-], async (req, res) => {
-  const errors = validationResult(req);
+router.get('/verify-code', requireGuest, (req, res) => {
+  const email = req.query.email ? req.query.email.toString().trim() : '';
+  const status = req.query.status || '';
   const t = getTranslator(res);
 
-  if (!errors.isEmpty()) {
-    return res.render('auth/login', {
-      title: t('auth.login.pageTitle'),
-      errors: errors.array(),
-      user: null
+  const payload = { email };
+  if (status === 'sent') {
+    payload.success = t('auth.verifyCode.success.sent');
+  } else if (status === 'resent') {
+    payload.success = t('auth.verifyCode.success.resent');
+  }
+
+  return renderVerifyCodeView(res, payload);
+});
+
+router.post('/verify-code', requireGuest, [
+  body('email').isEmail().normalizeEmail(emailNormalizeOptions),
+  body('code').trim().matches(/^[0-9]{6}$/).withMessage('Codul trebuie să conțină 6 cifre')
+], async (req, res) => {
+  const t = getTranslator(res);
+  const { email, code } = req.body;
+  const validationErrors = validationResult(req);
+
+  if (!validationErrors.isEmpty()) {
+    return renderVerifyCodeView(res, {
+      email,
+      errors: validationErrors.array()
     });
   }
 
-  const { email } = req.body;
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.render('auth/login', {
-        title: t('auth.login.pageTitle'),
-        errors: [{ msg: t('auth.login.error.notFound') }],
-        user: null
+      return renderVerifyCodeView(res, {
+        email,
+        errors: [{ msg: t('auth.verifyCode.error.userNotFound') }]
       });
     }
 
     if (user.isVerified) {
       return res.render('auth/login', {
         title: t('auth.login.pageTitle'),
-        errors: [{ msg: t('auth.login.error.alreadyVerified') }],
+        success: t('auth.verifyCode.success.alreadyVerified'),
+        errors: null,
         user: null
       });
     }
 
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const expiresIn = parseInt(process.env.EMAIL_VERIFICATION_TTL || `${24 * 60 * 60 * 1000}`, 10);
-    user.verificationToken = verificationToken;
-    user.verificationTokenExpires = new Date(Date.now() + expiresIn);
-    await user.save();
+    if (!user.verificationCode || !user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
+      const emailResult = await sendVerificationCodeForExistingUser(user, res);
+      return renderVerifyCodeView(res, {
+        email,
+        errors: [{ msg: t('auth.verifyCode.error.expired') }],
+        success: emailResult.success ? t('auth.verifyCode.success.resent') : null
+      });
+    }
 
-    try {
-      const emailResult = await sendVerificationEmail(email, verificationToken, { lang: res.locals.currentLang || 'ro' });
-      if (!emailResult.success) {
-        console.error('[Auth] Failed to resend verification email:', emailResult.error);
-        return res.render('auth/login', {
-          title: t('auth.login.pageTitle'),
-          errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
-          user: null
+    const isMatch = await bcrypt.compare(code, user.verificationCode);
+    if (!isMatch) {
+      user.verificationAttempts = (user.verificationAttempts || 0) + 1;
+      await user.save();
+
+      if (user.verificationAttempts >= MAX_CODE_ATTEMPTS) {
+        const emailResult = await sendVerificationCodeForExistingUser(user, res);
+        return renderVerifyCodeView(res, {
+          email,
+          errors: [{ msg: t('auth.verifyCode.error.tooManyAttempts') }],
+          success: emailResult.success ? t('auth.verifyCode.success.resent') : null
         });
       }
-    } catch (emailError) {
-      console.error('[Auth] Failed to resend verification email:', emailError);
-      return res.render('auth/login', {
-        title: t('auth.login.pageTitle'),
-        errors: [{ msg: t('auth.checkEmail.error.resendFailed') }],
-        user: null
-      });
-    }
 
-    return res.render('auth/login', {
-      title: t('auth.login.pageTitle'),
-      success: t('auth.login.resendSuccess'),
-      errors: null,
-      user: null
-    });
-  } catch (error) {
-    console.error('Resend verification error:', error);
-    return res.render('auth/login', {
-      title: t('auth.login.pageTitle'),
-      errors: [{ msg: t('auth.login.error.generic') }],
-      user: null
-    });
-  }
-});
-
-router.get('/verify/:token', requireGuest, async (req, res) => {
-  const { token } = req.params;
-  const t = getTranslator(res);
-
-  try {
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpires: { $gt: new Date() }
-    });
-
-    if (!user) {
-      return res.render('auth/login', {
-        title: t('auth.login.pageTitle'),
-        errors: [{ msg: t('auth.verify.invalidToken') }],
-        user: null
+      return renderVerifyCodeView(res, {
+        email,
+        errors: [{ msg: t('auth.verifyCode.error.invalid') }]
       });
     }
 
     user.isVerified = true;
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
+    user.verificationCode = null;
+    user.verificationCodeExpires = null;
+    user.verificationAttempts = 0;
     user.verifiedAt = new Date();
     await user.save();
 
     return res.render('auth/login', {
       title: t('auth.login.pageTitle'),
-      success: t('auth.verify.success'),
+      success: t('auth.verifyCode.success.verified'),
       errors: null,
       user: null
     });
   } catch (error) {
-    console.error('Email verification error:', error);
-    return res.render('auth/login', {
-      title: t('auth.login.pageTitle'),
-      errors: [{ msg: t('auth.login.error.generic') }],
-      user: null
+    console.error('Verify code error:', error);
+    return renderVerifyCodeView(res, {
+      email,
+      errors: [{ msg: t('auth.verifyCode.error.generic') }]
     });
   }
+});
+
+router.post('/resend-verification', requireGuest, [
+  body('email').isEmail().normalizeEmail(emailNormalizeOptions)
+], async (req, res) => {
+  const validationErrors = validationResult(req);
+  const t = getTranslator(res);
+  const { email } = req.body;
+
+  if (!validationErrors.isEmpty()) {
+    return renderVerifyCodeView(res, {
+      email,
+      errors: validationErrors.array()
+    });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return renderVerifyCodeView(res, {
+        email,
+        errors: [{ msg: t('auth.verifyCode.error.userNotFound') }]
+      });
+    }
+
+    if (user.isVerified) {
+      return res.render('auth/login', {
+        title: t('auth.login.pageTitle'),
+        success: t('auth.verifyCode.success.alreadyVerified'),
+        errors: null,
+        user: null
+      });
+    }
+
+    const emailResult = await sendVerificationCodeForExistingUser(user, res);
+
+    return renderVerifyCodeView(res, {
+      email,
+      errors: emailResult.success ? null : [{ msg: t('auth.verifyCode.error.sendFailed') }],
+      success: emailResult.success ? t('auth.verifyCode.success.resent') : null
+    });
+  } catch (error) {
+    console.error('Resend verification code error:', error);
+    return renderVerifyCodeView(res, {
+      email,
+      errors: [{ msg: t('auth.verifyCode.error.generic') }]
+    });
+  }
+});
+
+router.get('/verify/:token', requireGuest, (req, res) => {
+  const t = getTranslator(res);
+  return renderVerifyCodeView(res, {
+    email: '',
+    errors: [{ msg: t('auth.verifyCode.error.deprecatedLink') }]
+  });
 });
 
 // Logout

@@ -36,17 +36,6 @@
       
       <button type="submit" class="btn btn-primary btn-block"><%= t('auth.login.form.submit') %></button>
     </form>
-
-    <% if (typeof showResend !== 'undefined' && showResend && pendingEmail) { %>
-      <div class="auth-info-box muted">
-        <p><%= t('auth.login.resendPrompt') %></p>
-        <form action="/auth/resend-verification" method="POST" class="resend-form">
-          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-          <input type="hidden" name="email" value="<%= pendingEmail %>">
-          <button type="submit" class="link-button"><%= t('auth.login.resendVerification') %></button>
-        </form>
-      </div>
-    <% } %>
     
     <p class="auth-footer">
       <%= t('auth.login.footer.question') %> <a href="/auth/register"><%= t('auth.login.footer.link') %></a>
