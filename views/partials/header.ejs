@@ -29,6 +29,7 @@
     : (typeof locals !== 'undefined' && typeof locals.langTogglePath !== 'undefined'
       ? locals.langTogglePath
       : `?lang=${switchLangValue}`);
+  const isUserLoggedIn = typeof user !== 'undefined' && user;
 %>
 <!DOCTYPE html>
 <html lang="<%= currentLangValue %>">
@@ -54,7 +55,7 @@
         <span class="nav-logo-icon">
           <span class="logo-emoji" aria-hidden="true">🐶</span>
         </span>
-        <span class="nav-logo-text is-desktop"><%= tFn('nav.brand') %></span>
+        <span class="nav-logo-text is-desktop <%= isUserLoggedIn ? 'is-logged' : 'is-guest' %>"><%= tFn('nav.brand') %></span>
       </a>
       <button class="nav-toggle" type="button" aria-label="<%= tFn('nav.menu.open') %>" aria-expanded="false">
         <span></span>

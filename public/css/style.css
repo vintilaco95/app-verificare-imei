@@ -180,6 +180,10 @@ footer,
   display: inline;
 }
 
+.nav-logo-text.is-desktop.is-guest {
+  display: inline;
+}
+
 .nav-toggle {
   display: none;
   flex-direction: column;
@@ -369,6 +373,10 @@ footer,
   
   .nav-logo-text.is-desktop {
     display: none;
+  }
+  
+  .nav-logo-text.is-desktop.is-guest {
+    display: inline;
   }
   
   .nav-container {

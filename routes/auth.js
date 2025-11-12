@@ -6,6 +6,7 @@ const User = require('../models/User');
 const { requireGuest } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 const { sendVerificationEmail } = require('../services/emailService');
+const { verifySessionBridgeToken } = require('../services/sessionBridge');
 
 const emailNormalizeOptions = {
   gmail_remove_dots: false,
@@ -384,6 +385,47 @@ router.get('/verify/:token', requireGuest, (req, res) => {
     email: '',
     errors: [{ msg: t('auth.verifyCode.error.deprecatedLink') }]
   });
+});
+
+router.get('/session-bridge', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : '';
+  const requestedRedirect = typeof req.query.redirect === 'string' ? req.query.redirect : '/';
+  const verification = verifySessionBridgeToken(token, req.hostname || '');
+
+  if (!verification.valid) {
+    console.warn('[SessionBridge] Invalid token:', verification.error);
+    return res.redirect('/auth/login');
+  }
+
+  try {
+    const { userId, lang, redirectPath } = verification.payload;
+    const user = await User.findById(userId).select('_id isBanned isVerified email');
+
+    if (!user || user.isBanned) {
+      console.warn('[SessionBridge] User not eligible for bridge login:', userId);
+      if (req.session) {
+        req.session.destroy(() => {});
+      }
+      return res.redirect('/auth/login');
+    }
+
+    req.session.userId = user._id.toString();
+    if (lang) {
+      req.session.lang = lang;
+    }
+
+    const safeRedirect = redirectPath || requestedRedirect || '/';
+    return req.session.save((err) => {
+      if (err) {
+        console.error('[SessionBridge] Session save error:', err);
+        return res.redirect('/auth/login');
+      }
+      return res.redirect(safeRedirect);
+    });
+  } catch (error) {
+    console.error('[SessionBridge] Unexpected error:', error);
+    return res.redirect('/auth/login');
+  }
 });
 
 // Logout

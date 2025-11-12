@@ -6,6 +6,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const { defaultLang, supportedLangs, getTranslation } = require('./config/translations');
+const { createSessionBridgeToken } = require('./services/sessionBridge');
 require('dotenv').config();
 
 const app = express();
@@ -77,6 +78,7 @@ app.use((req, res, next) => {
     req.session.lang = lang;
   }
 
+  const sessionUserId = req.session && req.session.userId ? req.session.userId.toString() : null;
   const switchLang = lang === 'ro' ? 'en' : 'ro';
   const toggleSearchParams = new URLSearchParams(url.searchParams);
   toggleSearchParams.set('lang', switchLang);
@@ -86,6 +88,37 @@ app.use((req, res, next) => {
     originalSearchParams.set('lang', lang);
   }
 
+  const domainByLang = {
+    ro: 'imeiguard.ro',
+    en: 'imeiguard.com'
+  };
+
+  const protocol = isProduction ? 'https' : (req.protocol || 'http');
+  const normalizedHost = host || '';
+  const isProductionDomain = normalizedHost.endsWith('imeiguard.com') || normalizedHost.endsWith('imeiguard.ro');
+  const targetDomain = domainByLang[switchLang];
+  let langTogglePath = togglePath;
+
+  if (isProductionDomain && targetDomain) {
+    const redirectPath = togglePath;
+    if (sessionUserId) {
+      try {
+        const bridgeToken = createSessionBridgeToken({
+          userId: sessionUserId,
+          lang: switchLang,
+          redirectPath,
+          targetDomain
+        });
+        langTogglePath = `${protocol}://${targetDomain}/auth/session-bridge?token=${encodeURIComponent(bridgeToken)}&redirect=${encodeURIComponent(redirectPath)}`;
+      } catch (error) {
+        console.error('[SessionBridge] Failed to create token:', error);
+        langTogglePath = `${protocol}://${targetDomain}${redirectPath}`;
+      }
+    } else {
+      langTogglePath = `${protocol}://${targetDomain}${redirectPath}`;
+    }
+  }
+
   res.locals.currentHost = host;
   res.locals.requestedPath = sanitizedPath || '/';
   res.locals.currentLang = lang;
@@ -93,7 +126,7 @@ app.use((req, res, next) => {
   res.locals.t = (key) => getTranslation(lang, key);
   res.locals.switchLang = switchLang;
   res.locals.switchLangLabel = getTranslation(switchLang, 'nav.language.current');
-  res.locals.langTogglePath = togglePath;
+  res.locals.langTogglePath = langTogglePath;
   next();
 });
 
