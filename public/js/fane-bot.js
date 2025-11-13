@@ -16,8 +16,63 @@ const FaneBot = (() => {
   const suggestionsEl = document.getElementById('fane-bot-suggestions');
   const suggestionsToggle = document.getElementById('fane-bot-suggest-toggle');
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  const isAuthenticated = container?.dataset?.auth === 'true';
+  const isGuest = !isAuthenticated;
+  const GUEST_HISTORY_TTL = 24 * 60 * 60 * 1000; // 24h
+  const MAX_GUEST_HISTORY = 12;
+  let guestStorageKey = null;
   const WELCOME_MESSAGE = 'Salut, sunt FANE , spune-mi ce telefon cumpărăm azi.';
   let isResetting = false;
+
+  function getGuestStorageKeyFor(verification) {
+    const base = 'faneBotGuestHistory';
+    if (!verification || typeof verification !== 'object') {
+      return base;
+    }
+    const candidate = [verification.orderId, verification.externalOrderId, verification.imei, verification.imei2]
+      .map((value) => {
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+        if (typeof value === 'number' && !Number.isNaN(value)) {
+          return String(value);
+        }
+        return null;
+      })
+      .find(Boolean);
+    return candidate ? `${base}:${candidate}` : base;
+  }
+
+  function loadGuestHistoryFromStorage(verification) {
+    guestStorageKey = getGuestStorageKeyFor(verification);
+    if (!isGuest) {
+      return [];
+    }
+    try {
+      const raw = window.localStorage.getItem(guestStorageKey);
+      if (!raw) {
+        return [];
+      }
+      const payload = JSON.parse(raw);
+      if (!payload || typeof payload !== 'object') {
+        return [];
+      }
+      const expiresAt = typeof payload.expiresAt === 'number' ? payload.expiresAt : null;
+      const savedAt = typeof payload.savedAt === 'number' ? payload.savedAt : null;
+      const isExpired = expiresAt
+        ? Date.now() > expiresAt
+        : (savedAt ? Date.now() > savedAt + GUEST_HISTORY_TTL : false);
+      if (isExpired) {
+        window.localStorage.removeItem(guestStorageKey);
+        return [];
+      }
+      const history = Array.isArray(payload.history) ? payload.history : [];
+      return history.slice(-MAX_GUEST_HISTORY);
+    } catch (error) {
+      console.warn('FANE guest history load failed:', error);
+      return [];
+    }
+  }
 
   const RECOMMENDED_QUESTIONS = {
     ro: (phoneName) => [
@@ -32,13 +87,54 @@ const FaneBot = (() => {
     ]
   };
 
+  const bootstrapVerification = (window.__FANE_BOT__ && (window.__FANE_BOT__.latestVerification || window.__FANE_BOT__.currentVerification)) || null;
+  const bootstrapLanguage = (window.__FANE_BOT__ && window.__FANE_BOT__.language) || document.documentElement.lang || 'ro';
+  const bootstrapHistory = isGuest ? loadGuestHistoryFromStorage(bootstrapVerification) : [];
+
   const state = {
+    isGuest,
     isOpen: false,
     isSending: false,
-    history: [],
-    verification: (window.__FANE_BOT__ && (window.__FANE_BOT__.latestVerification || window.__FANE_BOT__.currentVerification)) || null,
-    language: (window.__FANE_BOT__ && window.__FANE_BOT__.language) || document.documentElement.lang || 'ro'
+    history: bootstrapHistory,
+    verification: bootstrapVerification,
+    language: bootstrapLanguage
   };
+
+  function persistGuestHistory() {
+    if (!state.isGuest) {
+      return;
+    }
+    try {
+      if (!guestStorageKey) {
+        guestStorageKey = getGuestStorageKeyFor(state.verification);
+      }
+      if (!guestStorageKey) {
+        return;
+      }
+      const payload = {
+        history: state.history.slice(-MAX_GUEST_HISTORY),
+        savedAt: Date.now(),
+        expiresAt: Date.now() + GUEST_HISTORY_TTL
+      };
+      window.localStorage.setItem(guestStorageKey, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('FANE guest history persist failed:', error);
+    }
+  }
+
+  function clearGuestHistory() {
+    if (!state.isGuest) {
+      return;
+    }
+    try {
+      const key = guestStorageKey || getGuestStorageKeyFor(state.verification);
+      if (key) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.warn('FANE guest history reset failed:', error);
+    }
+  }
 
   function renderHistory(history = state.history) {
     messagesEl.innerHTML = '';
@@ -157,6 +253,18 @@ const FaneBot = (() => {
 
 
   async function resetSession() {
+    if (state.isGuest) {
+      hideSuggestions();
+      disableSuggestionsToggle();
+      clearGuestHistory();
+      state.history = [];
+      renderHistory();
+      updateSuggestions();
+      setStatus(state.language === 'en' ? 'Chat reset.' : 'Chat resetat.');
+      setTimeout(() => setStatus(''), 1200);
+      return;
+    }
+
     if (isResetting) {
       return;
     }
@@ -205,6 +313,14 @@ const FaneBot = (() => {
   }
 
   async function loadHistory() {
+    if (state.isGuest) {
+      renderHistory();
+      setStatus('');
+      updateSuggestions();
+      persistGuestHistory();
+      return;
+    }
+
     try {
       setStatus('FANE își amintește conversația...');
       const response = await fetch('/api/fane-bot/history', {
@@ -310,6 +426,11 @@ const FaneBot = (() => {
       language: state.language
     };
 
+    if (state.isGuest) {
+      payload.history = state.history.slice(-MAX_GUEST_HISTORY);
+      payload.verification = state.verification || null;
+    }
+
     setSending(true);
     appendMessage('user', text);
 
@@ -319,12 +440,14 @@ const FaneBot = (() => {
     scrollMessagesToBottom();
 
     try {
-      const response = await fetch('/api/fane-bot', {
+      const endpoint = state.isGuest ? '/api/fane-bot/guest' : '/api/fane-bot';
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken, 'csrf-token': csrfToken } : {})
+      };
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
-        },
+        headers,
         body: JSON.stringify(payload)
       });
 
@@ -334,7 +457,9 @@ const FaneBot = (() => {
       if (!response.ok || !data.success) {
         const errorMsg = data && data.error ? data.error : 'FANE nu a putut răspunde acum.';
         appendMessage('assistant', errorMsg);
-        state.history.push({ role: 'assistant', content: errorMsg, createdAt: new Date().toISOString() });
+        if (state.isGuest) {
+          persistGuestHistory();
+        }
         return;
       }
 
@@ -347,12 +472,23 @@ const FaneBot = (() => {
       }
       if (Object.prototype.hasOwnProperty.call(data, 'latestVerification')) {
         state.verification = data.latestVerification;
+        if (state.isGuest) {
+          guestStorageKey = getGuestStorageKeyFor(state.verification);
+        }
       }
+
+      if (state.isGuest) {
+        persistGuestHistory();
+      }
+
       updateSuggestions();
     } catch (error) {
       typingEl.remove();
       const fallback = 'S-a întrerupt conexiunea. Mai încearcă o dată.';
       appendMessage('assistant', fallback);
+      if (state.isGuest) {
+        persistGuestHistory();
+      }
     } finally {
       setSending(false);
       setStatus('');

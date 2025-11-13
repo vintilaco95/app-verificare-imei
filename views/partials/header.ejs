@@ -58,6 +58,45 @@
         </span>
         <span class="site-header__title <%= isUserLoggedIn ? 'site-header__title--compact' : '' %>"><%= tFn('nav.brand') %></span>
       </a>
+      <div class="site-header__menu" id="site-nav" aria-hidden="true">
+        <div class="site-header__menu-inner">
+          <div class="site-header__primary-links">
+            <% if (typeof user !== 'undefined' && user) { %>
+              <a href="/" class="site-header__link"><%= tFn('nav.home') %></a>
+              <a href="/dashboard" class="site-header__link"><%= tFn('nav.dashboard') %></a>
+              <a href="/verify/imei" class="site-header__link"><%= tFn('nav.verify') %></a>
+              <a href="/dashboard/orders" class="site-header__link"><%= tFn('nav.history') %></a>
+              <form action="/auth/logout" method="POST" class="site-header__logout">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+                <button type="submit" class="site-header__link site-header__link--ghost"><%= tFn('nav.logout') %></button>
+              </form>
+            <% } else { %>
+              <a href="/" class="site-header__link"><%= tFn('nav.home') %></a>
+              <a href="/verify/imei" class="site-header__link"><%= tFn('nav.verify') %></a>
+              <a href="/auth/login" class="site-header__link site-header__link--ghost"><%= tFn('nav.login') %></a>
+              <a href="/auth/register" class="site-header__link site-header__link--primary"><%= tFn('nav.register') %></a>
+            <% } %>
+          </div>
+          <div class="site-header__menu-meta">
+            <a
+              href="<%= langToggleValue %>"
+              class="site-header__link site-header__link--muted site-header__menu-lang"
+              aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
+              <span class="site-header__flags" aria-hidden="true">
+                <span class="site-header__flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>
+                <span class="site-header__flag <%= currentLangValue === 'en' ? 'is-active' : '' %>">🇬🇧</span>
+              </span>
+              <span class="site-header__link-label"><%= switchLangLabelValue %></span>
+            </a>
+            <% if (typeof user !== 'undefined' && user) { %>
+              <div class="site-header__credits site-header__credits--menu" aria-label="<%= tFn('nav.credits.balance') %>">
+                <span class="site-header__credits-value"><%= user.credits.toFixed(2) %></span>
+                <a href="/dashboard/credits/topup" class="site-header__credits-add" aria-label="<%= tFn('nav.credits.add') %>">+</a>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </div>
       <div class="site-header__actions">
         <a
           href="<%= langToggleValue %>"
@@ -86,45 +125,6 @@
           <span></span>
           <span></span>
         </button>
-      </div>
-    </div>
-    <div class="site-header__menu" id="site-nav" aria-hidden="true">
-      <div class="site-header__menu-inner">
-        <div class="site-header__primary-links">
-          <% if (typeof user !== 'undefined' && user) { %>
-            <a href="/" class="site-header__link"><%= tFn('nav.home') %></a>
-            <a href="/dashboard" class="site-header__link"><%= tFn('nav.dashboard') %></a>
-            <a href="/verify/imei" class="site-header__link"><%= tFn('nav.verify') %></a>
-            <a href="/dashboard/orders" class="site-header__link"><%= tFn('nav.history') %></a>
-            <form action="/auth/logout" method="POST" class="site-header__logout">
-              <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-              <button type="submit" class="site-header__link site-header__link--ghost"><%= tFn('nav.logout') %></button>
-            </form>
-          <% } else { %>
-            <a href="/" class="site-header__link"><%= tFn('nav.home') %></a>
-            <a href="/verify/imei" class="site-header__link"><%= tFn('nav.verify') %></a>
-            <a href="/auth/login" class="site-header__link site-header__link--ghost"><%= tFn('nav.login') %></a>
-            <a href="/auth/register" class="site-header__link site-header__link--primary"><%= tFn('nav.register') %></a>
-          <% } %>
-        </div>
-        <div class="site-header__menu-meta">
-          <a
-            href="<%= langToggleValue %>"
-            class="site-header__link site-header__link--muted site-header__menu-lang"
-            aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
-            <span class="site-header__flags" aria-hidden="true">
-              <span class="site-header__flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>
-              <span class="site-header__flag <%= currentLangValue === 'en' ? 'is-active' : '' %>">🇬🇧</span>
-            </span>
-            <span class="site-header__link-label"><%= switchLangLabelValue %></span>
-          </a>
-          <% if (typeof user !== 'undefined' && user) { %>
-            <div class="site-header__credits site-header__credits--menu" aria-label="<%= tFn('nav.credits.balance') %>">
-              <span class="site-header__credits-value"><%= user.credits.toFixed(2) %></span>
-              <a href="/dashboard/credits/topup" class="site-header__credits-add" aria-label="<%= tFn('nav.credits.add') %>">+</a>
-            </div>
-          <% } %>
-        </div>
       </div>
     </div>
   </nav>

@@ -177,6 +177,43 @@ function buildVerificationSnapshot(order) {
   };
 }
 
+function sanitizeGuestVerification(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  try {
+    const clone = JSON.parse(JSON.stringify(raw));
+    const orderLike = {
+      _id: clone.orderId || null,
+      orderId: clone.orderId || null,
+      imei: clone.imei || null,
+      imei2: clone.imei2 || null,
+      brand: clone.brand || null,
+      model: clone.model || null,
+      modelDesc: clone.modelDesc || null,
+      status: clone.status || clone.orderStatus || null,
+      price: typeof clone.servicePrice === 'number'
+        ? clone.servicePrice
+        : (typeof clone.price === 'number' ? clone.price : null),
+      currency: clone.currency || null,
+      language: clone.language || null,
+      riskScore: typeof clone.riskScore === 'number' ? clone.riskScore : null,
+      riskLabel: clone.riskLabel || null,
+      summaryLabel: clone.summaryLabel || null,
+      createdAt: clone.createdAt || null,
+      object: clone.object || clone.fullReport || clone.verificationRaw || null,
+      result: clone.rawResult || null,
+      appleMdm: clone.appleMdmCheck || null,
+      statuses: clone.statuses || null
+    };
+    return buildVerificationSnapshot(orderLike);
+  } catch (error) {
+    console.warn('[API] Failed to sanitize guest verification payload:', error);
+    return null;
+  }
+}
+
 async function fetchLatestVerification(userId) {
   if (!userId) {
     return null;
@@ -379,6 +416,95 @@ router.post('/fane-bot', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('[API] FANE bot error:', error);
+    return res.status(500).json({ success: false, error: 'FANE este prins cu un telefon greu. Încearcă din nou.' });
+  }
+});
+
+router.post('/fane-bot/guest', async (req, res) => {
+  try {
+    const { message, language, history, verification } = req.body || {};
+    const trimmedMessage = typeof message === 'string' ? message.trim() : '';
+
+    if (!trimmedMessage) {
+      return res.status(400).json({ success: false, error: 'Mesajul este obligatoriu.' });
+    }
+
+    const userLanguage = language || 'ro';
+    const sanitizedHistory = ensureArray(history)
+      .filter((entry) => entry && typeof entry.content === 'string')
+      .slice(-MAX_SESSION_HISTORY)
+      .map((entry) => ({
+        role: entry.role === 'assistant' ? 'assistant' : 'user',
+        content: entry.content,
+        createdAt: entry.createdAt && !Number.isNaN(Date.parse(entry.createdAt))
+          ? new Date(entry.createdAt)
+          : new Date()
+      }));
+
+    const sanitizedVerification = sanitizeGuestVerification(verification);
+    const mentionVerification = shouldReferenceVerification(trimmedMessage, sanitizedVerification);
+    const wantsPrice = hasPriceIntent(trimmedMessage);
+    let priceInsight = null;
+
+    if (!mentionVerification && isGreetingMessage(trimmedMessage)) {
+      const reply = buildGreetingReply(null, userLanguage);
+      const updatedHistory = trimHistory([
+        ...sanitizedHistory,
+        { role: 'user', content: trimmedMessage, createdAt: new Date() },
+        { role: 'assistant', content: reply, createdAt: new Date() }
+      ]);
+
+      return res.json({
+        success: true,
+        reply,
+        history: updatedHistory,
+        latestVerification: sanitizedVerification || null
+      });
+    }
+
+    if (wantsPrice && sanitizedVerification) {
+      const fallbackQuery = buildFallbackQuery(sanitizedVerification, trimmedMessage);
+      const priceResult = await lookupAveragePrice({
+        brand: sanitizedVerification ? sanitizedVerification.brand : null,
+        model: sanitizedVerification ? (sanitizedVerification.modelDesc || sanitizedVerification.model) : null,
+        language: userLanguage,
+        fallbackQuery
+      });
+
+      if (priceResult.success && priceResult.summary) {
+        priceInsight = priceResult.summary;
+      }
+    }
+
+    const response = await generateFaneBotReply({
+      message: trimmedMessage,
+      history: sanitizedHistory,
+      latestVerification: sanitizedVerification || null,
+      language: userLanguage,
+      userName: null,
+      mentionVerification,
+      priceInsight
+    });
+
+    if (!response.success) {
+      return res.status(500).json({ success: false, error: response.error || 'FANE este ocupat acum.' });
+    }
+
+    const updatedHistory = trimHistory([
+      ...sanitizedHistory,
+      { role: 'user', content: trimmedMessage, createdAt: new Date() },
+      { role: 'assistant', content: response.reply.trim(), createdAt: new Date() }
+    ]);
+
+    return res.json({
+      success: true,
+      reply: response.reply,
+      history: updatedHistory,
+      latestVerification: sanitizedVerification || null,
+      usage: response.usage || null
+    });
+  } catch (error) {
+    console.error('[API] FANE guest bot error:', error);
     return res.status(500).json({ success: false, error: 'FANE este prins cu un telefon greu. Încearcă din nou.' });
   }
 });

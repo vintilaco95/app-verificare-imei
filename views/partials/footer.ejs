@@ -39,6 +39,7 @@
   const whatsappNumber = supportPhoneDigits && supportPhoneDigits.length >= 8 ? supportPhoneDigits : '40721171995';
   const supportEmail = tFn('footer.contact.email');
   const supportPhoneHref = supportPhoneDigits ? `+${supportPhoneDigits}` : '';
+  const isUserLoggedIn = typeof user !== 'undefined' && user;
   const faneNewChatLabel = currentLangValue === 'en' ? 'New chat' : 'Chat nou';
   const faneNewChatConfirm = currentLangValue === 'en'
     ? 'Start a new conversation with FANE? This will clear the previous messages.'
@@ -118,9 +119,9 @@
   </div>
 </div>
 
-<div class="fane-bot" id="fane-bot" aria-live="polite">
+<div class="fane-bot" id="fane-bot" aria-live="polite" data-auth="<%= isUserLoggedIn ? 'true' : 'false' %>">
   <button type="button" class="fane-bot-toggle" id="fane-bot-toggle" aria-expanded="false" aria-controls="fane-bot-window">
-        <span class="fane-bot-avatar" aria-hidden="true">👍</span>
+        <span class="fane-bot-avatar" aria-hidden="true">🧠</span>
     <span class="fane-bot-toggle-label">FANE BOT</span>
   </button>
   <div class="fane-bot-window" id="fane-bot-window" hidden>
@@ -156,7 +157,7 @@
         <span class="sr-only">Sugestii întrebări</span>
         <span class="fane-bot-suggest-icon">?</span>
       </button>
-      <textarea id="fane-bot-input" class="fane-bot-input" rows="2" placeholder="Întreabă-l pe FANE despre telefon..." required></textarea>
+      <textarea id="fane-bot-input" class="fane-bot-input" rows="2" placeholder="Vorbește cu FANE !" required></textarea>
       <button type="submit" class="fane-bot-send" id="fane-bot-send">Trimite</button>
     </form>
     <div class="fane-bot-suggestions" id="fane-bot-suggestions" aria-label="Sugestii rapide" hidden></div>

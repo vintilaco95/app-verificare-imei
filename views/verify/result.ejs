@@ -617,6 +617,7 @@
           try {
             window.__FANE_BOT__ = window.__FANE_BOT__ || {};
             window.__FANE_BOT__.language = '<%= lang %>';
+            window.__FANE_BOT__.isGuest = <%= user ? 'false' : 'true' %>;
             window.__FANE_BOT__.currentVerification = <%- JSON.stringify({
               orderId: order && order._id ? order._id.toString() : null,
               externalOrderId: typeof orderData !== 'undefined' && orderData && orderData.orderId ? orderData.orderId : null,

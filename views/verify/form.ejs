@@ -131,26 +131,61 @@
       
       <% if (pricing) { %>
         <section class="pricing-section verify-pricing">
-          <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
-          <p class="section-subtitle"><%= t('verify.form.pricing.subtitleAuth') %></p>
-          <div class="pricing-grid pricing-grid-compact">
-            <% Object.keys(pricing).forEach(function(key) { 
-                 const priceValue = Number(pricing[key]);
-                 if (Number.isNaN(priceValue)) { return; }
-                 const asset = brandAssets[key] || brandAssets.default;
-                 const label = brandLabels[key] || key;
-               %>
-              <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
-                <div class="pricing-brand">
-                  <% if (asset && asset.logo) { %>
-                    <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
-                  <% } %>
-                  <span class="pricing-brand-name"><%= label %></span>
-                </div>
-                <div class="pricing-price"><%= formatCredits(priceValue) %> <span class="pricing-currency"><%= t('common.labels.credits') %></span></div>
-                <p class="pricing-description"><%= brandDescriptions[key] || brandDescriptions.default %></p>
+          <div class="pricing-carousel">
+            <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
+            <p class="section-subtitle"><%= t('verify.form.pricing.subtitleAuth') %></p>
+
+            <div class="pricing-carousel__viewport" data-pricing-carousel>
+              <div class="pricing-carousel__track">
+                <% Object.keys(pricing).forEach(function(key) {
+                     const priceValue = Number(pricing[key]);
+                     if (Number.isNaN(priceValue)) { return; }
+                     const asset = brandAssets[key] || brandAssets.default;
+                     const label = brandLabels[key] || key;
+                     const brandKey = key === 'default' ? 'default' : key;
+                     const description = brandDescriptions[key] || brandDescriptions.default;
+                     const detailKeys = [
+                       `verify.form.brandDetails.${brandKey}.1`,
+                       `verify.form.brandDetails.${brandKey}.2`,
+                       `verify.form.brandDetails.${brandKey}.3`,
+                       `verify.form.brandDetails.${brandKey}.4`
+                     ];
+                  %>
+                  <article class="pricing-slide">
+                    <div class="pricing-slide__head">
+                      <% if (asset && asset.logo) { %>
+                        <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-slide__logo">
+                      <% } %>
+                      <div class="pricing-slide__meta">
+                        <h3 class="pricing-slide__brand"><%= label %></h3>
+                        <p class="pricing-slide__price">
+                          <span class="pricing-slide__amount"><%= formatCredits(priceValue) %></span>
+                          <span class="pricing-slide__currency"><%= t('common.labels.credits') %></span>
+                        </p>
+                      </div>
+                    </div>
+                    <p class="pricing-slide__description"><%= description %></p>
+                    <ul class="pricing-slide__features">
+                      <% detailKeys.forEach(function(detailKey) { %>
+                        <% const detailText = t(detailKey); %>
+                        <% if (detailText && detailText !== detailKey) { %>
+                          <li><span>•</span> <%= detailText %></li>
+                        <% } %>
+                      <% }); %>
+                    </ul>
+                  </article>
+                <% }); %>
               </div>
-            <% }); %>
+            </div>
+
+            <div class="pricing-carousel__controls">
+              <button type="button" class="pricing-carousel__btn pricing-carousel__btn--prev" aria-label="<%= t('carousel.previous') %>">
+                ‹
+              </button>
+              <button type="button" class="pricing-carousel__btn pricing-carousel__btn--next" aria-label="<%= t('carousel.next') %>">
+                ›
+              </button>
+            </div>
           </div>
         </section>
       <% } %>

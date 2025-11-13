@@ -91,6 +91,33 @@ document.addEventListener('DOMContentLoaded', function() {
     handleResize();
   }
 
+  const initPricingCarousel = () => {
+    document.querySelectorAll('[data-pricing-carousel]').forEach((viewport) => {
+      const carouselRoot = viewport.closest('.pricing-carousel');
+      const track = viewport.querySelector('.pricing-carousel__track');
+      if (!carouselRoot || !track) {
+        return;
+      }
+
+      const prevBtn = carouselRoot.querySelector('.pricing-carousel__btn--prev');
+      const nextBtn = carouselRoot.querySelector('.pricing-carousel__btn--next');
+
+      const scrollStep = () => Math.max(track.clientWidth * 0.7, 260);
+
+      const scrollBy = (direction) => {
+        track.scrollBy({
+          left: direction * scrollStep(),
+          behavior: 'smooth'
+        });
+      };
+
+      prevBtn?.addEventListener('click', () => scrollBy(-1));
+      nextBtn?.addEventListener('click', () => scrollBy(1));
+    });
+  };
+
+  initPricingCarousel();
+
   const getCsrfToken = () => {
     const meta = document.querySelector('meta[name="csrf-token"]');
     const token = (meta && meta.getAttribute('content')) || window.csrfToken || '';
