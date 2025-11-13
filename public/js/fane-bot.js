@@ -7,6 +7,7 @@ const FaneBot = (() => {
   const toggleButton = document.getElementById('fane-bot-toggle');
   const windowEl = document.getElementById('fane-bot-window');
   const closeButton = document.getElementById('fane-bot-close');
+  const resetButton = document.getElementById('fane-bot-reset');
   const messagesEl = document.getElementById('fane-bot-messages');
   const formEl = document.getElementById('fane-bot-form');
   const inputEl = document.getElementById('fane-bot-input');
@@ -16,7 +17,7 @@ const FaneBot = (() => {
   const suggestionsToggle = document.getElementById('fane-bot-suggest-toggle');
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   const WELCOME_MESSAGE = 'Salut, sunt FANE , spune-mi ce telefon cumpărăm azi.';
-  let didResetSession = false;
+  let isResetting = false;
 
   const RECOMMENDED_QUESTIONS = {
     ro: (phoneName) => [
@@ -156,24 +157,50 @@ const FaneBot = (() => {
 
 
   async function resetSession() {
-    if (didResetSession) {
+    if (isResetting) {
       return;
     }
 
+    isResetting = true;
+    hideSuggestions();
+    disableSuggestionsToggle();
+    setStatus(state.language === 'en' ? 'Resetting chat…' : 'Resetez chatul…');
+
+    if (resetButton) {
+      resetButton.disabled = true;
+      resetButton.classList.add('is-loading');
+    }
+
     try {
-      await fetch('/api/fane-bot/reset', {
+      const response = await fetch('/api/fane-bot/reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {})
         }
       });
+
+      if (!response.ok) {
+        throw new Error('Reset failed');
+      }
+
       state.history = [];
       state.verification = null;
-      didResetSession = true;
+      renderHistory();
       updateSuggestions();
+      await loadHistory();
     } catch (error) {
       console.warn('FANE reset failed:', error);
+      setStatus(state.language === 'en'
+        ? 'Could not reset the chat. Try again.'
+        : 'Nu am putut reseta chatul. Încearcă din nou.');
+    } finally {
+      if (resetButton) {
+        resetButton.disabled = false;
+        resetButton.classList.remove('is-loading');
+      }
+      isResetting = false;
+      setTimeout(() => setStatus(''), 1200);
     }
   }
 
@@ -347,6 +374,17 @@ const FaneBot = (() => {
   closeButton?.addEventListener('click', (event) => {
     event.preventDefault();
     toggleWindow(false);
+  });
+  resetButton?.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (state.isSending || isResetting) {
+      return;
+    }
+    const confirmText = resetButton.getAttribute('data-confirm') || '';
+    if (confirmText && !window.confirm(confirmText)) {
+      return;
+    }
+    await resetSession();
   });
   suggestionsToggle?.addEventListener('click', () => toggleSuggestions());
   formEl?.addEventListener('submit', handleSubmit);

@@ -98,7 +98,6 @@
       // Ensure all critical variables are defined with defaults
       const blacklistSafe = typeof blacklist !== 'undefined' && blacklist ? blacklist : { status: 'unknown', text: 'Nu avem informații despre statusul blacklist' };
       const knoxSafe = typeof knox !== 'undefined' ? knox : null;
-      const mdmSafe = typeof mdm !== 'undefined' ? mdm : null;
       const networkLockSafe = typeof networkLock !== 'undefined' && networkLock ? networkLock : { status: 'unknown', text: 'Nu avem informații despre blocarea rețelei' };
       const warrantySafe = typeof warranty !== 'undefined' && warranty ? warranty : { hasInfo: false, text: 'Nu avem informații despre garanție' };
       const originSafe = typeof origin !== 'undefined' && origin ? origin : { hasInfo: false, text: 'Nu avem informații despre proveniență' };
@@ -126,17 +125,7 @@
           </div>
           <% } %>
           
-          <!-- 3. MDM Lock -->
-          <% if (mdmSafe) { %>
-          <div class="critical-info-item">
-            <div class="critical-info-label">MDM Lock:</div>
-            <div class="critical-info-value status-<%= mdmSafe.status === 'locked' ? 'warning' : mdmSafe.status === 'unlocked' ? 'safe' : 'unknown' %>">
-              <%= mdmSafe.text %>
-            </div>
-          </div>
-          <% } %>
-          
-          <!-- 4. Network Lock -->
+          <!-- 3. Network Lock -->
           <div class="critical-info-item">
             <div class="critical-info-label">Blocare Rețea:</div>
             <div class="critical-info-value status-<%= networkLockSafe.status === 'locked' ? 'danger' : networkLockSafe.status === 'locked_orange' ? 'warning' : networkLockSafe.status === 'unlocked' ? 'safe' : 'unknown' %>">
@@ -144,7 +133,7 @@
             </div>
           </div>
           
-          <!-- 5. Warranty Info -->
+          <!-- 4. Warranty Info -->
           <div class="critical-info-item">
             <div class="critical-info-label">Garanție:</div>
             <div class="critical-info-value status-<%= warrantySafe.hasInfo ? (warrantySafe.status === 'active' ? 'safe' : warrantySafe.status === 'expired' ? 'warning' : 'unknown') : 'unknown' %>">
@@ -152,7 +141,7 @@
             </div>
           </div>
           
-          <!-- 6. Origin Info -->
+          <!-- 5. Origin Info -->
           <div class="critical-info-item">
             <div class="critical-info-label">Proveniență:</div>
             <div class="critical-info-value <%= originSafe.hasInfo ? '' : 'status-unknown' %>">
@@ -376,13 +365,6 @@
             <% if (service9.unlockDate) { %>
               <p><strong>Data deblocare GSX:</strong> <%= typeof formatDate !== 'undefined' ? formatDate(service9.unlockDate) : new Date(service9.unlockDate).toLocaleDateString('ro-RO') %></p>
             <% } %>
-            <% if (service9.mdmStatus !== undefined) { %>
-              <p><strong>MDM Lock:</strong> 
-                <span style="color: <%= service9.mdmStatus ? '#ef4444' : '#22c55e' %>; font-weight: bold;">
-                  <%= service9.mdmStatus ? 'ACTIV ⚠️' : 'DEZACTIVAT ✓' %>
-                </span>
-              </p>
-            <% } %>
           </div>
           
           <!-- ISTORIC ȘI STATUS GARANȚIE -->
@@ -478,8 +460,7 @@
           const hasWarnings = 
             (service9.gsxCaseHistory && service9.gsxCaseHistory > 0) ||
             (service9.replaced === true) ||
-            (service9.loaner === true) ||
-            (service9.mdmStatus === true);
+            (service9.loaner === true);
         %>
         <% if (hasWarnings) { %>
           <div style="margin-top: 20px; padding: 15px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 4px solid #ef4444;">
@@ -493,9 +474,6 @@
               <% } %>
               <% if (service9.loaner === true) { %>
                 <li>Dispozitivul este un dispozitiv de înlocuire (loaner) - nu este dispozitivul original</li>
-              <% } %>
-              <% if (service9.mdmStatus === true) { %>
-                <li>MDM Lock este ACTIV - dispozitivul este gestionat de o companie</li>
               <% } %>
             </ul>
           </div>

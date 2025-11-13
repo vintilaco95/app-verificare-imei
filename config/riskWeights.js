@@ -6,12 +6,12 @@ const riskWeights = {
   baseScore: 100,
   penalties: {
     blacklist: 80,
-    lostMode: 70,
-    iCloudOn: 50,
-    knoxActive: 5,
+    lostMode: 80,
+    iCloudOn: 40,
+    knoxActive: 80,
     mdmLocked: 80,
-    networkLocked: 4,
-    networkLockedOrange: 1
+    networkLocked: 30,
+    networkLockedOrange: 10
   }
 };
 

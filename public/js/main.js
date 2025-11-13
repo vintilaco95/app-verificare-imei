@@ -1,35 +1,35 @@
 // IMEI Input formatting - now handled by imei-validator.js
 // This code is kept for backward compatibility but main validation is in imei-validator.js
 document.addEventListener('DOMContentLoaded', function() {
-  const navToggle = document.querySelector('.nav-toggle');
-  const navLinks = document.querySelector('.nav-links');
+  const navToggle = document.getElementById('site-nav-toggle');
+  const navMenu = document.getElementById('site-nav');
   const navBackdrop = document.getElementById('nav-backdrop');
 
-  if (navToggle && navLinks) {
+  if (navToggle && navMenu) {
     const body = document.body;
 
     const openNav = () => {
-      navLinks.classList.add('is-open');
-      navLinks.style.maxHeight = `${navLinks.scrollHeight + 48}px`;
-      navToggle.classList.add('is-open');
+      navMenu.classList.add('is-open');
+      navMenu.setAttribute('aria-hidden', 'false');
+      navToggle.classList.add('is-active');
       navToggle.setAttribute('aria-expanded', 'true');
-      body.classList.add('nav-open');
+      body.classList.add('site-nav-open');
       if (navBackdrop) {
         navBackdrop.removeAttribute('hidden');
         requestAnimationFrame(() => navBackdrop.classList.add('is-visible'));
       }
     };
 
-    const closeNav = (restoreHeight = true) => {
-      navLinks.classList.remove('is-open');
-      if (restoreHeight) {
-        navLinks.style.maxHeight = '0px';
-      } else {
-        navLinks.style.maxHeight = '';
-      }
-      navToggle.classList.remove('is-open');
+    const closeNav = (isResize = false) => {
+      navMenu.classList.remove('is-open');
+      navToggle.classList.remove('is-active');
       navToggle.setAttribute('aria-expanded', 'false');
-      body.classList.remove('nav-open');
+      body.classList.remove('site-nav-open');
+      if (window.innerWidth < 900 || !isResize) {
+        navMenu.setAttribute('aria-hidden', 'true');
+      } else {
+        navMenu.setAttribute('aria-hidden', 'false');
+      }
       if (navBackdrop) {
         navBackdrop.classList.remove('is-visible');
         const hideBackdrop = () => {
@@ -45,7 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     navToggle.addEventListener('click', () => {
-      if (navLinks.classList.contains('is-open')) {
+      const isOpen = navMenu.classList.contains('is-open');
+      if (isOpen) {
         closeNav();
       } else {
         openNav();
@@ -56,21 +57,33 @@ document.addEventListener('DOMContentLoaded', function() {
       navBackdrop.addEventListener('click', () => closeNav());
     }
 
-    navLinks.querySelectorAll('a, button').forEach(item => {
-      item.addEventListener('click', () => closeNav());
+    navMenu.querySelectorAll('a, button').forEach(item => {
+      item.addEventListener('click', () => {
+        if (window.innerWidth < 900) {
+          closeNav();
+        }
+      });
     });
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && navLinks.classList.contains('is-open')) {
+      if (event.key === 'Escape' && navMenu.classList.contains('is-open')) {
         closeNav();
       }
     });
 
     const handleResize = () => {
       if (window.innerWidth >= 900) {
-        closeNav(false);
-      } else if (!navLinks.classList.contains('is-open')) {
-        navLinks.style.maxHeight = '0px';
+        navMenu.classList.remove('is-open');
+        navMenu.setAttribute('aria-hidden', 'false');
+        navToggle.classList.remove('is-active');
+        navToggle.setAttribute('aria-expanded', 'false');
+        body.classList.remove('site-nav-open');
+        if (navBackdrop) {
+          navBackdrop.classList.remove('is-visible');
+          navBackdrop.setAttribute('hidden', '');
+        }
+      } else if (!navMenu.classList.contains('is-open')) {
+        navMenu.setAttribute('aria-hidden', 'true');
       }
     };
 
