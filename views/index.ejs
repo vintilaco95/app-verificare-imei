@@ -270,36 +270,38 @@
   </div>
 </section>
 
-<!-- Pricing Section -->
-<div class="pricing-section">
-  <div class="container">
-    <h2 class="section-title"><%= t('home.pricing.title') %></h2>
-    <p class="section-subtitle"><%= t('home.pricing.subtitle') %></p>
-    
-    <div class="pricing-grid">
-      <% pricingKeys.forEach(function(key) { 
-           if (typeof pricing[key] === 'undefined') { return; }
-           const priceValue = Number(pricing[key]);
-           if (Number.isNaN(priceValue)) { return; }
-           const asset = brandAssets[key] || brandAssets.default;
-           const label = brandNames[key] || key.charAt(0).toUpperCase() + key.slice(1);
-           const descriptionKey = key === 'default'
-             ? 'home.pricing.default.desc'
-             : `home.pricing.${key}.desc`;
-        %>
-        <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
-          <div class="pricing-brand">
-            <% if (asset && asset.logo) { %>
-              <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
-            <% } %>
-            <span class="pricing-brand-name"><%= key === 'default' ? t('home.pricing.default.title') : label %></span>
+<% if (user) { %>
+  <!-- Pricing Section -->
+  <div class="pricing-section">
+    <div class="container">
+      <h2 class="section-title"><%= t('home.pricing.title') %></h2>
+      <p class="section-subtitle"><%= t('home.pricing.subtitle') %></p>
+      
+      <div class="pricing-grid">
+        <% pricingKeys.forEach(function(key) { 
+             if (typeof pricing[key] === 'undefined') { return; }
+             const priceValue = Number(pricing[key]);
+             if (Number.isNaN(priceValue)) { return; }
+             const asset = brandAssets[key] || brandAssets.default;
+             const label = brandNames[key] || key.charAt(0).toUpperCase() + key.slice(1);
+             const descriptionKey = key === 'default'
+               ? 'home.pricing.default.desc'
+               : `home.pricing.${key}.desc`;
+          %>
+          <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
+            <div class="pricing-brand">
+              <% if (asset && asset.logo) { %>
+                <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
+              <% } %>
+              <span class="pricing-brand-name"><%= key === 'default' ? t('home.pricing.default.title') : label %></span>
+            </div>
+            <div class="pricing-price"><%= priceValue.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
+            <p class="pricing-description"><%= t(descriptionKey) %></p>
           </div>
-          <div class="pricing-price"><%= priceValue.toFixed(2) %> <span class="pricing-currency"><%= t('home.pricing.currency') %></span></div>
-          <p class="pricing-description"><%= t(descriptionKey) %></p>
-        </div>
-      <% }); %>
+        <% }); %>
+      </div>
     </div>
   </div>
-</div>
+<% } %>
 
 <%- include('partials/footer') %>

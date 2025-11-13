@@ -1048,7 +1048,7 @@ async function generateResultHTML(order, options = {}) {
         rawHtml: appleMdmCheck ? appleMdmCheck.rawHtml : '',
         fetchedAt: appleMdmCheck ? appleMdmCheck.fetchedAt : null
       },
-      showAppleMdmButton: isApple,
+      showAppleMdmButton: isApple && !appleMdmHasData,
       appleMdmButtonDisabled: appleMdmHasData
     };
   }

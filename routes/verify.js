@@ -30,7 +30,6 @@ const {
   DEFAULT_LANGUAGE
 } = require('../services/emailFormatter');
 const { generateResultHTML } = require('../services/generateResultHTML');
-const { parseAppleMdmHTML } = require('../services/parseAppleMdmHTML');
 
 async function renderVerifyForm(res, params = {}) {
   try {
@@ -38,6 +37,8 @@ async function renderVerifyForm(res, params = {}) {
     return res.render('verify/form', {
       pricing: pricingConfig.baseCredits,
       guestPricing: pricingConfig.guestPrices,
+      additionalServices: pricingConfig.additionalServices,
+      provenancePrice: pricingConfig.provenancePrice,
       creditValue: CREDIT_VALUE,
       currencyCode: BASE_CURRENCY,
       ...params
@@ -45,9 +46,18 @@ async function renderVerifyForm(res, params = {}) {
   } catch (error) {
     console.error('[Verify] Failed to load pricing config:', error);
     const fallbackBase = (PRICING && PRICING.base) || {};
+    const fallbackAdditional = {};
+    const additionalTemplate = (PRICING && PRICING.additional) || {};
+    Object.keys(fallbackBase).forEach((brand) => {
+      fallbackAdditional[brand] = additionalTemplate[brand] || additionalTemplate.default || [];
+    });
     return res.render('verify/form', {
       pricing: fallbackBase,
       guestPricing: {},
+      additionalServices: fallbackAdditional,
+      provenancePrice: (PRICING && PRICING.defaults && typeof PRICING.defaults.provenancePrice === 'number')
+        ? PRICING.defaults.provenancePrice
+        : 5,
       creditValue: CREDIT_VALUE,
       currencyCode: BASE_CURRENCY,
       ...params
@@ -495,6 +505,7 @@ router.get('/result/:orderId', async (req, res) => {
     console.log(`[VerifyResult] GET ${req.originalUrl} - csrfToken: ${renderCsrfToken || 'EMPTY'}`);
 
     const lang = normalizeLang(res.locals.currentLang || DEFAULT_LANGUAGE);
+    const pricingConfig = await pricingService.getPricingConfig();
     const { templateName, templateData } = await generateResultHTML(order, {
       includeLayout: false,
       lang
@@ -505,7 +516,8 @@ router.get('/result/:orderId', async (req, res) => {
       title: res.locals.t ? res.locals.t('verify.result.pageTitle') : 'Rezultat verificare IMEI',
       user: req.user || null,
       csrfToken: renderCsrfToken,
-      isEmail: false
+      isEmail: false,
+      provenancePrice: pricingConfig.provenancePrice
     });
   } catch (error) {
     console.error('[VerifyResult] Error rendering result:', error);
@@ -513,120 +525,6 @@ router.get('/result/:orderId', async (req, res) => {
       error: 'A apărut o eroare la afișarea rezultatului.',
       user: req.user || null
     });
-  }
-});
-
-// POST endpoint for Apple MDM status check (service 47)
-router.post('/apple-mdm/:orderId', requireAuth, async (req, res) => {
-  const servicePrice = 5;
-  try {
-    const orderId = req.params.orderId;
-    const userId = req.session.userId;
-
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ error: 'Verificare negăsită' });
-    }
-
-    if (order.userId && order.userId.toString() !== userId.toString()) {
-      return res.status(403).json({ error: 'Nu ai acces la această verificare' });
-    }
-
-    if (order.status !== 'success') {
-      return res.status(400).json({ error: 'Verificarea nu este finalizată' });
-    }
-
-    const brand = (order.brand || '').toLowerCase();
-    if (brand !== 'apple') {
-      return res.status(400).json({ error: 'Funcția MDM este disponibilă doar pentru dispozitive Apple' });
-    }
-
-    if (order.object && typeof order.object === 'object' && order.object.appleMdmCheck) {
-      return res.status(400).json({ error: 'Statusul MDM a fost deja verificat' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Utilizator negăsit' });
-    }
-
-    if (user.credits < servicePrice) {
-      return res.status(400).json({ error: `Credit insuficient. Ai nevoie de ${servicePrice} credite.` });
-    }
-
-    user.credits -= servicePrice;
-    await user.save();
-
-    await CreditTransaction.create({
-      userId,
-      type: 'usage',
-      amount: servicePrice,
-      description: `Verificare MDM Lock pentru IMEI ${order.imei}`,
-      orderId: orderId
-    });
-
-    console.log('[AppleMDM] Calling service 47 for IMEI:', order.imei);
-    const mdmResult = await imeiService.callIMEIAPI(imeiService.SERVICES.APPLE_MDM_STATUS, order.imei);
-    console.log('[AppleMDM] Raw result:', JSON.stringify(mdmResult, null, 2));
-
-    if (!mdmResult || mdmResult.status !== 'success') {
-      user.credits += servicePrice;
-      await user.save();
-
-      await CreditTransaction.create({
-        userId,
-        type: 'refund',
-        amount: servicePrice,
-        description: `Rambursare - eroare verificare MDM pentru IMEI ${order.imei}`,
-        orderId: orderId
-      });
-
-      return res.status(500).json({ error: 'Eroare la verificarea statusului MDM' });
-    }
-
-    const parsed = parseAppleMdmHTML(mdmResult.result || '');
-
-    if (!order.additionalServices) {
-      order.additionalServices = [];
-    }
-    if (!order.additionalServices.includes(947)) {
-      order.additionalServices.push(947);
-    }
-
-    const separator = '<br><br><hr><br>';
-    order.result = (order.result || '') + separator + (mdmResult.result || '');
-
-    if (!order.object || typeof order.object !== 'object') {
-      if (typeof order.object === 'string') {
-        try {
-          order.object = JSON.parse(order.object);
-        } catch (parseErr) {
-          order.object = {};
-        }
-      } else {
-        order.object = {};
-      }
-    }
-
-    order.object.appleMdmCheck = {
-      rawHtml: mdmResult.result || '',
-      fields: parsed.fields,
-      mdmLock: parsed.mdmLock,
-      serviceOrderId: mdmResult.orderId || null,
-      duration: mdmResult.duration || null,
-      fetchedAt: new Date().toISOString()
-    };
-    order.markModified('object');
-
-    await order.save();
-
-    res.json({
-      success: true,
-      data: order.object.appleMdmCheck
-    });
-  } catch (error) {
-    console.error('[AppleMDM] Error:', error);
-    res.status(500).json({ error: 'Eroare la verificarea statusului MDM' });
   }
 });
 
@@ -653,22 +551,16 @@ router.post('/enhance/:orderId', requireAuth, async (req, res) => {
     }
     
     // Check if service 9 was already added
-    if (order.additionalServices && order.additionalServices.includes(900)) {
+    if (order.additionalServices && order.additionalServices.includes(9)) {
       return res.status(400).json({ error: 'Datele au fost deja completate' });
-    }
-    
-    // Check brand (only Apple and Samsung)
-    const brand = order.brand || '';
-    if (brand !== 'apple' && brand !== 'samsung') {
-      return res.status(400).json({ error: 'Această funcție este disponibilă doar pentru Apple și Samsung' });
     }
     
     // Check user credits
     const user = await User.findById(userId);
-    const servicePrice = 5; // 5 credits for service 9
+    const servicePrice = await pricingService.getProvenancePrice();
     
     if (user.credits < servicePrice) {
-      return res.status(400).json({ error: `Credit insuficient. Ai nevoie de ${servicePrice} credite.` });
+      return res.status(400).json({ error: `Credit insuficient. Ai nevoie de ${servicePrice.toFixed(2)} credite.` });
     }
     
     // Deduct credits
@@ -710,7 +602,9 @@ router.post('/enhance/:orderId', requireAuth, async (req, res) => {
     if (!order.additionalServices) {
       order.additionalServices = [];
     }
-    order.additionalServices.push(900);
+    if (!order.additionalServices.includes(9)) {
+      order.additionalServices.push(9);
+    }
     
     // Append service 9 result to order result
     const separator = '<br><br><hr><br>';

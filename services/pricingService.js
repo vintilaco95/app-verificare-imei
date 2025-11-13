@@ -39,11 +39,39 @@ async function fetchPricingConfig() {
   const setting = await PricingSetting.findOne().sort({ updatedAt: -1 }).lean();
   const baseCredits = mergeBaseCredits(setting ? setting.baseCredits : {});
   const guestPrices = mergeGuestPrices(baseCredits, setting ? setting.guestPrices : {});
+  const defaultProvenancePrice = (PRICING && PRICING.defaults && typeof PRICING.defaults.provenancePrice === 'number')
+    ? PRICING.defaults.provenancePrice
+    : 5;
+  const provenancePrice = (() => {
+    if (!setting || typeof setting.provenancePrice !== 'number' || Number.isNaN(setting.provenancePrice)) {
+      return defaultProvenancePrice;
+    }
+    return Math.max(0, Number(setting.provenancePrice));
+  })();
+
+  const buildAdditionalServices = () => {
+    const template = PRICING.additional || {};
+    const mapped = {};
+    Object.keys(baseCredits).forEach((brand) => {
+      const services = template[brand] || template.default || [];
+      mapped[brand] = services.map((service) => {
+        if (service.id === 9 || service.serviceId === 9) {
+          return {
+            ...service,
+            price: provenancePrice
+          };
+        }
+        return { ...service };
+      });
+    });
+    return mapped;
+  };
 
   cachedConfig = {
     baseCredits,
     guestPrices,
-    additionalServices: PRICING.additional || {},
+    additionalServices: buildAdditionalServices(),
+    provenancePrice,
     updatedAt: setting ? setting.updatedAt : null,
     updatedBy: setting ? setting.updatedBy : null
   };
@@ -66,7 +94,8 @@ async function getGuestPrice(brand) {
 }
 
 async function getAdditional(brand) {
-  return getAdditionalServices(brand);
+  const config = await fetchPricingConfig();
+  return config.additionalServices[brand] || config.additionalServices.default || getAdditionalServices(brand);
 }
 
 async function calculateTotalCredits(brand, additionalServiceIds = []) {
@@ -81,7 +110,7 @@ async function calculateTotalCredits(brand, additionalServiceIds = []) {
   return total;
 }
 
-async function updatePricingConfig({ baseCredits = {}, guestPrices = {} }, userId) {
+async function updatePricingConfig({ baseCredits = {}, guestPrices = {}, provenancePrice = null }, userId) {
   const payload = {
     baseCredits,
     guestPrices,
@@ -93,8 +122,14 @@ async function updatePricingConfig({ baseCredits = {}, guestPrices = {} }, userI
     existing.baseCredits = baseCredits;
     existing.guestPrices = guestPrices;
     existing.updatedBy = userId || existing.updatedBy;
+    if (provenancePrice !== null && !Number.isNaN(provenancePrice) && provenancePrice >= 0) {
+      existing.provenancePrice = provenancePrice;
+    }
     await existing.save();
   } else {
+    if (provenancePrice !== null && !Number.isNaN(provenancePrice) && provenancePrice >= 0) {
+      payload.provenancePrice = provenancePrice;
+    }
     await PricingSetting.create(payload);
   }
 
@@ -103,11 +138,17 @@ async function updatePricingConfig({ baseCredits = {}, guestPrices = {} }, userI
   return fetchPricingConfig();
 }
 
+async function getProvenancePrice() {
+  const config = await fetchPricingConfig();
+  return config.provenancePrice || (PRICING && PRICING.defaults && PRICING.defaults.provenancePrice) || 5;
+}
+
 module.exports = {
   getPricingConfig,
   getBasePrice,
   getGuestPrice,
   getAdditionalServices: getAdditional,
   calculateTotalCredits,
-  updatePricingConfig
+  updatePricingConfig,
+  getProvenancePrice
 };

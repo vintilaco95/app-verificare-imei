@@ -33,10 +33,13 @@ function buildSystemPrompt({ language = 'ro', userName }) {
       `Address the user as ${friendlyName} when it feels natural, but keep it casual.`,
       'Keep replies short: at most three sentences, no bullet points.',
       'Use a relaxed Bucharest tone, slightly sarcastic but never rude.',
-      'Only bring up phone verification details if the user clearly asks about the phone, IMEI, risk, price, or negotiation.',
-      'When discussing the phone, include at least one practical negotiation tip based on the data you know.',
+      'Only bring up data from the latest verification if the user clearly refers to their current phone, the IMEI report, or the verification details.',
+      'You have the full raw IMEI verification payload in the context; you may quote any relevant field directly.',
+      'Never assume the user wants to sell their current device; focus on the request they just made.',
+      'When the discussion is about that verified phone, include one practical negotiation tip based on the known data.',
       'If the message is vague, ask a short clarifying question.',
-      'Never fabricate data; if something is missing, say so.'
+      'Never fabricate data; if something is missing, say so.',
+      'If you see servicePrice in the data, that is the verification cost, not the phone selling price.'
     ].join(' ');
   }
 
@@ -45,44 +48,131 @@ function buildSystemPrompt({ language = 'ro', userName }) {
     `Folosește numele ${friendlyName} când se potrivește, dar păstrează conversația naturală.`,
     'Răspunsurile trebuie să fie scurte: maximum trei fraze, fără bullet-uri.',
     'Vorbește relaxat, ca un prieten priceput, cu puțin umor de cartier.',
-    'Menționează detaliile telefonului doar dacă utilizatorul întreabă explicit de verificare, IMEI, blocări sau negociere.',
-    'Când se discută despre telefon, oferă cel puțin un sfat concret de negociere bazat pe datele pe care le ai.',
+    'Adu în discuție datele din ultima verificare doar dacă utilizatorul se referă clar la telefonul lui actual, la raportul de IMEI sau la detalii din verificare.',
+    'Ai în context întregul obiect JSON al verificării IMEI; folosește orice câmp este relevant pentru răspuns.',
+    'Nu presupune că utilizatorul vrea să-și vândă telefonul curent; răspunde strict la cererea pe care tocmai a formulat-o.',
+    'Când discuția chiar este despre acel telefon verificat, oferă un sfat concret de negociere bazat pe datele pe care le ai.',
     'Dacă mesajul e vag, cere o clarificare scurtă.',
-    'Nu inventa informații; dacă lipsește ceva, spune clar.'
+    'Nu inventa informații; dacă lipsește ceva, spune clar.',
+    'Dacă vezi servicePrice în date, acela reprezintă costul verificării, nu prețul de vânzare al telefonului.'
   ].join(' ');
 }
 
-function buildContextBlock({ currentOrder, sessionOrders, lastAccountOrder }) {
-  const payload = {
-    currentOrder: currentOrder || null,
-    sessionOrders: ensureArray(sessionOrders),
-    lastAccountOrder: lastAccountOrder || null
-  };
+function buildVerificationSummary(verification, language) {
+  if (!verification) {
+    return null;
+  }
+
+  const locale = language === 'en' ? 'en-GB' : 'ro-RO';
+  const parts = [];
+
+  const deviceName = [verification.brand, verification.modelDesc || verification.model]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  if (deviceName) {
+    parts.push(language === 'en' ? `Device: ${deviceName}` : `Dispozitiv: ${deviceName}`);
+  }
+
+  if (verification.imei) {
+    parts.push(`IMEI: ${verification.imei}`);
+  }
+
+  if (verification.riskLabel || typeof verification.riskScore === 'number') {
+    const riskScoreText = typeof verification.riskScore === 'number'
+      ? ` (${verification.riskScore})`
+      : '';
+    parts.push(
+      language === 'en'
+        ? `Risk: ${verification.riskLabel || 'N/A'}${riskScoreText}`
+        : `Risc: ${verification.riskLabel || 'N/A'}${riskScoreText}`
+    );
+  }
+
+  if (verification.summaryLabel) {
+    parts.push(language === 'en'
+      ? `Summary: ${verification.summaryLabel}`
+      : `Rezumat: ${verification.summaryLabel}`);
+  }
+
+  if (verification.statuses && typeof verification.statuses === 'object') {
+    const statusPairs = Object.entries(verification.statuses)
+      .slice(0, 6)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+    if (statusPairs) {
+      parts.push(language === 'en' ? `Statuses: ${statusPairs}` : `Statusuri: ${statusPairs}`);
+    }
+  }
+
+  if (verification.blacklist && typeof verification.blacklist === 'object' && verification.blacklist.status) {
+    parts.push(language === 'en'
+      ? `Blacklist: ${verification.blacklist.status}`
+      : `Blacklist: ${verification.blacklist.status}`);
+  }
+
+  if (verification.iCloud && typeof verification.iCloud === 'object' && verification.iCloud.status) {
+    parts.push(language === 'en'
+      ? `iCloud: ${verification.iCloud.status}`
+      : `iCloud: ${verification.iCloud.status}`);
+  }
+
+  if (verification.mdm && typeof verification.mdm === 'object' && verification.mdm.status) {
+    parts.push(language === 'en'
+      ? `MDM: ${verification.mdm.status}`
+      : `MDM: ${verification.mdm.status}`);
+  }
+
+  if (verification.createdAt) {
+    const formattedDate = new Date(verification.createdAt).toLocaleString(locale, {
+      timeZone: 'Europe/Bucharest'
+    });
+    parts.push(language === 'en'
+      ? `Verified at: ${formattedDate}`
+      : `Verificare din: ${formattedDate}`);
+  }
+
+  return parts.join(' | ');
+}
+
+function buildContextBlock({ verification, priceInsight, language }) {
+  const payload = {};
+
+  if (verification) {
+    payload.verificationSummary = buildVerificationSummary(verification, language);
+    payload.latestVerification = verification;
+  }
+
+  if (priceInsight) {
+    payload.marketIntel = priceInsight;
+  }
+
+  if (!Object.keys(payload).length) {
+    return null;
+  }
 
   return JSON.stringify(payload, null, 2);
 }
 
-function buildUserPrompt({ message, language = 'ro', mentionOrder, contextBlock }) {
-  const directive = mentionOrder
+function buildUserPrompt({ message, language = 'ro', mentionVerification, contextBlock }) {
+  const directive = mentionVerification
     ? (language === 'en'
-      ? 'The user is asking about the phone. Use the relevant data from the context if it helps, and include one negotiation tip.'
-      : 'Utilizatorul întreabă despre telefon. Folosește datele relevante din context și oferă un sfat de negociere.')
+      ? 'The user is referring to the latest verification. Use the data above to answer precisely and add one short negotiation tip if it fits.'
+      : 'Utilizatorul se referă la ultima verificare. Folosește datele de mai sus pentru un răspuns precis și adaugă un sfat scurt de negociere dacă are sens.')
     : (language === 'en'
-      ? 'The user is not asking about phone data. Reply naturally without mentioning the verification unless they ask for it.'
-      : 'Utilizatorul nu întreabă despre telefon. Răspunde natural fără să aduci în discuție verificarea dacă nu este solicitată.');
+      ? 'The user is not directly referencing the verification. Answer naturally, but feel free to bring up relevant verification facts if they strengthen the reply.'
+      : 'Utilizatorul nu face referire directă la verificare. Răspunde natural și adu în discuție detalii din verificare doar dacă ajută răspunsul.');
 
-  const missingDataCallout = language === 'en'
-    ? 'If any important data is missing, politely mention what else you would need.'
-    : 'Dacă îți lipsește o informație importantă, spune politicos ce ai mai avea nevoie.';
-
-  return [
+  const segments = [
     directive,
-    missingDataCallout,
-    'Available data (JSON):',
+    contextBlock ? (language === 'en' ? 'Context bundle (JSON):' : 'Context (JSON):') : null,
     contextBlock,
     language === 'en' ? 'User message:' : 'Mesajul utilizatorului:',
     message
-  ].join('\n\n');
+  ];
+
+  return segments.filter(Boolean).join('\n\n');
 }
 
 async function callOpenAI(messages) {
@@ -125,12 +215,11 @@ async function callOpenAI(messages) {
 async function generateFaneBotReply({
   message,
   history = [],
-  currentOrder = null,
-  sessionOrders = [],
-  lastAccountOrder = null,
+  verification = null,
   language = 'ro',
   userName = null,
-  mentionOrder = false
+  mentionVerification = false,
+  priceInsight = null
 }) {
   try {
     const sanitizedHistory = ensureArray(history)
@@ -141,11 +230,11 @@ async function generateFaneBotReply({
         content: entry.content
       }));
 
-    const contextBlock = buildContextBlock({ currentOrder, sessionOrders, lastAccountOrder });
+    const contextBlock = buildContextBlock({ verification, priceInsight, language });
     const userPrompt = buildUserPrompt({
       message,
       language,
-      mentionOrder,
+      mentionVerification,
       contextBlock
     });
 

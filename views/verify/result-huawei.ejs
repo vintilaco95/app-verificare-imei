@@ -16,6 +16,7 @@
 
 <div class="result-container">
   <% 
+    const tt = (key) => typeof t === 'function' ? t(key) : key;
     // Parse Huawei data from HTML result (data should be pre-parsed in route)
     const huaweiData = typeof huaweiParsedData !== 'undefined' ? huaweiParsedData : {};
     const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
@@ -37,6 +38,14 @@
     const warrantyEndDate = huaweiData.warrantyEndDate || '';
     const warrantyValidInCountry = huaweiData.warrantyValidInCountry || '';
     const warrantyTypes = huaweiData.warrantyTypes || [];
+    const hasProvenanceReport = Array.isArray(order && order.additionalServices) && order.additionalServices.includes(9);
+    const showProvenanceUpsell = user && !hasProvenanceReport;
+    const provenanceCreditsValue = typeof provenancePrice !== 'undefined' ? Number(provenancePrice || 0) : 0;
+    const formattedProvenanceCredits = provenanceCreditsValue.toFixed(2);
+    const provenanceButtonLabel = `${tt('verify.result.actions.enhanceBase')} (+${formattedProvenanceCredits} ${tt('common.labels.credits')})`;
+    const provenanceButtonConfirm = tt('verify.result.actions.enhanceConfirm').replace('{price}', formattedProvenanceCredits);
+    const provenanceButtonProcessing = tt('verify.result.actions.enhanceProcessing');
+    const provenanceButtonError = tt('verify.result.actions.enhanceError');
   %>
 
   <div class="imei-report">
@@ -52,11 +61,26 @@
           <p class="report-desc">Model Code: <strong><%= modelCode %></strong></p>
         <% } %>
       </div>
-      <!-- SCOR RISC -->
-      <div class="score-box">
-        <p class="score-label">Scor siguranță</p>
-        <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / <%= riskScoreMaxValue %></p>
-        <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
+      <div class="report-actions">
+        <% if (showProvenanceUpsell) { %>
+          <button
+            type="button"
+            class="btn btn-primary btn-provenance"
+            id="verify-provenance-btn"
+            data-order-id="<%= order._id %>"
+            data-label="<%= provenanceButtonLabel %>"
+            data-confirm="<%= provenanceButtonConfirm %>"
+            data-processing="<%= provenanceButtonProcessing %>"
+            data-error="<%= provenanceButtonError %>">
+            <span class="btn-text"><%= tt('verify.result.actions.enhanceBase') %></span>
+            <span class="btn-price">+<%= formattedProvenanceCredits %> <%= tt('common.labels.credits') %></span>
+          </button>
+        <% } %>
+        <div class="score-box">
+          <p class="score-label">Scor siguranță</p>
+          <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / <%= riskScoreMaxValue %></p>
+          <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
+        </div>
       </div>
     </div>
 

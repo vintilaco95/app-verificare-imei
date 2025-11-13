@@ -14,12 +14,6 @@
   const appleMdmData = typeof appleMdm !== 'undefined'
     ? appleMdm
     : (tplData.appleMdm ? tplData.appleMdm : null);
-  const showAppleMdmButtonFlag = typeof showAppleMdmButton !== 'undefined'
-    ? showAppleMdmButton
-    : (typeof tplData.showAppleMdmButton !== 'undefined' ? tplData.showAppleMdmButton : false);
-  const appleMdmButtonDisabledFlag = typeof appleMdmButtonDisabled !== 'undefined'
-    ? appleMdmButtonDisabled
-    : (typeof tplData.appleMdmButtonDisabled !== 'undefined' ? tplData.appleMdmButtonDisabled : false);
   const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
     ? riskScoreMax
     : (typeof tplData.riskScoreMax !== 'undefined' ? tplData.riskScoreMax : 10);
@@ -31,6 +25,14 @@
   const networkLockData = typeof networkLock !== 'undefined' ? networkLock : (tplData.networkLock ? tplData.networkLock : null);
   const warrantyData = typeof warranty !== 'undefined' ? warranty : (tplData.warranty ? tplData.warranty : null);
   const originData = typeof origin !== 'undefined' ? origin : (tplData.origin ? tplData.origin : null);
+  const hasProvenanceReport = Array.isArray(order && order.additionalServices) && order.additionalServices.includes(9);
+  const provenanceCreditsValue = typeof provenancePrice !== 'undefined' ? Number(provenancePrice || 0) : 0;
+  const formattedProvenanceCredits = provenanceCreditsValue.toFixed(2);
+  const showProvenanceUpsell = user && !hasProvenanceReport;
+  const provenanceButtonLabel = `${tt('verify.result.actions.enhanceBase')} (+${formattedProvenanceCredits} ${tt('common.labels.credits')})`;
+  const provenanceButtonConfirm = tt('verify.result.actions.enhanceConfirm').replace('{price}', formattedProvenanceCredits);
+  const provenanceButtonProcessing = tt('verify.result.actions.enhanceProcessing');
+  const provenanceButtonError = tt('verify.result.actions.enhanceError');
 %>
 <% if (!isEmailView) { 
   const headerProps = {
@@ -79,11 +81,26 @@
           <p class="report-desc"><%= tt('verify.result.device.providerDescription') %> <strong><%= modelDesc %></strong></p>
         <% } %>
       </div>
-      <!-- SCOR RISC -->
-      <div class="score-box">
-        <p class="score-label"><%= tt('verify.result.scoreLabel') %></p>
-        <p class="score-value" style="color: <%= scoreColor %>;"><%= riskScore %> / <%= riskScoreMaxValue %></p>
-        <p class="score-text" style="color: <%= scoreColor %>;"><%= riskLabel %></p>
+      <div class="report-actions">
+        <% if (showProvenanceUpsell) { %>
+          <button
+            type="button"
+            class="btn btn-primary btn-provenance"
+            id="verify-provenance-btn"
+            data-order-id="<%= order._id %>"
+            data-label="<%= provenanceButtonLabel %>"
+            data-confirm="<%= provenanceButtonConfirm %>"
+            data-processing="<%= provenanceButtonProcessing %>"
+            data-error="<%= provenanceButtonError %>">
+            <span class="btn-text"><%= tt('verify.result.actions.enhanceBase') %></span>
+            <span class="btn-price">+<%= formattedProvenanceCredits %> <%= tt('common.labels.credits') %></span>
+          </button>
+        <% } %>
+        <div class="score-box">
+          <p class="score-label"><%= tt('verify.result.scoreLabel') %></p>
+          <p class="score-value" style="color: <%= scoreColor %>;"><%= riskScore %> / <%= riskScoreMaxValue %></p>
+          <p class="score-text" style="color: <%= scoreColor %>;"><%= riskLabel %></p>
+        </div>
       </div>
     </div>
 
@@ -125,7 +142,7 @@
           <% if (mdmData) { %>
           <div class="critical-info-item">
             <div class="critical-info-label"><%= tt('verify.result.labels.mdm') %>:</div>
-            <div class="critical-info-value status-<%= mdmData.status === 'locked' ? 'warning' : mdmData.status === 'unlocked' ? 'safe' : 'unknown' %>">
+            <div class="critical-info-value status-<%= mdmData.status === 'locked' ? 'danger' : mdmData.status === 'unlocked' ? 'safe' : 'unknown' %>">
               <%= localizedText(mdmData) %>
             </div>
           </div>
@@ -585,113 +602,15 @@
         <% }) %>
       </div>
     </section>
-  <% } else if (!isEmailView && user && isApple && showAppleMdmButtonFlag && !appleMdmButtonDisabledFlag) { %>
-    <section class="apple-mdm-section apple-mdm-empty">
-      <p><%= tt('verify.result.appleMdm.noData') %></p>
-    </section>
   <% } %>
-
+  
   <div class="result-actions">
-    <% if (user && isApple && showAppleMdmButtonFlag && !appleMdmButtonDisabledFlag) { %>
-      <button id="mdm-check-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
-        <%= tt('verify.result.actions.mdmCheck') %>
-      </button>
-    <% } %>
-    <% if (user && isApple && (!order.additionalServices || !order.additionalServices.includes(900))) { %>
-      <button id="enhance-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
-        <%= tt('verify.result.actions.enhance') %>
-      </button>
-    <% } %>
     <a href="/verify/imei" class="btn btn-secondary"><%= tt('verify.result.actions.checkAnother') %></a>
     <% if (user) { %>
       <a href="/dashboard/orders" class="btn btn-primary"><%= tt('verify.result.actions.viewAll') %></a>
     <% } %>
   </div>
   
-  <% if (user && isApple) { %>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const enhanceBtn = document.getElementById('enhance-btn');
-      const mdmBtn = document.getElementById('mdm-check-btn');
-      const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-      const csrfToken = (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
-      window.csrfToken = csrfToken;
-
-      if (mdmBtn) {
-        mdmBtn.addEventListener('click', async function() {
-          if (!confirm(<%= JSON.stringify(tt('verify.result.actions.mdmCheckConfirm')) %>)) {
-            return;
-          }
-          const orderId = mdmBtn.getAttribute('data-order-id');
-          mdmBtn.disabled = true;
-          mdmBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.mdmCheckProcessing')) %>;
-          try {
-            const response = await fetch(`/verify/apple-mdm/${orderId}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
-                'csrf-token': csrfToken
-              },
-              credentials: 'same-origin',
-              body: JSON.stringify({ _csrf: csrfToken })
-            });
-            const data = await response.json();
-            if (response.ok && data.success) {
-              window.location.reload();
-            } else {
-              alert(data.error || <%= JSON.stringify(tt('verify.result.actions.mdmCheckError')) %>);
-              mdmBtn.disabled = false;
-              mdmBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.mdmCheck')) %>;
-            }
-          } catch (error) {
-            console.error('Error:', error);
-            alert(<%= JSON.stringify(tt('verify.result.actions.mdmCheckError')) %>);
-            mdmBtn.disabled = false;
-            mdmBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.mdmCheck')) %>;
-          }
-        });
-      }
-
-      if (enhanceBtn) {
-        enhanceBtn.addEventListener('click', async function() {
-          if (!confirm(<%= JSON.stringify(tt('verify.result.actions.enhanceConfirm')) %>)) {
-            return;
-          }
-          const orderId = enhanceBtn.getAttribute('data-order-id');
-          enhanceBtn.disabled = true;
-          enhanceBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.enhanceProcessing')) %>;
-          try {
-            const response = await fetch(`/verify/enhance/${orderId}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
-                'csrf-token': csrfToken
-              },
-              credentials: 'same-origin',
-              body: JSON.stringify({ _csrf: csrfToken })
-            });
-            const data = await response.json();
-            if (response.ok && data.success) {
-              window.location.reload();
-            } else {
-              alert(data.error || <%= JSON.stringify(tt('verify.result.actions.enhanceError')) %>);
-              enhanceBtn.disabled = false;
-              enhanceBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.enhance')); %>;
-            }
-          } catch (error) {
-            console.error('Error:', error);
-            alert(<%= JSON.stringify(tt('verify.result.actions.enhanceError')) %>);
-            enhanceBtn.disabled = false;
-            enhanceBtn.textContent = <%= JSON.stringify(tt('verify.result.actions.enhance')); %>;
-          }
-        });
-      }
-    });
-  </script>
-  <% } %>
-
     <% if (!isEmailView) { %>
       <script>
         (function() {

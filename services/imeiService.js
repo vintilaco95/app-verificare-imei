@@ -408,6 +408,40 @@ async function verifyIMEI(imei, userId = null, email = null, detectedBrand = nul
       }
     });
     
+    // Apple MDM check is now part of the standard verification flow
+    if (finalBrand === 'apple') {
+      try {
+        console.log('[verifyIMEI] Performing Apple MDM status check (standard package)');
+        const appleMdmResult = await callIMEIAPI(SERVICES.APPLE_MDM_STATUS, imei);
+        if (appleMdmResult && appleMdmResult.status === 'success') {
+          const { parseAppleMdmHTML } = require('./parseAppleMdmHTML');
+          const parsedMdm = parseAppleMdmHTML(appleMdmResult.result || '');
+          
+          combinedResult += '<br><br><hr><br>' + (appleMdmResult.result || '');
+          
+          const appleMdmCheck = {
+            rawHtml: appleMdmResult.result || '',
+            fields: parsedMdm.fields,
+            mdmLock: parsedMdm.mdmLock,
+            serviceOrderId: appleMdmResult.orderId || null,
+            duration: appleMdmResult.duration || null,
+            fetchedAt: new Date().toISOString()
+          };
+          
+          combinedObject = {
+            ...combinedObject,
+            appleMdmCheck,
+            mdmStatus: parsedMdm.mdmLock ? parsedMdm.mdmLock.normalized : combinedObject.mdmStatus,
+            mdmLocked: parsedMdm.mdmLock ? parsedMdm.mdmLock.isLocked : combinedObject.mdmLocked
+          };
+        } else {
+          console.warn('[verifyIMEI] Apple MDM status check failed or returned unexpected status.');
+        }
+      } catch (error) {
+        console.error('[verifyIMEI] Apple MDM status check error:', error);
+      }
+    }
+    
     // Step 4: Return data (order is already created in route handler)
     // Extract model name
     let modelName = 'Unknown';

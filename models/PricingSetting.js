@@ -11,6 +11,10 @@ const pricingSettingSchema = new mongoose.Schema({
     of: Number,
     default: {}
   },
+  provenancePrice: {
+    type: Number,
+    default: 5
+  },
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

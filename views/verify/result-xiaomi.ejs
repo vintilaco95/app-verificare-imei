@@ -15,6 +15,7 @@
 <% } %>
 
 <% 
+  const tt = (key) => typeof t === 'function' ? t(key) : key;
   // This template is specifically for Xiaomi devices
   const data = xiaomiParsedData || {};
   const model = data.model || order.model || 'Unknown Xiaomi Device';
@@ -46,6 +47,14 @@
   const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
     ? riskScoreMax
     : (typeof templateData !== 'undefined' && typeof templateData.riskScoreMax !== 'undefined' ? templateData.riskScoreMax : 10);
+  const hasProvenanceReport = Array.isArray(order && order.additionalServices) && order.additionalServices.includes(9);
+  const showProvenanceUpsell = user && !hasProvenanceReport;
+  const provenanceCreditsValue = typeof provenancePrice !== 'undefined' ? Number(provenancePrice || 0) : 0;
+  const formattedProvenanceCredits = provenanceCreditsValue.toFixed(2);
+  const provenanceButtonLabel = `${tt('verify.result.actions.enhanceBase')} (+${formattedProvenanceCredits} ${tt('common.labels.credits')})`;
+  const provenanceButtonConfirm = tt('verify.result.actions.enhanceConfirm').replace('{price}', formattedProvenanceCredits);
+  const provenanceButtonProcessing = tt('verify.result.actions.enhanceProcessing');
+  const provenanceButtonError = tt('verify.result.actions.enhanceError');
   
   // Format dates
   function normalizeDateInput(value) {
@@ -90,11 +99,26 @@
           <p class="report-desc">Model Code: <strong><%= modelCode %></strong></p>
         <% } %>
       </div>
-      <!-- SCOR RISC -->
-      <div class="score-box">
-        <p class="score-label">Scor siguranță</p>
-        <p class="score-value" style="color: <%= scoreColorValue %>;"><%= riskScoreValue %> / <%= riskScoreMaxValue %></p>
-        <p class="score-text" style="color: <%= scoreColorValue %>;"><%= riskTextValue %></p>
+      <div class="report-actions">
+        <% if (showProvenanceUpsell) { %>
+          <button
+            type="button"
+            class="btn btn-primary btn-provenance"
+            id="verify-provenance-btn"
+            data-order-id="<%= order._id %>"
+            data-label="<%= provenanceButtonLabel %>"
+            data-confirm="<%= provenanceButtonConfirm %>"
+            data-processing="<%= provenanceButtonProcessing %>"
+            data-error="<%= provenanceButtonError %>">
+            <span class="btn-text"><%= tt('verify.result.actions.enhanceBase') %></span>
+            <span class="btn-price">+<%= formattedProvenanceCredits %> <%= tt('common.labels.credits') %></span>
+          </button>
+        <% } %>
+        <div class="score-box">
+          <p class="score-label">Scor siguranță</p>
+          <p class="score-value" style="color: <%= scoreColorValue %>;"><%= riskScoreValue %> / <%= riskScoreMaxValue %></p>
+          <p class="score-text" style="color: <%= scoreColorValue %>;"><%= riskTextValue %></p>
+        </div>
       </div>
     </div>
 

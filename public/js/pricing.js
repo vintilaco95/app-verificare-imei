@@ -12,83 +12,59 @@ const CURRENCY_CODE = (typeof window !== 'undefined' && window.currencyCode)
   : 'RON';
 const CURRENCY_LABEL = (CURRENCY_CODE || 'RON').toUpperCase();
 
-const PRICING_CONFIG = {
-  base: SERVER_BASE_PRICING || {
-    apple: 0.12,
-    samsung: 0.09,
-    honor: 0.05,
-    huawei: 0.07,
-    xiaomi: 0.05,
-    oneplus: 0.04,
-    motorola: 0.05,
-    default: 0.10
-  },
-  
-  additional: {
-    apple: [
-      {
-        id: 9,
-        name: '🔍 Verificare Sursă de Achiziție',
-        description: 'Află de unde a fost cumpărat inițial telefonul (magazin, rețea, online). Ajută la verificarea legitimății și a garanției. Rezultatele includ informații despre locul de vânzare inițial și data achiziției.',
-        price: 1.69,
-        serviceId: 9,
-        displayName: 'Sursă de Achiziție',
-        category: 'Proveniență'
-      },
-      {
-        id: 47,
-        name: '🛡️ Verificare Completă Securitate',
-        description: 'Verificare exhaustivă a securității dispozitivului: status MDM (Management Device Mobile - dacă e gestionat de o companie), blacklist GSMA (dacă e blocat global), și toate informațiile complete despre telefon. Recomandat pentru verificări importante.',
-        price: 0.75,
-        serviceId: 47,
-        displayName: 'Verificare Completă Securitate',
-        category: 'Securitate'
-      },
-      {
-        id: 46,
-        name: '🔐 Verificare Management & Blocare',
-        description: 'Verifică dacă telefonul este gestionat de o companie (MDM), politici de securitate GSX, și status Find My iPhone. Ajută la identificarea dispozitivelor corporative sau blocate.',
-        price: 0.45,
-        serviceId: 46,
-        displayName: 'Management & Blocare',
-        category: 'Securitate'
-      },
-      {
-        id: 41,
-        name: '📱 Verificare Management Dispositiv (MDM)',
-        description: 'Verifică dacă telefonul este gestionat de o companie sau organizație prin MDM (Mobile Device Management). Dispozitivele cu MDM activ pot fi blocate de la distanță și pot avea restricții de utilizare.',
-        price: 0.22,
-        serviceId: 41,
-        displayName: 'Status MDM',
-        category: 'Securitate'
-      }
-    ],
-    samsung: [
-      {
-        id: 36,
-        name: '🛡️ Informații Complete + Blacklist',
-        description: 'Obține informații detaliate despre telefonul Samsung și verificare blacklist globală. Include status blocare, informații despre model, și verificare în bazele de date internaționale.',
-        price: 0.06,
-        serviceId: 36,
-        displayName: 'Info + Blacklist',
-        category: 'Securitate'
-      },
-      {
-        id: 53,
-        name: '🔒 Verificare Status KNOX',
-        description: 'Verifică statusul Samsung KNOX - sistemul de securitate care protejează datele. Ajută la identificarea dacă telefonul a fost compromis sau modificat.',
-        price: 0.04,
-        serviceId: 53,
-        displayName: 'Status KNOX',
-        category: 'Securitate'
-      }
-    ],
-    honor: [],
-    huawei: [],
-    xiaomi: [],
-    oneplus: [],
-    motorola: []
+const SERVER_ADDITIONAL_PRICING = (typeof window !== 'undefined' && window.serverAdditionalServices)
+  ? window.serverAdditionalServices
+  : null;
+const PROVENANCE_PRICE = (typeof window !== 'undefined' && window.provenancePriceCredits !== undefined)
+  ? parseFloat(window.provenancePriceCredits)
+  : NaN;
+
+const FALLBACK_BASE_PRICING = {
+  apple: 3,
+  samsung: 3,
+  honor: 3,
+  huawei: 3,
+  xiaomi: 3,
+  oneplus: 3,
+  motorola: 3,
+  default: 3
+};
+
+const BASE_PRICING = SERVER_BASE_PRICING || FALLBACK_BASE_PRICING;
+
+const DEFAULT_PROVENANCE_PRICE = (!isNaN(PROVENANCE_PRICE) && PROVENANCE_PRICE >= 0)
+  ? PROVENANCE_PRICE
+  : 5;
+
+function buildDefaultAdditional(baseConfig) {
+  const template = {
+    id: 9,
+    serviceId: 9,
+    name: '📋 Raport de proveniență și blocări',
+    displayName: 'Raport proveniență',
+    description: 'Obține istoricul complet al dispozitivului: țara și magazinul de achiziție, date despre activare și garanție, posibile blocări și politici GSX. Recomandat pentru a valida proveniența telefonului.',
+    category: 'Proveniență',
+    price: DEFAULT_PROVENANCE_PRICE,
+    postVerification: true
+  };
+
+  const additional = {};
+  Object.keys(baseConfig).forEach((brand) => {
+    additional[brand] = [ { ...template } ];
+  });
+  return additional;
+}
+
+const ADDITIONAL_PRICING = (() => {
+  if (SERVER_ADDITIONAL_PRICING && Object.keys(SERVER_ADDITIONAL_PRICING).length) {
+    return SERVER_ADDITIONAL_PRICING;
   }
+  return buildDefaultAdditional(BASE_PRICING);
+})();
+
+const PRICING_CONFIG = {
+  base: BASE_PRICING,
+  additional: ADDITIONAL_PRICING
 };
 
 /**
@@ -139,7 +115,8 @@ function renderAdditionalServices(brand, isGuest = false) {
   
   if (!container || !servicesContainer) return;
   
-  const additional = getAdditionalServices(brand);
+  const additional = getAdditionalServices(brand)
+    .filter((service) => !service.postVerification);
   
   if (additional.length === 0) {
     servicesContainer.style.display = 'none';

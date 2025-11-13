@@ -6,9 +6,12 @@ const User = require('../models/User');
 const CreditTransaction = require('../models/CreditTransaction');
 const Order = require('../models/Order');
 const { generateFaneBotReply, ensureArray, toTitleCase } = require('../services/faneBotService');
+const FaneConversation = require('../models/FaneConversation');
+const { lookupAveragePrice } = require('../services/priceLookupService');
 
 const MAX_SESSION_HISTORY = parseInt(process.env.FANE_BOT_SESSION_LIMIT || '12', 10);
-const MAX_SESSION_ORDERS = parseInt(process.env.FANE_BOT_ORDERS_LIMIT || '5', 10);
+const FANE_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const PRICE_INTENT_REGEX = /(pre[tț]|cat|how)(.*)(cost|valoare|value|price|pret|preț|mediu|average)/i;
 
 // Get account balance
 router.get('/balance', requireAuth, async (req, res) => {
@@ -54,24 +57,75 @@ router.post('/add-credits', requireAuth, async (req, res) => {
   }
 });
 
-function getFaneSession(req) {
-  if (!req.session) return {
+function createEmptyChat() {
+  return {
     history: [],
-    sessionOrders: [],
-    currentOrder: null,
-    lastAccountOrder: null
+    latestVerification: null,
+    expiresAt: Date.now() + FANE_SESSION_TTL_MS
   };
+}
 
-  if (!req.session.faneBot) {
-    req.session.faneBot = {
-      history: [],
-      sessionOrders: [],
-      currentOrder: null,
-      lastAccountOrder: null
-    };
+async function loadFaneSession(req) {
+  if (!req.session) {
+    return createEmptyChat();
   }
 
-  return req.session.faneBot;
+  if (req.session.faneBot && req.session.faneBot.expiresAt && req.session.faneBot.expiresAt > Date.now()) {
+    return req.session.faneBot;
+  }
+
+  try {
+    const existing = await FaneConversation.findOne({ userId: req.user._id }).lean();
+    if (existing && existing.expiresAt && existing.expiresAt.getTime() > Date.now()) {
+      const chat = {
+        history: ensureArray(existing.history),
+        latestVerification: existing.latestVerification
+          || existing.currentOrder
+          || null,
+        expiresAt: existing.expiresAt.getTime()
+      };
+      req.session.faneBot = chat;
+      return chat;
+    }
+  } catch (error) {
+    console.error('[API] Failed to load FANE conversation:', error);
+  }
+
+  const chat = createEmptyChat();
+  req.session.faneBot = chat;
+  return chat;
+}
+
+async function persistFaneSession(req, chat) {
+  if (!req.session) {
+    return;
+  }
+
+  const expiresAt = new Date(Date.now() + FANE_SESSION_TTL_MS);
+  const payload = {
+    history: ensureArray(chat.history),
+    latestVerification: chat.latestVerification || null,
+    expiresAt
+  };
+
+  req.session.faneBot = {
+    ...payload,
+    expiresAt: expiresAt.getTime()
+  };
+
+  try {
+    await FaneConversation.findOneAndUpdate(
+      { userId: req.user._id },
+      {
+        ...payload,
+        userId: req.user._id,
+        updatedAt: new Date()
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+  } catch (error) {
+    console.error('[API] Failed to persist FANE conversation:', error);
+  }
 }
 
 function trimHistory(history) {
@@ -82,88 +136,88 @@ function trimHistory(history) {
   return items.slice(items.length - MAX_SESSION_HISTORY);
 }
 
-function sanitizeOrder(order) {
-  if (!order) return null;
+function buildVerificationSnapshot(order) {
+  if (!order) {
+    return null;
+  }
+
   const createdAt = order.createdAt ? new Date(order.createdAt).toISOString() : null;
+  const updatedAt = order.updatedAt ? new Date(order.updatedAt).toISOString() : null;
 
   return {
-    orderId: order._id ? order._id.toString() : (order.orderId || null),
+    orderId: order._id ? order._id.toString() : (order.orderId ? String(order.orderId) : null),
     imei: order.imei || null,
     imei2: order.imei2 || null,
-    brand: order.brand || null,
-    model: order.model || null,
-    modelDesc: order.modelDesc || null,
+    brand: order.brand || (order.object && order.object.brand) || null,
+    model: order.model || (order.object && order.object.model) || null,
+    modelDesc: order.modelDesc || (order.object && order.object.modelDesc) || null,
     status: order.status || null,
-    price: typeof order.price !== 'undefined' ? order.price : null,
+    servicePrice: order.price !== undefined ? Number(order.price) : null,
+    serviceCurrency: order.currency || null,
     currency: order.currency || null,
     language: order.language || null,
-    riskScore: typeof order.riskScore !== 'undefined' ? order.riskScore : null,
-    riskLabel: order.riskLabel || null,
-    summaryLabel: order.summaryLabel || null,
-    createdAt,
-    object: order.object || null,
+    riskScore: typeof order.riskScore === 'number'
+      ? order.riskScore
+      : (order.object && typeof order.object.riskScore === 'number' ? order.object.riskScore : null),
+    riskLabel: order.riskLabel || (order.object && order.object.riskLabel) || null,
+    summaryLabel: order.summaryLabel || (order.object && order.object.summaryLabel) || null,
+    statuses: order.statuses || (order.object && order.object.statuses) || null,
+    blacklist: order.blacklist || (order.object && order.object.blacklist) || null,
+    mdm: order.mdm || (order.object && order.object.mdm) || null,
+    iCloud: order.iCloud || (order.object && order.object.iCloud) || null,
+    networkLock: order.networkLock || (order.object && order.object.networkLock) || null,
+    verificationRaw: order.object || null,
     resultHtml: order.result || null,
-    appleMdm: order.appleMdm || null,
-    blacklist: order.blacklist || null,
-    mdm: order.mdm || null,
-    iCloud: order.iCloud || null,
-    networkLock: order.networkLock || null
+    meta: {
+      serviceId: order.serviceId || null,
+      serviceName: order.serviceName || null
+    },
+    createdAt,
+    updatedAt
   };
 }
 
-function mergeOrderData(base, extra) {
-  const result = { ...(base || {}) };
-  if (!extra || typeof extra !== 'object') {
-    return result;
+async function fetchLatestVerification(userId) {
+  if (!userId) {
+    return null;
   }
 
-  Object.entries(extra).forEach(([key, value]) => {
-    if (value === undefined || value === null) {
-      return;
-    }
-
-    if (key === 'fullReport' || key === 'object') {
-      result.object = value;
-      return;
-    }
-
-    if (key === 'statuses') {
-      result.statuses = { ...(result.statuses || {}), ...(value || {}) };
-      return;
-    }
-
-    if (key === 'orderId' && !result.orderId) {
-      result.orderId = value;
-      return;
-    }
-
-    result[key] = value;
-  });
-
-  return result;
+  const latestOrder = await Order.findOne({ userId }).sort({ createdAt: -1 }).lean();
+  return buildVerificationSnapshot(latestOrder);
 }
 
-function recordSessionOrder(chat, orderData) {
-  if (!orderData) {
-    return;
+async function ensureLatestVerification(req, chat) {
+  const latest = await fetchLatestVerification(req.user ? req.user._id : null);
+  if (!latest) {
+    chat.latestVerification = null;
+    return null;
   }
 
-  chat.sessionOrders = ensureArray(chat.sessionOrders);
+  const hasChanged = !chat.latestVerification
+    || chat.latestVerification.orderId !== latest.orderId
+    || chat.latestVerification.createdAt !== latest.createdAt
+    || chat.latestVerification.updatedAt !== latest.updatedAt
+    || chat.latestVerification.status !== latest.status;
 
-  if (orderData.orderId) {
-    const existingIndex = chat.sessionOrders.findIndex(item => item.orderId === orderData.orderId);
-    if (existingIndex >= 0) {
-      chat.sessionOrders[existingIndex] = orderData;
-    } else {
-      chat.sessionOrders.push(orderData);
-    }
-  } else {
-    chat.sessionOrders.push(orderData);
+  if (hasChanged) {
+    chat.latestVerification = latest;
   }
 
-  if (chat.sessionOrders.length > MAX_SESSION_ORDERS) {
-    chat.sessionOrders = chat.sessionOrders.slice(chat.sessionOrders.length - MAX_SESSION_ORDERS);
+  return chat.latestVerification;
+}
+
+function hasPriceIntent(message) {
+  if (!message) return false;
+  return PRICE_INTENT_REGEX.test(message.toLowerCase());
+}
+
+function buildFallbackQuery(latestVerification, message) {
+  if (latestVerification && (latestVerification.brand || latestVerification.model || latestVerification.modelDesc)) {
+    return [latestVerification.brand, latestVerification.modelDesc || latestVerification.model]
+      .filter(Boolean)
+      .join(' ');
   }
+  return message;
 }
 
 function getUserDisplayName(user) {
@@ -188,73 +242,54 @@ function isGreetingMessage(message) {
   return greetingRegex.test(normalized) && normalized.split(/\s+/).length <= 6;
 }
 
-function shouldReferenceOrder(message) {
+function shouldReferenceVerification(message, latestVerification) {
   if (!message) return false;
-  return /(imei|verific|telefon|device|blocaj|blacklist|icloud|mdm|network|sim|warranty|scor|risk|negoc|cumpar|vinde|rezultat|status|raport|mdm|lock|activation|detalii)/i.test(message);
+  const matchKeywords = /(imei|verific|raport|rezultat|blocaj|blacklist|icloud|mdm|network|sim|warranty|scor|risk|negoc|detalii|telefonul (meu|ala)|device-ul (meu|ăla)|momentan|ultim(ul)?)/i;
+  if (!matchKeywords.test(message)) {
+    return false;
+  }
+
+  if (!latestVerification) {
+    return false;
+  }
+
+  return true;
 }
 
 function buildGreetingReply(userName, language) {
   const friendlyName = userName || (language === 'en' ? 'boss' : 'șefu');
 
   if (language === 'en') {
-    return `Hey ${friendlyName}! Am I helping you with a phone or just chilling? Spit it out.`;
+    return `Hey ${friendlyName}! Ce te interesează azi la telefoane? Sunt aici să te ajut.`;
   }
 
-  return `Salut, ${friendlyName}! Zii ce te roade la telefon și vedem cum îl scoatem la un preț bun.`;
+  return `Salut, ${friendlyName}! Spune-mi cu ce telefon te pot ajuta și vedem ce soluție găsim.`;
 }
 
-async function fetchOrderForUser(userId, orderId) {
-  if (!orderId) return null;
-  const dbOrder = await Order.findOne({ _id: orderId, userId }).lean();
-  if (!dbOrder) return null;
-  return sanitizeOrder(dbOrder);
-}
 
-async function fetchLastAccountOrder(userId) {
-  const lastOrder = await Order.findOne({ userId }).sort({ createdAt: -1 }).lean();
-  return sanitizeOrder(lastOrder);
-}
-
-async function resolveCurrentOrder({ userId, providedContext, providedOrderId, chat }) {
-  const contextOrderId = providedOrderId || (providedContext && providedContext.orderId);
-  let resolved = null;
-
-  if (contextOrderId) {
-    resolved = await fetchOrderForUser(userId, contextOrderId);
-  }
-
-  if (providedContext && typeof providedContext === 'object') {
-    resolved = mergeOrderData(resolved, providedContext);
-  }
-
-  if (!resolved) {
-    resolved = chat.currentOrder || null;
-  }
-
-  return resolved;
-}
-
-router.post('/fane-bot/reset', requireAuth, (req, res) => {
+router.post('/fane-bot/reset', requireAuth, async (req, res) => {
   if (req.session) {
-    req.session.faneBot = {
-      history: [],
-      sessionOrders: [],
-      currentOrder: null,
-      lastAccountOrder: null
-    };
+    req.session.faneBot = createEmptyChat();
+  }
+
+  try {
+    await FaneConversation.deleteOne({ userId: req.user._id });
+  } catch (error) {
+    console.error('[API] Failed to reset FANE conversation:', error);
   }
 
   return res.json({ success: true });
 });
 
-router.get('/fane-bot/history', requireAuth, (req, res) => {
+router.get('/fane-bot/history', requireAuth, async (req, res) => {
   try {
-    const chat = getFaneSession(req);
+    const chat = await loadFaneSession(req);
+    await ensureLatestVerification(req, chat);
+    await persistFaneSession(req, chat);
     return res.json({
       success: true,
       history: ensureArray(chat.history),
-      currentOrder: chat.currentOrder || null,
-      sessionOrders: ensureArray(chat.sessionOrders)
+      latestVerification: chat.latestVerification || null
     });
   } catch (error) {
     console.error('[API] FANE history error:', error);
@@ -264,21 +299,24 @@ router.get('/fane-bot/history', requireAuth, (req, res) => {
 
 router.post('/fane-bot', requireAuth, async (req, res) => {
   try {
-    const { message, orderId, context, language } = req.body || {};
+    const { message, language } = req.body || {};
     const trimmedMessage = typeof message === 'string' ? message.trim() : '';
 
     if (!trimmedMessage) {
       return res.status(400).json({ success: false, error: 'Mesajul este obligatoriu.' });
     }
 
-    const chat = getFaneSession(req);
+    const chat = await loadFaneSession(req);
     const userLanguage = language || (req.session && req.session.lang) || 'ro';
     const userName = getUserDisplayName(req.user);
 
-    const mentionOrder = shouldReferenceOrder(trimmedMessage);
+    const latestVerification = await ensureLatestVerification(req, chat);
+    const mentionVerification = shouldReferenceVerification(trimmedMessage, latestVerification);
+    const wantsPrice = hasPriceIntent(trimmedMessage);
+    let priceInsight = null;
 
     // Handle simple greetings without hitting the model
-    if (!mentionOrder && isGreetingMessage(trimmedMessage)) {
+    if (!mentionVerification && isGreetingMessage(trimmedMessage)) {
       const reply = buildGreetingReply(userName, userLanguage);
       chat.history = trimHistory([
         ...ensureArray(chat.history),
@@ -286,46 +324,38 @@ router.post('/fane-bot', requireAuth, async (req, res) => {
         { role: 'assistant', content: reply, createdAt: new Date() }
       ]);
 
-      if (req.session) {
-        req.session.faneBot = chat;
-      }
+      await persistFaneSession(req, chat);
 
       return res.json({
         success: true,
         reply,
         history: chat.history,
-        currentOrder: chat.currentOrder || null,
-        sessionOrders: chat.sessionOrders || []
+        latestVerification: chat.latestVerification || null
       });
     }
 
-    const currentOrder = await resolveCurrentOrder({
-      userId: req.user._id,
-      providedContext: context,
-      providedOrderId: orderId,
-      chat
-    });
+    if (wantsPrice) {
+      const fallbackQuery = buildFallbackQuery(latestVerification, trimmedMessage);
+      const priceResult = await lookupAveragePrice({
+        brand: latestVerification ? latestVerification.brand : null,
+        model: latestVerification ? (latestVerification.modelDesc || latestVerification.model) : null,
+        language: userLanguage,
+        fallbackQuery
+      });
 
-    const lastAccountOrder = await fetchLastAccountOrder(req.user._id);
-
-    if (currentOrder) {
-      recordSessionOrder(chat, currentOrder);
-      chat.currentOrder = currentOrder;
-    }
-
-    if (lastAccountOrder) {
-      chat.lastAccountOrder = lastAccountOrder;
+      if (priceResult.success && priceResult.summary) {
+        priceInsight = priceResult.summary;
+      }
     }
 
     const response = await generateFaneBotReply({
       message: trimmedMessage,
       history: ensureArray(chat.history),
-      currentOrder: chat.currentOrder || null,
-      sessionOrders: ensureArray(chat.sessionOrders),
-      lastAccountOrder: chat.lastAccountOrder || null,
       language: userLanguage,
       userName,
-      mentionOrder
+      verification: chat.latestVerification || null,
+      mentionVerification,
+      priceInsight
     });
 
     if (!response.success) {
@@ -338,16 +368,13 @@ router.post('/fane-bot', requireAuth, async (req, res) => {
       { role: 'assistant', content: response.reply.trim(), createdAt: new Date() }
     ]);
 
-    if (req.session) {
-      req.session.faneBot = chat;
-    }
+    await persistFaneSession(req, chat);
 
     return res.json({
       success: true,
       reply: response.reply,
       history: chat.history,
-      currentOrder: chat.currentOrder || null,
-      sessionOrders: chat.sessionOrders || [],
+      latestVerification: chat.latestVerification || null,
       usage: response.usage || null
     });
   } catch (error) {

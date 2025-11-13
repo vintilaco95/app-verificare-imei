@@ -3,22 +3,141 @@
 document.addEventListener('DOMContentLoaded', function() {
   const navToggle = document.querySelector('.nav-toggle');
   const navLinks = document.querySelector('.nav-links');
+  const navBackdrop = document.getElementById('nav-backdrop');
 
   if (navToggle && navLinks) {
+    const body = document.body;
+
+    const openNav = () => {
+      navLinks.classList.add('is-open');
+      navLinks.style.maxHeight = `${navLinks.scrollHeight + 48}px`;
+      navToggle.classList.add('is-open');
+      navToggle.setAttribute('aria-expanded', 'true');
+      body.classList.add('nav-open');
+      if (navBackdrop) {
+        navBackdrop.removeAttribute('hidden');
+        requestAnimationFrame(() => navBackdrop.classList.add('is-visible'));
+      }
+    };
+
+    const closeNav = (restoreHeight = true) => {
+      navLinks.classList.remove('is-open');
+      if (restoreHeight) {
+        navLinks.style.maxHeight = '0px';
+      } else {
+        navLinks.style.maxHeight = '';
+      }
+      navToggle.classList.remove('is-open');
+      navToggle.setAttribute('aria-expanded', 'false');
+      body.classList.remove('nav-open');
+      if (navBackdrop) {
+        navBackdrop.classList.remove('is-visible');
+        const hideBackdrop = () => {
+          navBackdrop.setAttribute('hidden', '');
+          navBackdrop.removeEventListener('transitionend', hideBackdrop);
+        };
+        navBackdrop.addEventListener('transitionend', hideBackdrop);
+        if (!navBackdrop.classList.contains('is-visible')) {
+          navBackdrop.setAttribute('hidden', '');
+          navBackdrop.removeEventListener('transitionend', hideBackdrop);
+        }
+      }
+    };
+
     navToggle.addEventListener('click', () => {
-      const isOpen = navLinks.classList.toggle('is-open');
-      navToggle.classList.toggle('is-open', isOpen);
-      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (navLinks.classList.contains('is-open')) {
+        closeNav();
+      } else {
+        openNav();
+      }
     });
 
+    if (navBackdrop) {
+      navBackdrop.addEventListener('click', () => closeNav());
+    }
+
     navLinks.querySelectorAll('a, button').forEach(item => {
-      item.addEventListener('click', () => {
-        navLinks.classList.remove('is-open');
-        navToggle.classList.remove('is-open');
-        navToggle.setAttribute('aria-expanded', 'false');
-      });
+      item.addEventListener('click', () => closeNav());
     });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && navLinks.classList.contains('is-open')) {
+        closeNav();
+      }
+    });
+
+    const handleResize = () => {
+      if (window.innerWidth >= 900) {
+        closeNav(false);
+      } else if (!navLinks.classList.contains('is-open')) {
+        navLinks.style.maxHeight = '0px';
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
   }
+
+  const getCsrfToken = () => {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    const token = (meta && meta.getAttribute('content')) || window.csrfToken || '';
+    if (token) {
+      window.csrfToken = token;
+    }
+    return token;
+  };
+
+  document.addEventListener('click', async (event) => {
+    const button = event.target.closest('#verify-provenance-btn');
+    if (!button || button.disabled) {
+      return;
+    }
+
+    const orderId = button.getAttribute('data-order-id');
+    if (!orderId) {
+      return;
+    }
+
+    const confirmText = button.getAttribute('data-confirm') || '';
+    if (confirmText && !window.confirm(confirmText)) {
+      return;
+    }
+
+    const csrfToken = getCsrfToken();
+    const processingText = button.getAttribute('data-processing') || 'Procesăm...';
+    const errorText = button.getAttribute('data-error') || 'Nu am putut obține raportul de proveniență.';
+
+    const originalHtml = button.dataset.originalHtml || button.innerHTML;
+    const originalDisabled = button.disabled;
+    button.dataset.originalHtml = originalHtml;
+    button.disabled = true;
+    button.innerHTML = processingText;
+
+    try {
+      const response = await fetch(`/verify/enhance/${orderId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+          'csrf-token': csrfToken
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ _csrf: csrfToken })
+      });
+
+      const data = await response.json();
+      if (!data || !data.success) {
+        throw new Error((data && data.error) || errorText);
+      }
+
+      window.location.reload();
+    } catch (error) {
+      alert(error.message || errorText);
+      button.disabled = originalDisabled;
+      const fallbackHtml = button.dataset.originalHtml || button.getAttribute('data-label') || originalHtml;
+      button.innerHTML = fallbackHtml;
+    }
+  });
   
   // IMEI validation is now handled by imei-validator.js
   

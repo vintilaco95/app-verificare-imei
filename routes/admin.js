@@ -283,6 +283,7 @@ router.post('/pricing', async (req, res) => {
   try {
     const baseCreditsInput = req.body.baseCredits || {};
     const guestPricesInput = req.body.guestPrices || {};
+    const provenancePriceInput = req.body.provenancePrice;
 
     const baseCredits = {};
     Object.keys(baseCreditsInput).forEach((brand) => {
@@ -300,7 +301,12 @@ router.post('/pricing', async (req, res) => {
       }
     });
 
-    await pricingService.updatePricingConfig({ baseCredits, guestPrices }, req.user._id);
+    const provenancePrice = toNumberOrNull(provenancePriceInput);
+
+    await pricingService.updatePricingConfig(
+      { baseCredits, guestPrices, provenancePrice: provenancePrice !== null ? Math.max(0, provenancePrice) : null },
+      req.user._id
+    );
     res.redirect('/admin?success=pricing');
   } catch (error) {
     console.error('[Admin] Failed to update pricing:', error);

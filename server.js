@@ -146,7 +146,6 @@ app.use('/verify/imei', verifyLimiter);
 app.use('/verify/imei/guest', verifyLimiter);
 app.use('/verify/imei/check', verifyLimiter);
 app.use('/verify/enhance', verifyLimiter);
-app.use('/verify/apple-mdm', verifyLimiter);
 
 // CSRF protection
 const csrfProtection = csrf({ cookie: false });

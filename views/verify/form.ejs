@@ -242,34 +242,7 @@
         </button>
       </form>
       
-      <% if (pricing) { %>
-        <section class="pricing-section verify-pricing">
-          <h2 class="section-title"><%= t('verify.form.pricing.title') %></h2>
-          <p class="section-subtitle"><%= t('verify.form.pricing.subtitleGuest') %></p>
-          <div class="pricing-grid pricing-grid-compact">
-            <% Object.keys(pricing).forEach(function(key) { 
-                 const priceValue = Number(pricing[key]);
-                 if (Number.isNaN(priceValue)) { return; }
-                 const asset = brandAssets[key] || brandAssets.default;
-                 const label = brandLabels[key] || key;
-               %>
-              <div class="pricing-card" style="--card-bg: url('<%= (asset && asset.logo) || brandAssets.default.logo %>')">
-                <div class="pricing-brand">
-                  <% if (asset && asset.logo) { %>
-                    <img src="<%= asset.logo %>" alt="<%= asset.alt || label %>" class="pricing-brand-logo">
-                  <% } %>
-                  <span class="pricing-brand-name"><%= label %></span>
-                </div>
-                <div class="pricing-price">
-                  <span class="pricing-primary"><%= formatCurrencyAmount(priceValue) %> <%= currencyCodeValue %></span>
-                  <span class="pricing-secondary">≈ <%= formatCredits(priceValue) %> <%= t('common.labels.credits') %></span>
-                </div>
-                <p class="pricing-description"><%= brandDescriptions[key] || brandDescriptions.default %></p>
-              </div>
-            <% }); %>
-          </div>
-        </section>
-      <% } %>
+      <!-- Pricing information hidden for guests -->
     <% } %>
   </div>
 </div>
@@ -324,9 +297,11 @@
 
 <script>
   window.serverPricing = <%- JSON.stringify(pricing || {}) %>;
+  window.serverAdditionalServices = <%- JSON.stringify(additionalServices || {}) %>;
   window.creditValue = <%= creditUnitValue %>;
   window.currencyCode = <%- JSON.stringify(currencyCodeValue) %>;
   window.guestPricing = <%- JSON.stringify(guestPricingData || {}) %>;
+  window.provenancePriceCredits = <%= typeof provenancePrice !== 'undefined' ? Number(provenancePrice || 0).toFixed(2) : '0' %>;
 </script>
 <script src="/js/imei-validator.js"></script>
 <script src="/js/pricing.js"></script>

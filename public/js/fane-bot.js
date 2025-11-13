@@ -12,17 +12,31 @@ const FaneBot = (() => {
   const inputEl = document.getElementById('fane-bot-input');
   const sendButton = document.getElementById('fane-bot-send');
   const statusEl = document.getElementById('fane-bot-status');
+  const suggestionsEl = document.getElementById('fane-bot-suggestions');
+  const suggestionsToggle = document.getElementById('fane-bot-suggest-toggle');
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   const WELCOME_MESSAGE = 'Salut, sunt FANE , spune-mi ce telefon cumpărăm azi.';
   let didResetSession = false;
+
+  const RECOMMENDED_QUESTIONS = {
+    ro: (phoneName) => [
+      phoneName ? `Este sigur să cumpăr ${phoneName}?` : 'Este sigur să cumpăr telefonul verificat?',
+      phoneName ? `Ce mi-ai recomanda înainte să iau ${phoneName}?` : 'Ce îmi recomanzi înainte să îl cumpăr?',
+      phoneName ? `Care ar fi un preț corect pentru ${phoneName}?` : 'Care ar fi un preț corect pentru telefonul ăsta?'
+    ],
+    en: (phoneName) => [
+      phoneName ? `Is it safe to buy the ${phoneName}?` : 'Is it safe to buy this phone?',
+      phoneName ? `What would you recommend before I pick up the ${phoneName}?` : 'What would you recommend before I buy it?',
+      phoneName ? `What would be a fair price for the ${phoneName}?` : 'What would be a fair price for this phone?'
+    ]
+  };
 
   const state = {
     isOpen: false,
     isSending: false,
     history: [],
-    context: (window.__FANE_BOT__ && window.__FANE_BOT__.currentVerification) || null,
-    language: (window.__FANE_BOT__ && window.__FANE_BOT__.language) || document.documentElement.lang || 'ro',
-    sessionOrders: []
+    verification: (window.__FANE_BOT__ && (window.__FANE_BOT__.latestVerification || window.__FANE_BOT__.currentVerification)) || null,
+    language: (window.__FANE_BOT__ && window.__FANE_BOT__.language) || document.documentElement.lang || 'ro'
   };
 
   function renderHistory(history = state.history) {
@@ -38,6 +52,109 @@ const FaneBot = (() => {
     scrollMessagesToBottom();
   }
 
+  function handleSuggestionClick(text) {
+    if (!text || state.isSending) {
+      return;
+    }
+    sendMessage(text);
+  }
+
+  function renderSuggestions(list) {
+    if (!suggestionsEl) return;
+    suggestionsEl.innerHTML = '';
+    const wasOpen = suggestionsToggle && suggestionsToggle.getAttribute('aria-expanded') === 'true';
+    hideSuggestions();
+    const visibleList = (list || []).slice(0, 3);
+    if (!visibleList.length) {
+      hideSuggestions();
+      disableSuggestionsToggle();
+      return;
+    }
+
+    visibleList.forEach((text) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'fane-bot-suggestion';
+      button.textContent = text;
+      button.addEventListener('click', () => handleSuggestionClick(text));
+      suggestionsEl.appendChild(button);
+    });
+    enableSuggestionsToggle();
+    if (wasOpen) {
+      showSuggestions();
+    }
+  }
+
+  function getPhoneName() {
+    const verification = state.verification;
+    if (!verification) {
+      return '';
+    }
+    const brand = verification.brand || verification.make || '';
+    const model = verification.modelDesc || verification.model || verification.deviceName || '';
+    const parts = [brand, model].map((value) => (value || '').trim()).filter(Boolean);
+    if (!parts.length) {
+      return '';
+    }
+    const combined = parts.join(' ');
+    return combined.length > 60 ? `${combined.slice(0, 57)}…` : combined;
+  }
+
+  function getRecommendedQuestions() {
+    if (!state.verification) {
+      return [];
+    }
+    const langKey = state.language === 'en' ? 'en' : 'ro';
+    const builder = RECOMMENDED_QUESTIONS[langKey] || RECOMMENDED_QUESTIONS.ro;
+    return builder(getPhoneName()).slice(0, 3);
+  }
+
+  function updateSuggestions() {
+    renderSuggestions(getRecommendedQuestions());
+  }
+  function showSuggestions() {
+    if (!suggestionsEl) return;
+    suggestionsEl.classList.add('is-visible');
+    suggestionsEl.hidden = false;
+    if (suggestionsToggle) {
+      suggestionsToggle.setAttribute('aria-expanded', 'true');
+      suggestionsToggle.classList.add('is-active');
+    }
+  }
+
+  function hideSuggestions() {
+    if (!suggestionsEl) return;
+    suggestionsEl.classList.remove('is-visible');
+    suggestionsEl.hidden = true;
+    if (suggestionsToggle) {
+      suggestionsToggle.setAttribute('aria-expanded', 'false');
+      suggestionsToggle.classList.remove('is-active');
+    }
+  }
+
+  function toggleSuggestions() {
+    if (!suggestionsEl) return;
+    if (suggestionsEl.classList.contains('is-visible')) {
+      hideSuggestions();
+    } else {
+      showSuggestions();
+    }
+  }
+
+  function enableSuggestionsToggle() {
+    if (!suggestionsToggle) return;
+    suggestionsToggle.disabled = false;
+    suggestionsToggle.classList.remove('is-disabled');
+  }
+
+  function disableSuggestionsToggle() {
+    if (!suggestionsToggle) return;
+    suggestionsToggle.disabled = true;
+    suggestionsToggle.classList.add('is-disabled');
+    suggestionsToggle.setAttribute('aria-expanded', 'false');
+  }
+
+
   async function resetSession() {
     if (didResetSession) {
       return;
@@ -52,8 +169,9 @@ const FaneBot = (() => {
         }
       });
       state.history = [];
-      state.sessionOrders = [];
+      state.verification = null;
       didResetSession = true;
+      updateSuggestions();
     } catch (error) {
       console.warn('FANE reset failed:', error);
     }
@@ -72,11 +190,8 @@ const FaneBot = (() => {
         if (Array.isArray(data.history)) {
           state.history = data.history;
         }
-        if (data.currentOrder) {
-          state.context = data.currentOrder;
-        }
-        if (Array.isArray(data.sessionOrders)) {
-          state.sessionOrders = data.sessionOrders;
+        if (Object.prototype.hasOwnProperty.call(data, 'latestVerification')) {
+          state.verification = data.latestVerification;
         }
       }
     } catch (error) {
@@ -84,6 +199,7 @@ const FaneBot = (() => {
     } finally {
       renderHistory();
       setStatus('');
+      updateSuggestions();
     }
   }
 
@@ -164,8 +280,6 @@ const FaneBot = (() => {
 
     const payload = {
       message: text,
-      orderId: state.context && state.context.orderId ? state.context.orderId : null,
-      context: state.context || null,
       language: state.language
     };
 
@@ -204,12 +318,10 @@ const FaneBot = (() => {
         state.history = data.history;
         renderHistory(state.history);
       }
-      if (data.currentOrder) {
-        state.context = data.currentOrder;
+      if (Object.prototype.hasOwnProperty.call(data, 'latestVerification')) {
+        state.verification = data.latestVerification;
       }
-      if (Array.isArray(data.sessionOrders)) {
-        state.sessionOrders = data.sessionOrders;
-      }
+      updateSuggestions();
     } catch (error) {
       typingEl.remove();
       const fallback = 'S-a întrerupt conexiunea. Mai încearcă o dată.';
@@ -236,6 +348,7 @@ const FaneBot = (() => {
     event.preventDefault();
     toggleWindow(false);
   });
+  suggestionsToggle?.addEventListener('click', () => toggleSuggestions());
   formEl?.addEventListener('submit', handleSubmit);
   inputEl?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -250,8 +363,8 @@ const FaneBot = (() => {
   });
 
   (async () => {
-    await resetSession();
     renderHistory();
+    updateSuggestions();
     await loadHistory();
   })();
 

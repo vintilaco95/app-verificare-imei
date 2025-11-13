@@ -16,6 +16,7 @@
 
 <div class="result-container">
   <% 
+    const tt = (key) => typeof t === 'function' ? t(key) : key;
     // Parse Samsung data from HTML result (data should be pre-parsed in route)
     const samsungData = typeof samsungParsedData !== 'undefined' ? samsungParsedData : {};
     const riskScoreMaxValue = typeof riskScoreMax !== 'undefined'
@@ -46,6 +47,14 @@
     const shipToCountry = samsungData.shipToCountry || '';
     const soldDate = samsungData.soldDate || '';
     const shipDate = samsungData.shipDate || '';
+    const hasProvenanceReport = Array.isArray(order && order.additionalServices) && order.additionalServices.includes(9);
+    const showProvenanceUpsell = user && !hasProvenanceReport;
+    const provenanceCreditsValue = typeof provenancePrice !== 'undefined' ? Number(provenancePrice || 0) : 0;
+    const formattedProvenanceCredits = provenanceCreditsValue.toFixed(2);
+    const provenanceButtonLabel = `${tt('verify.result.actions.enhanceBase')} (+${formattedProvenanceCredits} ${tt('common.labels.credits')})`;
+    const provenanceButtonConfirm = tt('verify.result.actions.enhanceConfirm').replace('{price}', formattedProvenanceCredits);
+    const provenanceButtonProcessing = tt('verify.result.actions.enhanceProcessing');
+    const provenanceButtonError = tt('verify.result.actions.enhanceError');
   %>
 
   <div class="imei-report">
@@ -61,11 +70,26 @@
           <p class="report-desc">Model Code: <strong><%= modelCode %></strong></p>
         <% } %>
       </div>
-      <!-- SCOR RISC -->
-      <div class="score-box">
-        <p class="score-label">Scor siguranță</p>
-        <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / <%= riskScoreMaxValue %></p>
-        <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
+      <div class="report-actions">
+        <% if (showProvenanceUpsell) { %>
+          <button
+            type="button"
+            class="btn btn-primary btn-provenance"
+            id="verify-provenance-btn"
+            data-order-id="<%= order._id %>"
+            data-label="<%= provenanceButtonLabel %>"
+            data-confirm="<%= provenanceButtonConfirm %>"
+            data-processing="<%= provenanceButtonProcessing %>"
+            data-error="<%= provenanceButtonError %>">
+            <span class="btn-text"><%= tt('verify.result.actions.enhanceBase') %></span>
+            <span class="btn-price">+<%= formattedProvenanceCredits %> <%= tt('common.labels.credits') %></span>
+          </button>
+        <% } %>
+        <div class="score-box">
+          <p class="score-label">Scor siguranță</p>
+          <p class="score-value" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskScore !== 'undefined' ? riskScore : '9' %> / <%= riskScoreMaxValue %></p>
+          <p class="score-text" style="color: <%= typeof scoreColor !== 'undefined' ? scoreColor : '#22c55e' %>;"><%= typeof riskText !== 'undefined' ? riskText : 'Telefon sigur' %></p>
+        </div>
       </div>
     </div>
 
@@ -479,71 +503,13 @@
       </div>
     <% } %>
   </div>
-
   <div class="result-actions">
-    <% if (user && (!order.additionalServices || !order.additionalServices.includes(900))) { %>
-      <button id="enhance-btn" class="btn btn-primary" data-order-id="<%= order._id %>" style="margin-right: 10px;">
-        📋 Completează datele cu proveniența și riscul de blocare (5 credite)
-      </button>
-    <% } %>
-    <a href="/verify/imei" class="btn btn-secondary">Verifică alt IMEI</a>
+    <a href="/verify/imei" class="btn btn-secondary"><%= tt('verify.result.actions.checkAnother') %></a>
     <% if (user) { %>
-      <a href="/dashboard/orders" class="btn btn-primary">Vezi toate verificările</a>
+      <a href="/dashboard/orders" class="btn btn-primary"><%= tt('verify.result.actions.viewAll') %></a>
     <% } %>
   </div>
 </div>
-
-<% if (user) { %>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const enhanceBtn = document.getElementById('enhance-btn');
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
-    window.csrfToken = csrfToken;
-
-    if (enhanceBtn) {
-      enhanceBtn.addEventListener('click', async function() {
-        if (!confirm('Ești sigur că vrei să completezi datele cu proveniența și riscul de blocare? Această operațiune costă 5 credite.')) {
-          return;
-        }
-        
-        const orderId = enhanceBtn.getAttribute('data-order-id');
-        enhanceBtn.disabled = true;
-        enhanceBtn.textContent = 'Se procesează...';
-        
-        try {
-          const response = await fetch(`/verify/enhance/${orderId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken,
-                'csrf-token': csrfToken
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ _csrf: csrfToken })
-          });
-          
-          const data = await response.json();
-          
-          if (response.ok && data.success) {
-            // Reload page to show updated data
-            window.location.reload();
-          } else {
-            alert(data.error || 'Eroare la completarea datelor');
-            enhanceBtn.disabled = false;
-            enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
-          }
-        } catch (error) {
-          console.error('Error:', error);
-          alert('Eroare la completarea datelor');
-          enhanceBtn.disabled = false;
-          enhanceBtn.textContent = '📋 Completează datele cu proveniența și riscul de blocare (5 credite)';
-        }
-      });
-    }
-  });
-</script>
-<% } %>
 
 <% if (!isEmailView) { %>
   <%- include('../partials/footer') %>

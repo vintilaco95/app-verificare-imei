@@ -55,40 +55,14 @@
         <span class="nav-logo-icon">
           <span class="logo-emoji" aria-hidden="true">🐶</span>
         </span>
-        <span class="nav-logo-text is-desktop <%= isUserLoggedIn ? 'is-logged' : 'is-guest' %>"><%= tFn('nav.brand') %></span>
+        <span class="nav-logo-text <%= isUserLoggedIn ? 'is-logged' : 'is-guest' %>"><%= tFn('nav.brand') %></span>
       </a>
-      <button class="nav-toggle" type="button" aria-label="<%= tFn('nav.menu.open') %>" aria-expanded="false">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-      <div class="nav-mobile-meta">
-        <a href="<%= langToggleValue %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
-          <span class="sr-only"><%= tFn('nav.language.toggleLabel') %></span>
-          <span class="lang-toggle" aria-hidden="true">
-            <span class="lang-flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>
-            <span class="lang-flag <%= currentLangValue === 'en' ? 'is-active' : '' %>">🇬🇧</span>
-          </span>
-        </a>
-        <% if (typeof user !== 'undefined' && user) { %>
-          <div class="nav-credit-pill nav-credit-pill--mobile">
-            <span class="credit-icon">🌕</span>
-            <span class="credit-value"><%= user.credits.toFixed(2) %></span>
-            <a href="/dashboard/credits/topup" class="credit-add" aria-label="<%= tFn('nav.credits.add') %>">+</a>
-          </div>
-        <% } %>
-      </div>
-      <div class="nav-links">
+      <div class="nav-links" id="nav-links">
         <% if (typeof user !== 'undefined' && user) { %>
           <a href="/" class="nav-link"><%= tFn('nav.home') %></a>
           <a href="/dashboard" class="nav-link"><%= tFn('nav.dashboard') %></a>
           <a href="/verify/imei" class="nav-link"><%= tFn('nav.verify') %></a>
           <a href="/dashboard/orders" class="nav-link"><%= tFn('nav.history') %></a>
-          <div class="nav-credit-pill">
-            <span class="credit-icon">🌕</span>
-            <span class="credit-value"><%= user.credits.toFixed(2) %></span>
-            <a href="/dashboard/credits/topup" class="credit-add" aria-label="<%= tFn('nav.credits.add') %>">+</a>
-          </div>
           <form action="/auth/logout" method="POST" class="nav-form">
             <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
             <button type="submit" class="nav-link nav-link-ghost"><%= tFn('nav.logout') %></button>
@@ -99,16 +73,30 @@
           <a href="/auth/login" class="nav-link nav-link-ghost"><%= tFn('nav.login') %></a>
           <a href="/auth/register" class="nav-link nav-link-primary"><%= tFn('nav.register') %></a>
         <% } %>
-        <a href="<%= langToggleValue %>" class="nav-link nav-link-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
+      </div>
+      <div class="nav-controls">
+        <a href="<%= langToggleValue %>" class="nav-control nav-control-lang" aria-label="<%= tFn('nav.language.label') %>: <%= switchLangLabelValue %>">
           <span class="sr-only"><%= tFn('nav.language.toggleLabel') %></span>
           <span class="lang-toggle" aria-hidden="true">
             <span class="lang-flag <%= currentLangValue === 'ro' ? 'is-active' : '' %>">🇷🇴</span>
             <span class="lang-flag <%= currentLangValue === 'en' ? 'is-active' : '' %>">🇬🇧</span>
           </span>
         </a>
+        <% if (typeof user !== 'undefined' && user) { %>
+          <div class="nav-credit-pill nav-credit-pill--compact" aria-label="<%= tFn('nav.credits.balance') %>">
+            <span class="credit-value"><%= user.credits.toFixed(2) %></span>
+            <a href="/dashboard/credits/topup" class="credit-add" aria-label="<%= tFn('nav.credits.add') %>">+</a>
+          </div>
+        <% } %>
+        <button class="nav-toggle" type="button" aria-label="<%= tFn('nav.menu.open') %>" aria-expanded="false" aria-controls="nav-links">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
     </div>
   </nav>
+  <div class="nav-backdrop" id="nav-backdrop" hidden></div>
 
   <!-- Main Content -->
   <main class="main-content">

@@ -127,9 +127,14 @@
     <div class="fane-bot-status" id="fane-bot-status" hidden></div>
     <form class="fane-bot-form" id="fane-bot-form" novalidate>
       <label class="sr-only" for="fane-bot-input">Mesaj către FANE</label>
+      <button type="button" class="fane-bot-suggest-toggle" id="fane-bot-suggest-toggle" aria-expanded="false" aria-controls="fane-bot-suggestions">
+        <span class="sr-only">Sugestii întrebări</span>
+        <span class="fane-bot-suggest-icon">?</span>
+      </button>
       <textarea id="fane-bot-input" class="fane-bot-input" rows="2" placeholder="Întreabă-l pe FANE despre telefon..." required></textarea>
       <button type="submit" class="fane-bot-send" id="fane-bot-send">Trimite</button>
     </form>
+    <div class="fane-bot-suggestions" id="fane-bot-suggestions" aria-label="Sugestii rapide" hidden></div>
   </div>
 </div>
 
