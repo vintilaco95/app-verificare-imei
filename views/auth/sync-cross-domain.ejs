@@ -1,0 +1,81 @@
+<%- include('../partials/header', { title: typeof title !== 'undefined' ? title : 'Sincronizare sesiune', user: typeof user !== 'undefined' ? user : null }) %>
+
+<style>
+  .sync-page {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+  .sync-container {
+    text-align: center;
+    padding: 2rem;
+  }
+  .sync-loader {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(59, 130, 246, 0.2);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .sync-message {
+    font-size: 0.95rem;
+    color: rgba(148, 163, 184, 0.9);
+  }
+  .sync-iframe {
+    display: none;
+  }
+</style>
+
+<div class="sync-page">
+  <div class="sync-container">
+    <div class="sync-loader"></div>
+    <p class="sync-message">Sincronizare sesiune...</p>
+  </div>
+  
+  <iframe id="sync-iframe" class="sync-iframe" src="<%= syncUrl %>" sandbox="allow-same-origin allow-scripts"></iframe>
+  
+  <script>
+    (function() {
+      const redirectPath = '<%= redirectPath %>';
+      const iframe = document.getElementById('sync-iframe');
+      let redirectAttempted = false;
+      
+      // Redirect after a short delay to allow sync
+      const redirectTimer = setTimeout(() => {
+        if (!redirectAttempted) {
+          redirectAttempted = true;
+          window.location.href = redirectPath;
+        }
+      }, 1500);
+      
+      // Also try to detect when iframe has loaded (though cross-domain restrictions may apply)
+      iframe.addEventListener('load', () => {
+        if (!redirectAttempted) {
+          redirectAttempted = true;
+          clearTimeout(redirectTimer);
+          setTimeout(() => {
+            window.location.href = redirectPath;
+          }, 500);
+        }
+      });
+      
+      // Fallback: redirect after max 3 seconds
+      setTimeout(() => {
+        if (!redirectAttempted) {
+          redirectAttempted = true;
+          clearTimeout(redirectTimer);
+          window.location.href = redirectPath;
+        }
+      }, 3000);
+    })();
+  </script>
+</div>
+
+<%- include('../partials/footer') %>

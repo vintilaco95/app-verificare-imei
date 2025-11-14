@@ -6,7 +6,7 @@ const User = require('../models/User');
 const { requireGuest } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 const { sendVerificationEmail } = require('../services/emailService');
-const { verifySessionBridgeToken } = require('../services/sessionBridge');
+const { verifySessionBridgeToken, createSessionBridgeToken } = require('../services/sessionBridge');
 
 const emailNormalizeOptions = {
   gmail_remove_dots: false,
@@ -49,6 +49,58 @@ async function sendVerificationCodeForExistingUser(user, res) {
   }
 
   return emailResult;
+}
+
+// Helper function to sync session to other domain
+async function syncSessionToOtherDomain(req, res, userId, redirectPath = '/dashboard') {
+  try {
+    const host = req.get('host') || req.hostname || '';
+    const isProductionDomain = host.endsWith('imeiguard.com') || host.endsWith('imeiguard.ro');
+    
+    if (!isProductionDomain) {
+      return null; // Only sync for production domains
+    }
+    
+    const protocol = req.protocol || (req.secure ? 'https' : 'http');
+    const domainByLang = {
+      ro: 'imeiguard.ro',
+      en: 'imeiguard.com'
+    };
+    
+    // Detect current domain language
+    let currentLang = 'ro';
+    if (host.endsWith('imeiguard.com')) {
+      currentLang = 'en';
+    } else if (host.endsWith('imeiguard.ro')) {
+      currentLang = 'ro';
+    } else if (res.locals.currentLang) {
+      currentLang = res.locals.currentLang;
+    }
+    
+    const otherLang = currentLang === 'ro' ? 'en' : 'ro';
+    const otherDomain = domainByLang[otherLang];
+    
+    if (otherDomain && otherDomain !== host) {
+      try {
+        const bridgeToken = createSessionBridgeToken({
+          userId: userId,
+          lang: currentLang,
+          redirectPath: redirectPath,
+          targetDomain: otherDomain
+        });
+        
+        // Return sync path
+        return `/auth/sync-cross-domain?token=${encodeURIComponent(bridgeToken)}&target=${encodeURIComponent(otherDomain)}&redirect=${encodeURIComponent(redirectPath)}`;
+      } catch (syncError) {
+        console.error('[Auth] Failed to create sync token:', syncError);
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('[Auth] Cross-domain sync error:', error);
+    return null;
+  }
 }
 
 // Register
@@ -219,7 +271,20 @@ router.post('/login', requireGuest, [
     }
 
     req.session.userId = user._id;
-    return res.redirect('/dashboard');
+    req.session.save(async (err) => {
+      if (err) {
+        console.error('[Auth] Session save error after login:', err);
+        return res.redirect('/dashboard');
+      }
+      
+      // Sync session to other domain
+      const syncPath = await syncSessionToOtherDomain(req, res, user._id.toString(), '/dashboard');
+      if (syncPath) {
+        return res.redirect(syncPath);
+      }
+      
+      return res.redirect('/dashboard');
+    });
   } catch (error) {
     console.error('Login error:', error);
     return res.render('auth/login', {
@@ -271,10 +336,18 @@ router.post('/verify-code', requireGuest, [
 
     if (user.isVerified) {
       req.session.userId = user._id;
-      return req.session.save((err) => {
+      return req.session.save(async (err) => {
         if (err) {
           console.error('Session save error after existing verification:', err);
+          return res.redirect('/dashboard');
         }
+        
+        // Sync session to other domain
+        const syncPath = await syncSessionToOtherDomain(req, res, user._id.toString(), '/dashboard');
+        if (syncPath) {
+          return res.redirect(syncPath);
+        }
+        
         return res.redirect('/dashboard');
       });
     }
@@ -316,10 +389,18 @@ router.post('/verify-code', requireGuest, [
     await user.save();
 
     req.session.userId = user._id;
-    return req.session.save((err) => {
+    return req.session.save(async (err) => {
       if (err) {
         console.error('Session save error after verification:', err);
+        return res.redirect('/dashboard');
       }
+      
+      // Sync session to other domain
+      const syncPath = await syncSessionToOtherDomain(req, res, user._id.toString(), '/dashboard');
+      if (syncPath) {
+        return res.redirect(syncPath);
+      }
+      
       return res.redirect('/dashboard');
     });
   } catch (error) {
@@ -428,13 +509,71 @@ router.get('/session-bridge', async (req, res) => {
   }
 });
 
+// Cross-domain sync page
+router.get('/sync-cross-domain', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : '';
+  const targetDomain = typeof req.query.target === 'string' ? req.query.target : '';
+  const redirectPath = typeof req.query.redirect === 'string' ? req.query.redirect : '/';
+  
+  if (!token || !targetDomain) {
+    return res.redirect(redirectPath);
+  }
+  
+  const protocol = req.protocol || (req.secure ? 'https' : 'http');
+  const syncUrl = `${protocol}://${targetDomain}/auth/session-bridge?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectPath)}`;
+  
+  // Render a page that syncs to the other domain via iframe/fetch, then redirects
+  res.render('auth/sync-cross-domain', {
+    title: 'Sincronizare sesiune',
+    syncUrl,
+    redirectPath,
+    targetDomain,
+    user: req.user || null,
+    currentLang: res.locals.currentLang || 'ro'
+  });
+});
+
 // Logout
 router.post('/logout', (req, res) => {
+  const host = req.get('host') || req.hostname || '';
+  const isProductionDomain = host.endsWith('imeiguard.com') || host.endsWith('imeiguard.ro');
+  const protocol = req.protocol || (req.secure ? 'https' : 'http');
+  
   req.session.destroy((err) => {
     if (err) {
       console.error('Logout error:', err);
     }
+    
+    // Also logout from other domain
+    if (isProductionDomain) {
+      const domainByLang = {
+        ro: 'imeiguard.ro',
+        en: 'imeiguard.com'
+      };
+      const currentLang = res.locals.currentLang || (host.endsWith('imeiguard.ro') ? 'ro' : 'en');
+      const otherLang = currentLang === 'ro' ? 'en' : 'ro';
+      const otherDomain = domainByLang[otherLang];
+      
+      if (otherDomain && otherDomain !== host) {
+        // Redirect to other domain logout, then back to home
+        const logoutUrl = `${protocol}://${otherDomain}/auth/logout-cross-domain?redirect=${encodeURIComponent(`${protocol}://${host}/`)}`;
+        return res.redirect(logoutUrl);
+      }
+    }
+    
     res.redirect('/');
+  });
+});
+
+// Cross-domain logout endpoint
+router.get('/logout-cross-domain', (req, res) => {
+  const redirectUrl = typeof req.query.redirect === 'string' ? req.query.redirect : '/';
+  
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Cross-domain logout error:', err);
+    }
+    res.redirect(redirectUrl);
   });
 });
 

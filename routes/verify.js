@@ -362,6 +362,12 @@ router.post('/imei/guest', [
     
     // Create Stripe Checkout session
     try {
+      // Detect origin domain from request to preserve it in Stripe redirect URLs
+      const protocol = req.protocol || (req.secure ? 'https' : 'http');
+      const host = req.get('host') || req.hostname || '';
+      const originDomain = host;
+      const originBaseUrl = `${protocol}://${originDomain}`;
+      
       const { session, adjustedAmount } = await stripeService.createCheckoutSession(
         tempOrder._id.toString(),
         totalAmount,
@@ -371,7 +377,9 @@ router.post('/imei/guest', [
           brand,
           additionalServiceIds,
           creditsAmount: totalCredits,
-          currency: BASE_CURRENCY
+          currency: BASE_CURRENCY,
+          baseUrl: originBaseUrl,
+          originDomain: originDomain
         }
       );
       

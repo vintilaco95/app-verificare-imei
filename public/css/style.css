@@ -2452,6 +2452,8 @@ body.site-nav-open {
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.05), transparent 55%), rgba(10, 17, 32, 0.85);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 28px 48px -35px rgba(2, 6, 23, 0.85);
+  width: 100%;
+  max-width: 100%;
 }
 
 .pricing-carousel__track {
@@ -2462,6 +2464,9 @@ body.site-nav-open {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .pricing-carousel__track::-webkit-scrollbar {
@@ -2470,6 +2475,7 @@ body.site-nav-open {
 
 .pricing-slide {
   min-width: min(320px, 80vw);
+  max-width: min(320px, 80vw);
   flex: 0 0 auto;
   background: rgba(15, 23, 42, 0.75);
   border: 1px solid rgba(59, 130, 246, 0.22);
@@ -2480,6 +2486,9 @@ body.site-nav-open {
   scroll-snap-align: start;
   backdrop-filter: blur(6px);
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .pricing-slide:hover {
@@ -2493,6 +2502,8 @@ body.site-nav-open {
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .pricing-slide__logo {
@@ -2504,12 +2515,25 @@ body.site-nav-open {
   padding: 0.45rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
   box-shadow: 0 16px 26px -20px rgba(59, 130, 246, 0.6);
+  flex-shrink: 0;
+}
+
+.pricing-slide__meta {
+  min-width: 0;
+  overflow: hidden;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .pricing-slide__brand {
   font-size: 1.2rem;
   margin: 0;
   color: rgba(226, 232, 240, 0.95);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pricing-slide__price {
@@ -2519,6 +2543,9 @@ body.site-nav-open {
   display: flex;
   align-items: baseline;
   gap: 0.35rem;
+  flex-wrap: wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .pricing-slide__amount {
@@ -2537,6 +2564,9 @@ body.site-nav-open {
   color: rgba(148, 163, 184, 0.9);
   font-size: 0.95rem;
   line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
 }
 
 .pricing-slide__features {
@@ -2547,15 +2577,31 @@ body.site-nav-open {
   gap: 0.4rem;
   color: rgba(226, 232, 240, 0.9);
   font-size: 0.9rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
 }
 
 .pricing-slide__features li {
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  width: 100%;
+}
+
+.pricing-slide__features li > *:not(span) {
+  flex: 1;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .pricing-slide__features li span {
+  flex-shrink: 0;
   color: rgba(96, 165, 250, 0.85);
   font-weight: 600;
 }

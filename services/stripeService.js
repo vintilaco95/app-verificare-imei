@@ -29,9 +29,21 @@ async function createCheckoutSession(orderId, amount, email, imei, options = {})
       brand = null,
       additionalServiceIds = [],
       creditsAmount = null,
-      currency: rawCurrency = BASE_CURRENCY
+      currency: rawCurrency = BASE_CURRENCY,
+      baseUrl = null, // Allow passing the original domain
+      originDomain = null // Alternative: pass origin domain directly
     } = options || {};
     const currency = (rawCurrency || BASE_CURRENCY).toLowerCase();
+    
+    // Determine base URL: use provided baseUrl, or originDomain, or fallback to BASE_URL
+    let checkoutBaseUrl = baseUrl;
+    if (!checkoutBaseUrl && originDomain) {
+      const protocol = originDomain.includes('localhost') ? 'http' : 'https';
+      checkoutBaseUrl = `${protocol}://${originDomain}`;
+    }
+    if (!checkoutBaseUrl) {
+      checkoutBaseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    }
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -49,8 +61,8 @@ async function createCheckoutSession(orderId, amount, email, imei, options = {})
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.BASE_URL || 'http://localhost:3000'}/verify/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
-      cancel_url: `${process.env.BASE_URL || 'http://localhost:3000'}/verify/payment/cancel?order_id=${orderId}`,
+      success_url: `${checkoutBaseUrl}/verify/payment/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+      cancel_url: `${checkoutBaseUrl}/verify/payment/cancel?order_id=${orderId}`,
       customer_email: email,
       metadata: {
         orderId: orderId.toString(),
@@ -63,7 +75,8 @@ async function createCheckoutSession(orderId, amount, email, imei, options = {})
         creditsAmount: creditsAmount !== null ? creditsAmount.toString() : '',
         currency: currency.toUpperCase(),
         originalAmount: amount.toString(),
-        finalAmount: finalAmount.toString()
+        finalAmount: finalAmount.toString(),
+        originDomain: originDomain || '' // Store origin domain for reference
       },
       expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes expiry
     });
